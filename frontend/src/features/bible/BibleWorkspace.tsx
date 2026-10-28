@@ -18,9 +18,11 @@ type Mode = (typeof modes)[number]['value'];
 
 type SearchState =
   | { kind: 'idle' }
-  | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'results'; response: main.BibleSearchResponse };
+
+const SEARCH_DEBOUNCE_MS = 250;
+const MIN_QUERY_LENGTH = 2;
 
 type ActionState = {
   busy: string | null;
@@ -44,9 +46,11 @@ export function BibleWorkspace() {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('auto');
   const [search, setSearch] = useState<SearchState>({ kind: 'idle' });
+  const [pending, setPending] = useState(false);
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
   const [action, setAction] = useState<ActionState>({ busy: null, status: null });
   const requestId = useRef(0);
+  const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -73,21 +77,20 @@ export function BibleWorkspace() {
   }, [bridgeAvailable]);
 
   const activeTranslation = translations.find((item) => item.id === translationId);
-  const canSearch = bridgeAvailable
-    && translationId !== ''
-    && query.trim() !== ''
-    && search.kind !== 'loading';
+  const trimmedQuery = query.trim();
+  const canSearch = bridgeAvailable && translationId !== '' && trimmedQuery.length >= MIN_QUERY_LENGTH;
   const canAct = bridgeAvailable && translationId !== '' && action.busy === null;
 
-  async function runSearch(translationOverride?: string) {
-    const text = query.trim();
-    const targetTranslation = translationOverride ?? translationId;
-    if (!bridgeAvailable || targetTranslation === '' || text === '') return;
+  function cancelDebounce() {
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }
 
+  async function executeSearch(text: string, targetTranslation: string) {
     const currentRequest = ++requestId.current;
-    setSearch({ kind: 'loading' });
-    setSelectedReference(null);
-    setAction({ busy: null, status: null });
+    setPending(true);
 
     try {
       const response = await SearchBible(new main.BibleSearchRequest({
@@ -102,12 +105,44 @@ export function BibleWorkspace() {
     } catch (error: unknown) {
       if (currentRequest !== requestId.current) return;
       setSearch({ kind: 'error', message: errorMessage(error) });
+    } finally {
+      if (currentRequest === requestId.current) setPending(false);
     }
+  }
+
+  useEffect(() => {
+    if (!bridgeAvailable || translationId === '') return;
+
+    cancelDebounce();
+
+    if (trimmedQuery === '') {
+      requestId.current += 1;
+      setPending(false);
+      setSearch({ kind: 'idle' });
+      setSelectedReference(null);
+      return;
+    }
+    if (trimmedQuery.length < MIN_QUERY_LENGTH) return;
+
+    setAction({ busy: null, status: null });
+    debounceRef.current = window.setTimeout(() => {
+      debounceRef.current = null;
+      void executeSearch(trimmedQuery, translationId);
+    }, SEARCH_DEBOUNCE_MS);
+  }, [trimmedQuery, mode, translationId, bridgeAvailable]);
+
+  useEffect(() => cancelDebounce, []);
+
+  function searchNow() {
+    cancelDebounce();
+    if (!canSearch) return;
+    setAction({ busy: null, status: null });
+    void executeSearch(trimmedQuery, translationId);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void runSearch();
+    searchNow();
   }
 
   async function perform(kind: 'preview' | 'live' | 'add', result: main.BibleVerse) {
@@ -143,15 +178,10 @@ export function BibleWorkspace() {
     }
   }
 
-  function handleTranslationChange(nextTranslation: string) {
-    setTranslationId(nextTranslation);
-    if (query.trim() !== '' && search.kind !== 'loading') {
-      void runSearch(nextTranslation);
-    }
-  }
-
   function clearSearch() {
+    cancelDebounce();
     requestId.current += 1;
+    setPending(false);
     setQuery('');
     setSearch({ kind: 'idle' });
     setSelectedReference(null);
@@ -188,29 +218,30 @@ export function BibleWorkspace() {
       );
     }
 
-    switch (search.kind) {
-      case 'loading':
-        return (
-          <div className="bible-message" role="status">
-            <strong>Searching {activeTranslation?.abbreviation ?? ''}…</strong>
-            <p>Reading the local translation package.</p>
-          </div>
-        );
+    if (search.kind === 'error') {
+      return (
+        <div className="bible-message bible-message--error" role="alert">
+          <strong>Search failed</strong>
+          <p>{search.message}</p>
+        </div>
+      );
+    }
 
-      case 'error':
-        return (
-          <div className="bible-message bible-message--error" role="alert">
-            <strong>Search failed</strong>
-            <p>{search.message}</p>
-          </div>
-        );
+    if (search.kind === 'results') {
+        if (search.response.results.length === 0 && pending) {
+          return (
+            <div className="bible-message" role="status">
+              <strong>Searching {activeTranslation?.abbreviation ?? ''}…</strong>
+              <p>Reading the local translation package.</p>
+            </div>
+          );
+        }
 
-      case 'results': {
         if (search.response.results.length === 0) {
           return (
             <div className="bible-message" role="status">
               <strong>No verses found</strong>
-              <p>Nothing in {activeTranslation?.abbreviation ?? 'this translation'} matches “{query.trim()}”. Try another reference or fewer words.</p>
+              <p>Nothing in {activeTranslation?.abbreviation ?? 'this translation'} matches “{trimmedQuery}”. Try another reference or fewer words.</p>
             </div>
           );
         }
@@ -274,17 +305,24 @@ export function BibleWorkspace() {
             })}
           </ul>
         );
-      }
-
-      default:
-        return (
-          <div className="bible-message" role="status">
-            <Icon name="search" size={30} />
-            <strong>Search the Bible</strong>
-            <p>Enter a reference like John 3:16, a chapter like Psalm 23, or words like living water.</p>
-          </div>
-        );
     }
+
+    if (pending) {
+      return (
+        <div className="bible-message" role="status">
+          <strong>Searching {activeTranslation?.abbreviation ?? ''}…</strong>
+          <p>Reading the local translation package.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bible-message" role="status">
+        <Icon name="search" size={30} />
+        <strong>Search the Bible</strong>
+        <p>Start typing a reference like John 3:16, a chapter like Psalm 23, or words like living water.</p>
+      </div>
+    );
   }
 
   const resultCount = search.kind === 'results' ? search.response.results.length : null;
@@ -314,7 +352,7 @@ export function BibleWorkspace() {
             className="bible-translation"
             aria-label="Bible translation"
             value={translationId}
-            onChange={(event) => handleTranslationChange(event.target.value)}
+            onChange={(event) => setTranslationId(event.target.value)}
             disabled={translations.length === 0}
           >
             {translations.length === 0 && <option value="">No translations</option>}
@@ -370,12 +408,13 @@ export function BibleWorkspace() {
             ))}
           </select>
           <span className="bible-result-count" aria-live="polite">
-            {search.kind === 'loading' && 'Searching…'}
-            {resultCount !== null && `${resultCount} ${resultCount === 1 ? 'result' : 'results'}`}
+            {pending
+              ? 'Searching…'
+              : resultCount !== null ? `${resultCount} ${resultCount === 1 ? 'result' : 'results'}` : ''}
           </span>
         </div>
 
-        <div className="bible-results-region" aria-busy={search.kind === 'loading'}>
+        <div className="bible-results-region" aria-busy={pending}>
           {renderResults()}
         </div>
 
