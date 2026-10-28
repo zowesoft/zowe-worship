@@ -13,7 +13,7 @@ type FeaturePage = {
   next: string;
 };
 
-const featurePages: Record<Exclude<PageId, 'home' | 'bible'>, FeaturePage> = {
+const featurePages: Record<Exclude<PageId, 'bible'>, FeaturePage> = {
   service: {
     icon: 'order',
     title: 'A place for the whole service',
@@ -44,44 +44,6 @@ const featurePages: Record<Exclude<PageId, 'home' | 'bible'>, FeaturePage> = {
   },
 };
 
-const nextAreas: { page: PageId; icon: IconName; label: string; detail: string }[] = [
-  { page: 'service', icon: 'order', label: 'Service Order', detail: 'Plan the flow of a service' },
-  { page: 'bible', icon: 'bible', label: 'Bible workspace', detail: 'Prepare scripture for presentation' },
-  { page: 'songs', icon: 'music', label: 'Songs', detail: 'Prepare lyrics for the service' },
-  { page: 'media', icon: 'media', label: 'Media Library', detail: 'Build a reusable media collection' },
-];
-
-function Home({ onNavigate }: { onNavigate: (page: PageId) => void }) {
-  return (
-    <>
-      <div className="section-intro">
-        <div><p className="eyebrow">Built for the booth</p><h2>Your workspace starts here.</h2></div>
-        <p>The shell is in place. Explore the workspaces below; production features are still to come.</p>
-      </div>
-      <div className="home-grid">
-        <section className="panel foundation-card" aria-labelledby="foundation-title">
-          <h3 id="foundation-title">Foundation checklist</h3>
-          <ul className="checklist">
-            <li><span className="check-icon"><Icon name="check" size={14} /></span><div><strong>Persistent production shell</strong><span>Preview, live output and detection spaces</span></div></li>
-            <li><span className="check-icon"><Icon name="check" size={14} /></span><div><strong>Six navigable workspaces</strong><span>Keyboard-accessible navigation</span></div></li>
-            <li><span className="check-icon"><Icon name="check" size={14} /></span><div><strong>Desktop bridge status</strong><span>Reports the actual application environment</span></div></li>
-          </ul>
-        </section>
-        <section className="panel next-card" aria-labelledby="next-title">
-          <h3 id="next-title">Explore the next areas</h3>
-          <div className="next-links">
-            {nextAreas.map((area) => (
-              <button key={area.page} type="button" onClick={() => onNavigate(area.page)} className="next-link">
-                <Icon name={area.icon} size={18} /><span><strong>{area.label}</strong><small>{area.detail}</small></span><Icon name="arrow" size={16} />
-              </button>
-            ))}
-          </div>
-        </section>
-      </div>
-    </>
-  );
-}
-
 function FeatureScaffold({ page }: { page: FeaturePage }) {
   return (
     <section className="panel feature-scaffold">
@@ -103,11 +65,9 @@ export default function App() {
 
   return (
     <AppShell activePage={activePage} onNavigate={setActivePage}>
-      {activePage === 'home'
-        ? <Home onNavigate={setActivePage} />
-        : activePage === 'bible'
-          ? <BibleWorkspace />
-          : <FeatureScaffold page={featurePages[activePage]} />}
+      {activePage === 'bible'
+        ? <BibleWorkspace />
+        : <FeatureScaffold page={featurePages[activePage]} />}
     </AppShell>
   );
 }

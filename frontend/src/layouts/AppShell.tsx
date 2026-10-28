@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BackendStatus } from '../components/BackendStatus';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { hasDesktopBridge } from '../lib/desktop';
 
-export type PageId = 'home' | 'bible' | 'songs' | 'media' | 'service' | 'settings';
+export type PageId = 'bible' | 'songs' | 'media' | 'service' | 'settings';
 
 export const navigation: { id: PageId; label: string; icon: IconName }[] = [
-  { id: 'home', label: 'Home', icon: 'home' },
   { id: 'bible', label: 'Bible', icon: 'bible' },
   { id: 'songs', label: 'Songs', icon: 'music' },
   { id: 'media', label: 'Media', icon: 'media' },
@@ -294,7 +293,12 @@ export function AppShell({ activePage, onNavigate, children }: {
   onNavigate: (page: PageId) => void;
   children: ReactNode;
 }) {
-  const activeLabel = navigation.find((item) => item.id === activePage)?.label ?? 'Home';
+  const activeLabel = navigation.find((item) => item.id === activePage)?.label ?? 'Bible';
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    workspaceRef.current?.scrollTo({ top: 0 });
+  }, [activePage]);
 
   return (
     <div className="app-shell">
@@ -302,9 +306,11 @@ export function AppShell({ activePage, onNavigate, children }: {
       <ScheduleSidebar onNavigate={onNavigate} />
       <AppHeader onNavigate={onNavigate} />
       <main id="workspace" className="workspace" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
-        <div className="workspace-primary">
-          <PresentationPanes />
-          <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
+        <div className="workspace-primary" ref={workspaceRef}>
+          <div className="presentation-dock">
+            <PresentationPanes />
+            <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
+          </div>
           <section className="page-content">
             {children}
           </section>
