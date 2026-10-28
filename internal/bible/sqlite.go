@@ -1,0 +1,387 @@
+package bible
+
+import (
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
+	"zowe-worship/internal/database"
+)
+
+const (
+	packageSchemaVersion = 1
+	defaultSearchLimit   = 50
+	maxSearchLimit       = 200
+)
+
+var (
+	translationIDPattern  = regexp.MustCompile(`^[a-z0-9]+$`)
+	translationVerPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._]*$`)
+)
+
+// SQLiteRepository keeps translation catalog metadata in the core database and
+// stores each translation as its own package file. Installing, updating or
+// removing one translation never rewrites another translation's file.
+type SQLiteRepository struct {
+	core *sql.DB
+	dir  string
+}
+
+var _ Repository = (*SQLiteRepository)(nil)
+
+func NewSQLiteRepository(core *sql.DB, translationsDir string) *SQLiteRepository {
+	return &SQLiteRepository{core: core, dir: translationsDir}
+}
+
+func (r *SQLiteRepository) ListTranslations(ctx context.Context) ([]Translation, error) {
+	rows, err := r.core.QueryContext(ctx, `
+		SELECT id, name, abbreviation, language, version, verse_count, checksum, installed_at
+		FROM bible_translations
+		ORDER BY name COLLATE NOCASE`)
+	if err != nil {
+		return nil, fmt.Errorf("list translations: %w", err)
+	}
+	defer rows.Close()
+
+	var translations []Translation
+	for rows.Next() {
+		translation, err := scanTranslation(rows)
+		if err != nil {
+			return nil, err
+		}
+		translations = append(translations, translation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list translations: %w", err)
+	}
+	return translations, nil
+}
+
+func (r *SQLiteRepository) Translation(ctx context.Context, id string) (Translation, error) {
+	translation, _, err := r.catalogEntry(ctx, id)
+	return translation, err
+}
+
+func (r *SQLiteRepository) catalogEntry(ctx context.Context, id string) (Translation, string, error) {
+	var filename string
+	translation, err := scanTranslation(r.core.QueryRowContext(ctx, `
+		SELECT id, name, abbreviation, language, version, verse_count, checksum, installed_at, filename
+		FROM bible_translations WHERE id = ?`, id), &filename)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Translation{}, "", ErrTranslationNotFound
+	}
+	if err != nil {
+		return Translation{}, "", err
+	}
+	return translation, filename, nil
+}
+
+func (r *SQLiteRepository) Install(ctx context.Context, data TranslationData) (Translation, error) {
+	if err := validateTranslation(data); err != nil {
+		return Translation{}, err
+	}
+	if err := os.MkdirAll(r.dir, 0o755); err != nil {
+		return Translation{}, fmt.Errorf("create translations directory: %w", err)
+	}
+
+	filename := fmt.Sprintf("%s-%s.db", data.ID, data.Version)
+	finalPath := filepath.Join(r.dir, filename)
+	tmpPath := filepath.Join(r.dir, fmt.Sprintf("%s.tmp-%d", filename, time.Now().UnixNano()))
+
+	if err := buildPackage(ctx, tmpPath, data); err != nil {
+		_ = os.Remove(tmpPath)
+		return Translation{}, err
+	}
+	if err := syncFile(tmpPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return Translation{}, fmt.Errorf("flush translation package: %w", err)
+	}
+	checksum, err := fileChecksum(tmpPath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return Translation{}, err
+	}
+
+	displaced, err := publishPackage(tmpPath, finalPath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return Translation{}, err
+	}
+
+	installedAt := time.Now().UTC().Truncate(time.Second)
+	translation := Translation{
+		TranslationMeta: data.TranslationMeta,
+		VerseCount:      len(data.Verses),
+		Checksum:        checksum,
+		InstalledAt:     installedAt,
+	}
+
+	if err := r.upsertCatalog(ctx, translation, filename); err != nil {
+		_ = os.Remove(finalPath)
+		if displaced != "" {
+			_ = os.Rename(displaced, finalPath)
+		}
+		return Translation{}, err
+	}
+
+	if displaced != "" {
+		_ = os.Remove(displaced)
+	}
+	r.removeOtherPackages(data.ID, filename)
+
+	return translation, nil
+}
+
+func (r *SQLiteRepository) upsertCatalog(ctx context.Context, translation Translation, filename string) error {
+	tx, err := r.core.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin translation catalog update: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO bible_translations
+			(id, name, abbreviation, language, version, filename, verse_count, checksum, installed_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			abbreviation = excluded.abbreviation,
+			language = excluded.language,
+			version = excluded.version,
+			filename = excluded.filename,
+			verse_count = excluded.verse_count,
+			checksum = excluded.checksum,
+			installed_at = excluded.installed_at`,
+		translation.ID, translation.Name, translation.Abbreviation, translation.Language,
+		translation.Version, filename, translation.VerseCount, translation.Checksum,
+		translation.InstalledAt.Format(time.RFC3339),
+	)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("record translation: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit translation catalog update: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) Remove(ctx context.Context, id string) error {
+	_, filename, err := r.catalogEntry(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	tx, err := r.core.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin translation removal: %w", err)
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM bible_translations WHERE id = ?`, id)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("remove translation: %w", err)
+	}
+	removed, err := result.RowsAffected()
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("remove translation: %w", err)
+	}
+	if removed == 0 {
+		_ = tx.Rollback()
+		return ErrTranslationNotFound
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit translation removal: %w", err)
+	}
+
+	r.removeOtherPackages(id, "")
+	if err := os.Remove(filepath.Join(r.dir, filename)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("delete translation package: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]SearchResult, error) {
+	match, err := matchExpression(req.Text, req.Mode)
+	if err != nil {
+		return nil, err
+	}
+
+	_, filename, err := r.catalogEntry(ctx, req.TranslationID)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Base(filename) != filename {
+		return nil, fmt.Errorf("%w: unsafe package filename", ErrInvalidTranslation)
+	}
+
+	packageDB, err := database.OpenReadOnly(ctx, filepath.Join(r.dir, filename))
+	if err != nil {
+		return nil, fmt.Errorf("open translation %s: %w", req.TranslationID, err)
+	}
+	defer packageDB.Close()
+
+	if err := checkPackageVersion(ctx, packageDB); err != nil {
+		return nil, err
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = defaultSearchLimit
+	}
+	if limit > maxSearchLimit {
+		limit = maxSearchLimit
+	}
+
+	rows, err := packageDB.QueryContext(ctx, `
+		SELECT b.id, b.name, b.abbreviation, b.testament, v.chapter, v.verse, v.text
+		FROM verses_fts
+		JOIN verses v ON v.id = verses_fts.rowid
+		JOIN books b ON b.id = v.book_id
+		WHERE verses_fts MATCH ?
+		ORDER BY bm25(verses_fts), b.id, v.chapter, v.verse
+		LIMIT ?`, match, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search %s: %w", req.TranslationID, err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var result SearchResult
+		var testament string
+		if err := rows.Scan(
+			&result.Book.ID, &result.Book.Name, &result.Book.Abbreviation, &testament,
+			&result.Chapter, &result.Verse, &result.Text,
+		); err != nil {
+			return nil, fmt.Errorf("read search result: %w", err)
+		}
+		result.Book.Testament = Testament(testament)
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("search %s: %w", req.TranslationID, err)
+	}
+	return results, nil
+}
+
+func scanTranslation(row interface{ Scan(...any) error }, extra ...*string) (Translation, error) {
+	var translation Translation
+	var installedAt string
+	dest := []any{
+		&translation.ID, &translation.Name, &translation.Abbreviation, &translation.Language,
+		&translation.Version, &translation.VerseCount, &translation.Checksum, &installedAt,
+	}
+	for _, ptr := range extra {
+		dest = append(dest, ptr)
+	}
+
+	if err := row.Scan(dest...); err != nil {
+		return Translation{}, err
+	}
+	parsed, err := time.Parse(time.RFC3339, installedAt)
+	if err != nil {
+		return Translation{}, fmt.Errorf("parse install time: %w", err)
+	}
+	translation.InstalledAt = parsed
+	return translation, nil
+}
+
+func validateTranslation(data TranslationData) error {
+	if !translationIDPattern.MatchString(data.ID) {
+		return fmt.Errorf("%w: id must be lowercase letters and digits", ErrInvalidTranslation)
+	}
+	if !translationVerPattern.MatchString(data.Version) {
+		return fmt.Errorf("%w: version %q contains unsupported characters", ErrInvalidTranslation, data.Version)
+	}
+	if strings.TrimSpace(data.Name) == "" || strings.TrimSpace(data.Abbreviation) == "" || strings.TrimSpace(data.Language) == "" {
+		return fmt.Errorf("%w: name, abbreviation and language are required", ErrInvalidTranslation)
+	}
+	if len(data.Verses) == 0 {
+		return fmt.Errorf("%w: no verses", ErrInvalidTranslation)
+	}
+
+	for i, verse := range data.Verses {
+		if _, ok := BookByID(verse.BookID); !ok {
+			return fmt.Errorf("%w: verse %d has unknown book id %d", ErrInvalidTranslation, i+1, verse.BookID)
+		}
+		if verse.Chapter <= 0 || verse.Number <= 0 {
+			return fmt.Errorf("%w: verse %d has an invalid chapter or verse number", ErrInvalidTranslation, i+1)
+		}
+		if strings.TrimSpace(verse.Text) == "" {
+			return fmt.Errorf("%w: verse %d has empty text", ErrInvalidTranslation, i+1)
+		}
+	}
+	return nil
+}
+
+func syncFile(path string) error {
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return file.Sync()
+}
+
+func fileChecksum(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("hash translation package: %w", err)
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", fmt.Errorf("hash translation package: %w", err)
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// publishPackage moves a verified package into place. When reinstalling the
+// same version the previous file is set aside so a failed catalog update can
+// restore it.
+func publishPackage(tmpPath, finalPath string) (string, error) {
+	var displaced string
+	if _, err := os.Stat(finalPath); err == nil {
+		displaced = finalPath + ".stale-" + fmt.Sprint(time.Now().UnixNano())
+		if err := os.Rename(finalPath, displaced); err != nil {
+			return "", fmt.Errorf("set aside existing translation package: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("inspect existing translation package: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		if displaced != "" {
+			_ = os.Rename(displaced, finalPath)
+		}
+		return "", fmt.Errorf("publish translation package: %w", err)
+	}
+	return displaced, nil
+}
+
+// removeOtherPackages deletes older versions and stale files for one
+// translation only. IDs cannot contain dashes, so the prefix is unambiguous.
+func (r *SQLiteRepository) removeOtherPackages(id, keep string) {
+	entries, err := os.ReadDir(r.dir)
+	if err != nil {
+		return
+	}
+	prefix := id + "-"
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || name == keep || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		_ = os.Remove(filepath.Join(r.dir, name))
+	}
+}

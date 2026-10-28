@@ -26,6 +26,7 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 8, G: 15, B: 28, A: 255},
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
 		Bind:             []interface{}{app},
 	}); err != nil {
 		log.Fatal(err)
