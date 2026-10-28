@@ -12,7 +12,13 @@ export type IconName =
   | 'arrow'
   | 'check'
   | 'layers'
-  | 'square';
+  | 'square'
+  | 'search'
+  | 'chevron'
+  | 'plus'
+  | 'more'
+  | 'close'
+  | 'link';
 
 const paths: Record<IconName, ReactNode> = {
   home: <><path d="m3 10 9-7 9 7" /><path d="M5 9v12h5v-7h4v7h5V9" /></>,
@@ -27,6 +33,12 @@ const paths: Record<IconName, ReactNode> = {
   check: <path d="m5 12 4 4L19 6" />,
   layers: <><path d="m12 3 10 5-10 5L2 8l10-5ZM2 12l10 5 10-5M2 16l10 5 10-5" /></>,
   square: <rect x="5" y="5" width="14" height="14" rx="2" />,
+  search: <><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4.5 4.5" /></>,
+  chevron: <path d="m6 9 6 6 6-6" />,
+  plus: <><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></>,
+  more: <path d="M12 5h.01M12 12h.01M12 19h.01" />,
+  close: <path d="M6 6l12 12M18 6 6 18" />,
+  link: <><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2" /><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" /></>,
 };
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {

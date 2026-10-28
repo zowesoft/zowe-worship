@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
+import { BibleWorkspace } from '../features/bible/BibleWorkspace';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
 
@@ -12,7 +13,7 @@ type FeaturePage = {
   next: string;
 };
 
-const featurePages: Record<Exclude<PageId, 'home'>, FeaturePage> = {
+const featurePages: Record<Exclude<PageId, 'home' | 'bible'>, FeaturePage> = {
   service: {
     icon: 'order',
     title: 'A place for the whole service',
@@ -26,13 +27,6 @@ const featurePages: Record<Exclude<PageId, 'home'>, FeaturePage> = {
     description: 'No media is available. Importing and indexing are not implemented.',
     purpose: 'Browse reusable media and prepare selected items for a service. Local media management will be handled by the Go backend.',
     next: 'Local imports, metadata indexing and media previews.',
-  },
-  bible: {
-    icon: 'bible',
-    title: 'Scripture first. A clean foundation.',
-    description: 'No Bible translations are installed. Import and search are not implemented.',
-    purpose: 'Find passages in installed translations, review them in preview and explicitly choose when to project. No sample scripture is included.',
-    next: 'Translation import, local full-text search and passage preview.',
   },
   detection: {
     icon: 'detection',
@@ -110,7 +104,9 @@ export default function App() {
     <AppShell activePage={activePage} onNavigate={setActivePage}>
       {activePage === 'home'
         ? <Home onNavigate={setActivePage} />
-        : <FeatureScaffold page={featurePages[activePage]} />}
+        : activePage === 'bible'
+          ? <BibleWorkspace />
+          : <FeatureScaffold page={featurePages[activePage]} />}
     </AppShell>
   );
 }

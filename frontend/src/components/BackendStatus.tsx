@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
 import { GetAppInfo } from '../../wailsjs/go/main/App.js';
+import { hasDesktopBridge } from '../lib/desktop';
 
 type BridgeState =
   | { kind: 'connecting' }
   | { kind: 'browser' }
   | { kind: 'connected'; name: string; version: string }
   | { kind: 'error'; message: string };
-
-function hasDesktopBridge() {
-  return Boolean((window as Window & { go?: unknown }).go);
-}
 
 export function BackendStatus() {
   const [bridge, setBridge] = useState<BridgeState>(() => ({
