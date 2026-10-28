@@ -1,0 +1,14 @@
+/build/bin/
+/frontend/node_modules/
+/frontend/package.json.md5
+/frontend/dist/*
+!/frontend/dist/.gitkeep
+/frontend/*.tsbuildinfo
+*.exe
+*.test
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
