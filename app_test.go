@@ -252,3 +252,147 @@ func TestSearchBibleValidation(t *testing.T) {
 		t.Fatal("empty query was accepted")
 	}
 }
+
+func TestServiceOrderAndPresentationFlow(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	order, err := app.GetServiceOrder()
+	if err != nil {
+		t.Fatalf("initial service order: %v", err)
+	}
+	if order.Service != nil || len(order.Items) != 0 {
+		t.Fatalf("expected empty order, got %+v", order)
+	}
+
+	if _, err := app.GetPresentationState(); err != nil {
+		t.Fatalf("initial presentation state: %v", err)
+	}
+
+	order, err = app.AddScriptureToService(ScriptureRequest{
+		TranslationID: "kjv", BookID: 43, Chapter: 3, VerseStart: 16,
+	})
+	if err != nil {
+		t.Fatalf("add first verse: %v", err)
+	}
+	if order.Service == nil || order.Service.Name != "Untitled service" {
+		t.Fatalf("service = %+v", order.Service)
+	}
+	if len(order.Items) != 1 || order.Items[0].Title != "John 3:16" || order.Items[0].Position != 1 {
+		t.Fatalf("items = %+v", order.Items)
+	}
+
+	order, err = app.AddScriptureToService(ScriptureRequest{
+		TranslationID: "kjv", BookID: 19, Chapter: 23, VerseStart: 1,
+	})
+	if err != nil {
+		t.Fatalf("add second verse: %v", err)
+	}
+	if len(order.Items) != 2 || order.Items[1].Title != "Psalms 23:1" {
+		t.Fatalf("items = %+v", order.Items)
+	}
+
+	if _, err := app.AddScriptureToService(ScriptureRequest{
+		TranslationID: "kjv", BookID: 43, Chapter: 9, VerseStart: 1,
+	}); err == nil {
+		t.Fatal("missing verse was accepted")
+	}
+
+	state, err := app.PreviewServiceItem(order.Items[0].ID)
+	if err != nil {
+		t.Fatalf("preview item: %v", err)
+	}
+	if state.Preview == nil || state.Live != nil {
+		t.Fatalf("state after preview = %+v", state)
+	}
+	if state.Preview.Reference != "John 3:16" || state.Preview.Translation != "KJV" {
+		t.Fatalf("preview = %+v", state.Preview)
+	}
+
+	state, err = app.SendPreviewLive()
+	if err != nil {
+		t.Fatalf("send live: %v", err)
+	}
+	if state.Live == nil || state.Live.Reference != "John 3:16" {
+		t.Fatalf("live = %+v", state.Live)
+	}
+
+	state, err = app.NextServiceItem()
+	if err != nil {
+		t.Fatalf("next item: %v", err)
+	}
+	if state.Preview.ItemID != order.Items[1].ID {
+		t.Fatalf("preview after next = %+v", state.Preview)
+	}
+	if state.Live.Reference != "John 3:16" {
+		t.Fatalf("next changed live output: %+v", state.Live)
+	}
+
+	state, err = app.ClearLive()
+	if err != nil {
+		t.Fatalf("clear live: %v", err)
+	}
+	if state.Live != nil {
+		t.Fatalf("live after clear = %+v", state.Live)
+	}
+
+	order, err = app.RemoveServiceItem(order.Items[0].ID)
+	if err != nil {
+		t.Fatalf("remove item: %v", err)
+	}
+	if len(order.Items) != 1 || order.Items[0].Title != "Psalms 23:1" {
+		t.Fatalf("items after removal = %+v", order.Items)
+	}
+
+	order, err = app.CreateService("Sunday Service")
+	if err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+	if order.Service == nil || order.Service.Name != "Sunday Service" {
+		t.Fatalf("service = %+v", order.Service)
+	}
+	if len(order.Items) != 0 {
+		t.Fatalf("new service should start empty: %+v", order.Items)
+	}
+}
+
+func TestSchedulePersistsAcrossRestart(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "Zowe Worship")
+
+	first := newAppAt(root)
+	first.startup(context.Background())
+	installTestBible(t, first)
+	order, err := first.AddScriptureToService(ScriptureRequest{
+		TranslationID: "kjv", BookID: 43, Chapter: 3, VerseStart: 16,
+	})
+	if err != nil {
+		t.Fatalf("add verse: %v", err)
+	}
+	if _, err := first.PreviewServiceItem(order.Items[0].ID); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if _, err := first.SendPreviewLive(); err != nil {
+		t.Fatalf("send live: %v", err)
+	}
+	first.shutdown(context.Background())
+
+	second := newAppAt(root)
+	second.startup(context.Background())
+	defer second.shutdown(context.Background())
+
+	restored, err := second.GetServiceOrder()
+	if err != nil {
+		t.Fatalf("order after restart: %v", err)
+	}
+	if len(restored.Items) != 1 || restored.Items[0].Title != "John 3:16" {
+		t.Fatalf("restored items = %+v", restored.Items)
+	}
+
+	state, err := second.GetPresentationState()
+	if err != nil {
+		t.Fatalf("presentation after restart: %v", err)
+	}
+	if state.Preview != nil || state.Live != nil {
+		t.Fatalf("presentation should start clear after restart: %+v", state)
+	}
+}

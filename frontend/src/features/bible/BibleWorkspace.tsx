@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Icon } from '../../components/Icon';
 import { hasDesktopBridge } from '../../lib/desktop';
+import { useStudio } from '../../stores/StudioProvider';
 import { ListTranslations, SearchBible } from '../../../wailsjs/go/main/App.js';
 import { main } from '../../../wailsjs/go/models';
 import './bible.css';
@@ -21,7 +22,10 @@ type SearchState =
   | { kind: 'error'; message: string }
   | { kind: 'results'; response: main.BibleSearchResponse };
 
-const productionActionsPending = 'This action arrives with the presentation controller.';
+type ActionState = {
+  busy: string | null;
+  status: { kind: 'message' | 'error'; text: string } | null;
+};
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -30,6 +34,7 @@ function errorMessage(error: unknown): string {
 
 export function BibleWorkspace() {
   const bridgeAvailable = hasDesktopBridge();
+  const studio = useStudio();
   const [translations, setTranslations] = useState<main.TranslationView[]>([]);
   const [translationId, setTranslationId] = useState('');
   const [translationError, setTranslationError] = useState<string | null>(
@@ -40,6 +45,7 @@ export function BibleWorkspace() {
   const [mode, setMode] = useState<Mode>('auto');
   const [search, setSearch] = useState<SearchState>({ kind: 'idle' });
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  const [action, setAction] = useState<ActionState>({ busy: null, status: null });
   const requestId = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +77,7 @@ export function BibleWorkspace() {
     && translationId !== ''
     && query.trim() !== ''
     && search.kind !== 'loading';
+  const canAct = bridgeAvailable && translationId !== '' && action.busy === null;
 
   async function runSearch(translationOverride?: string) {
     const text = query.trim();
@@ -80,6 +87,7 @@ export function BibleWorkspace() {
     const currentRequest = ++requestId.current;
     setSearch({ kind: 'loading' });
     setSelectedReference(null);
+    setAction({ busy: null, status: null });
 
     try {
       const response = await SearchBible(new main.BibleSearchRequest({
@@ -100,6 +108,39 @@ export function BibleWorkspace() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void runSearch();
+  }
+
+  async function perform(kind: 'preview' | 'live' | 'add', result: main.BibleVerse) {
+    const key = `${kind}:${result.reference}`;
+    setAction({ busy: key, status: null });
+
+    const input = {
+      translationId,
+      bookId: result.bookId,
+      chapter: result.chapter,
+      verseStart: result.verse,
+      verseEnd: result.verse,
+    };
+
+    try {
+      if (kind === 'preview') {
+        await studio.previewScripture(input);
+        setAction({ busy: null, status: { kind: 'message', text: `Previewing ${result.reference}.` } });
+        return;
+      }
+      if (kind === 'live') {
+        await studio.projectScripture(input);
+        setAction({ busy: null, status: { kind: 'message', text: `${result.reference} is live.` } });
+        return;
+      }
+      const order = await studio.addScripture(input);
+      setAction({
+        busy: null,
+        status: { kind: 'message', text: `Added ${result.reference} to ${order.service?.name ?? 'the service'}.` },
+      });
+    } catch (error: unknown) {
+      setAction({ busy: null, status: { kind: 'error', text: errorMessage(error) } });
+    }
   }
 
   function handleTranslationChange(nextTranslation: string) {
@@ -194,13 +235,34 @@ export function BibleWorkspace() {
                     <span className="bible-text">{result.text}</span>
                   </button>
                   <div className="bible-result-actions">
-                    <button type="button" className="bible-action" disabled title={productionActionsPending} aria-label={`Preview ${result.reference}`}>
+                    <button
+                      type="button"
+                      className="bible-action"
+                      disabled={!canAct}
+                      onClick={() => void perform('preview', result)}
+                      aria-label={`Preview ${result.reference}`}
+                      title={`Preview ${result.reference}`}
+                    >
                       <Icon name="preview" size={13} /><span>Preview</span>
                     </button>
-                    <button type="button" className="bible-action" disabled title={productionActionsPending} aria-label={`Send ${result.reference} live`}>
+                    <button
+                      type="button"
+                      className="bible-action"
+                      disabled={!canAct}
+                      onClick={() => void perform('live', result)}
+                      aria-label={`Send ${result.reference} live`}
+                      title={`Send ${result.reference} live`}
+                    >
                       <Icon name="display" size={13} /><span>Send Live</span>
                     </button>
-                    <button type="button" className="bible-action" disabled title={productionActionsPending} aria-label={`Add ${result.reference} to the service`}>
+                    <button
+                      type="button"
+                      className="bible-action"
+                      disabled={!canAct}
+                      onClick={() => void perform('add', result)}
+                      aria-label={`Add ${result.reference} to the service`}
+                      title={`Add ${result.reference} to the service`}
+                    >
                       <Icon name="plus" size={13} /><span>Add to Service</span>
                     </button>
                     <button type="button" className="bible-action bible-action--icon" disabled title="More actions are not implemented." aria-label={`More actions for ${result.reference}`}>
@@ -317,7 +379,9 @@ export function BibleWorkspace() {
           {renderResults()}
         </div>
 
-        <p className="bible-note">Preview, Send Live and Add to Service become available with the presentation controller.</p>
+        <p className={`bible-note${action.status?.kind === 'error' ? ' bible-note--error' : ''}`} aria-live="polite">
+          {action.status?.text ?? 'Preview and Send Live update the production panes. Add to Service fills the schedule.'}
+        </p>
       </div>
     </section>
   );

@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import { BackendStatus } from '../components/BackendStatus';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
+import { useStudio } from '../stores/StudioProvider';
 import { hasDesktopBridge } from '../lib/desktop';
+import type { presentation } from '../../wailsjs/go/models';
 
 export type PageId = 'bible' | 'songs' | 'media' | 'service' | 'settings';
 
@@ -27,6 +29,20 @@ function useClock() {
 }
 
 function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+  const studio = useStudio();
+  const items = studio.order?.items ?? [];
+  const service = studio.order?.service ?? null;
+  const liveID = studio.presentation?.live?.itemId ?? '';
+  const previewID = studio.presentation?.preview?.itemId ?? '';
+
+  async function previewItem(itemID: string) {
+    try {
+      await studio.previewItem(itemID);
+    } catch {
+      // The studio error is shown below the schedule.
+    }
+  }
+
   return (
     <aside className="sidebar" aria-label="Service schedule">
       <div className="brand">
@@ -37,23 +53,60 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
       <div className="sidebar-content">
         <section className="service-summary" aria-labelledby="service-summary-title">
           <p className="eyebrow" id="service-summary-title">Current service</p>
-          <strong>No service selected</strong>
-          <span>Create a service to build the schedule.</span>
+          <strong>{service?.name ?? 'No service selected'}</strong>
+          <span>
+            {service
+              ? `${items.length} ${items.length === 1 ? 'item' : 'items'} scheduled`
+              : 'Create a service to build the schedule.'}
+          </span>
         </section>
 
         <section className="schedule" aria-labelledby="schedule-title">
           <div className="schedule-heading">
             <h2 id="schedule-title">Schedule</h2>
-            <span className="schedule-count">0 items</span>
+            <span className="schedule-count">{items.length} items</span>
           </div>
-          <div className="schedule-empty">
-            <span className="schedule-icon"><Icon name="order" size={20} /></span>
-            <p>No items scheduled.</p>
-            <span>Scripture, songs and media will appear here in service order.</span>
-            <button type="button" className="button button--full" onClick={() => onNavigate('service')}>
-              Open Service Order
-            </button>
-          </div>
+
+          {items.length === 0 ? (
+            <div className="schedule-empty">
+              <span className="schedule-icon"><Icon name="order" size={20} /></span>
+              <p>No items scheduled.</p>
+              <span>Scripture, songs and media will appear here in service order.</span>
+              <button type="button" className="button button--full" onClick={() => onNavigate('service')}>
+                Open Service Order
+              </button>
+            </div>
+          ) : (
+            <ol className="schedule-items">
+              {items.map((item) => {
+                const isLive = liveID !== '' && liveID === item.id;
+                const isPreview = previewID !== '' && previewID === item.id;
+                return (
+                  <li
+                    key={item.id}
+                    className={`schedule-item${isLive ? ' schedule-item--live' : ''}${isPreview ? ' schedule-item--preview' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="schedule-item-main"
+                      aria-pressed={isPreview}
+                      onClick={() => void previewItem(item.id)}
+                    >
+                      <span className="schedule-position">{item.position}</span>
+                      <span className="schedule-copy">
+                        <strong>{item.title}</strong>
+                        <span>{item.translationId.toUpperCase()}</span>
+                      </span>
+                      {isLive && <span className="status-pill status-pill--on">Live</span>}
+                      {!isLive && isPreview && <span className="status-pill status-pill--warn">Preview</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          {studio.error && <p className="studio-error" role="status">{studio.error}</p>}
         </section>
 
         <div className="sidebar-bottom">
@@ -70,12 +123,14 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const now = useClock();
   const dateLabel = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const timeLabel = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const studio = useStudio();
+  const service = studio.order?.service ?? null;
 
   return (
     <header className="app-header">
       <div className="service-context">
-        <button type="button" className="service-switcher" disabled title="Service selection is not implemented.">
-          <span>No service selected</span>
+        <button type="button" className="service-switcher" disabled title="Switching between saved services is not implemented.">
+          <span>{service?.name ?? 'No service selected'}</span>
           <Icon name="chevron" size={14} />
         </button>
         <div className="header-meta">
@@ -108,50 +163,116 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   );
 }
 
+function SlideContent({ content }: { content: presentation.Content }) {
+  return (
+    <div className="slide-content">
+      <p className="slide-verses">{content.verses.map((verse) => verse.text).join(' ')}</p>
+      <p className="slide-reference"><span>{content.reference}</span><em>·</em><span>{content.translation}</span></p>
+    </div>
+  );
+}
+
 function PresentationPanes() {
+  const studio = useStudio();
+  const preview = studio.presentation?.preview ?? null;
+  const live = studio.presentation?.live ?? null;
+  const scheduleCount = studio.order?.items.length ?? 0;
+
+  async function sendLive() {
+    try {
+      await studio.sendPreviewLive();
+    } catch {
+      // Reported through the studio error area.
+    }
+  }
+
+  async function clearLive() {
+    try {
+      await studio.clearLive();
+    } catch {
+      // Reported through the studio error area.
+    }
+  }
+
+  async function step(direction: 'next' | 'previous') {
+    try {
+      if (direction === 'next') {
+        await studio.nextItem();
+      } else {
+        await studio.previousItem();
+      }
+    } catch {
+      // Reported through the studio error area.
+    }
+  }
+
   return (
     <section className="presentation-panes" aria-label="Persistent presentation workspace">
       <section className="panel output-pane output-pane--preview" aria-labelledby="preview-title">
         <div className="pane-heading">
           <h2 id="preview-title"><span className="status-dot" /><Icon name="preview" size={15} />Preview</h2>
           <div className="pane-heading-actions">
-            <button type="button" className="button button--small button--primary" disabled title="Preview selection is not implemented.">
+            <button
+              type="button"
+              className="button button--small button--primary"
+              disabled={preview === null}
+              onClick={() => void sendLive()}
+              title={preview === null ? 'Choose scripture to preview first.' : 'Project the preview to the live output'}
+            >
               <Icon name="arrow" size={13} />Send Live
             </button>
           </div>
         </div>
-        <div className="presentation-screen presentation-screen--preview">
-          <Icon name="layers" size={30} />
-          <strong>No content selected</strong>
-          <p>Search scripture or choose media to prepare a slide.</p>
+
+        {preview ? (
+          <div className="presentation-screen presentation-screen--preview"><SlideContent content={preview} /></div>
+        ) : (
+          <div className="presentation-screen presentation-screen--preview">
+            <Icon name="layers" size={30} />
+            <strong>No content selected</strong>
+            <p>Search scripture or choose a schedule item to prepare a slide.</p>
+          </div>
+        )}
+
+        <div className="pane-caption">
+          <span className="status-dot" />
+          {preview ? `Preview holds ${preview.reference}.` : 'Preview is not connected to the presentation controller.'}
         </div>
-        <div className="pane-caption"><span className="status-dot" />Preview is not connected to the presentation controller.</div>
       </section>
 
       <section className="panel output-pane output-pane--live" aria-labelledby="live-title">
         <div className="pane-heading">
           <h2 id="live-title"><span className="live-dot" /><Icon name="display" size={15} />Live Output</h2>
           <div className="pane-heading-actions">
-            <span className="status-pill status-pill--off">Off air</span>
+            <span className={`status-pill${live ? ' status-pill--on' : ''}`}>{live ? 'On air' : 'Off air'}</span>
             <button type="button" className="button button--small pane-display-button" disabled title="Display routing is not implemented.">No display</button>
           </div>
         </div>
-        <div className="presentation-screen">
-          <Icon name="display" size={30} />
-          <strong>No output connected</strong>
-          <p>An audience display will appear here.</p>
-        </div>
+
+        {live ? (
+          <div className="presentation-screen"><SlideContent content={live} /></div>
+        ) : (
+          <div className="presentation-screen">
+            <Icon name="display" size={30} />
+            <strong>No output connected</strong>
+            <p>An audience display will appear here.</p>
+          </div>
+        )}
+
         <div className="pane-controls">
-          <div className="pane-caption"><span className="status-dot" />No service order is running.</div>
+          <div className="pane-caption">
+            <span className="status-dot" />
+            {scheduleCount > 0 ? `${scheduleCount} ${scheduleCount === 1 ? 'item' : 'items'} in the schedule.` : 'No service order is running.'}
+          </div>
           <div className="pane-buttons">
-            <button type="button" className="icon-button icon-button--small icon-button--prev" disabled aria-label="Previous slide" title="Presentation controls are not implemented.">
+            <button type="button" className="icon-button icon-button--small icon-button--prev" disabled={scheduleCount === 0} onClick={() => void step('previous')} aria-label="Previous schedule item" title="Previous schedule item">
               <Icon name="chevron" size={14} />
             </button>
-            <button type="button" className="icon-button icon-button--small icon-button--next" disabled aria-label="Next slide" title="Presentation controls are not implemented.">
+            <button type="button" className="icon-button icon-button--small icon-button--next" disabled={scheduleCount === 0} onClick={() => void step('next')} aria-label="Next schedule item" title="Next schedule item">
               <Icon name="chevron" size={14} />
             </button>
-            <button type="button" className="button button--small" disabled title="Presentation controls are not implemented.">Clear</button>
-            <button type="button" className="button button--small button--danger" disabled title="Presentation controls are not implemented.">
+            <button type="button" className="button button--small" disabled={live === null} onClick={() => void clearLive()} title="Clear the live output">Clear</button>
+            <button type="button" className="button button--small button--danger" disabled title="Automatic projection is not implemented.">
               <Icon name="detection" size={12} />Emergency
             </button>
           </div>
@@ -221,11 +342,24 @@ function DetectionPanel() {
 }
 
 function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+  const studio = useStudio();
+  const preview = studio.presentation?.preview ?? null;
+  const live = studio.presentation?.live ?? null;
+  const scheduleCount = studio.order?.items.length ?? 0;
+
+  async function run(action: () => Promise<unknown>) {
+    try {
+      await action();
+    } catch {
+      // Reported through the studio error area.
+    }
+  }
+
   return (
     <section className="panel production-card" aria-label="Production controls">
       <div className="panel-heading">
         <h2><Icon name="display" size={16} />Production</h2>
-        <span className="badge badge--muted">Scaffold</span>
+        <span className="badge badge--muted">Manual</span>
       </div>
 
       <div className="production-card-body">
@@ -238,24 +372,24 @@ function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) 
         <div className="production-states">
           <div className="production-state">
             <Icon name="display" size={15} />
-            <div><strong>Live output</strong><span>No display</span></div>
-            <span className="status-pill status-pill--off">Off air</span>
+            <div><strong>Live output</strong><span>{live ? live.reference : 'No content'}</span></div>
+            <span className={`status-pill${live ? ' status-pill--on' : ''}`}>{live ? 'On air' : 'Off air'}</span>
           </div>
           <div className="production-state">
             <Icon name="preview" size={15} />
-            <div><strong>Preview</strong><span>No content</span></div>
-            <span className="status-pill status-pill--warn">Idle</span>
+            <div><strong>Preview</strong><span>{preview ? preview.reference : 'No content'}</span></div>
+            <span className="status-pill status-pill--warn">{preview ? 'Ready' : 'Idle'}</span>
           </div>
         </div>
 
         <div className="production-controls">
-          <button type="button" className="icon-button icon-button--small icon-button--prev" disabled aria-label="Previous slide" title="Presentation controls are not implemented.">
+          <button type="button" className="icon-button icon-button--small icon-button--prev" disabled={scheduleCount === 0} onClick={() => void run(() => studio.previousItem())} aria-label="Previous schedule item" title="Previous schedule item">
             <Icon name="chevron" size={15} />
           </button>
-          <button type="button" className="icon-button icon-button--small icon-button--next" disabled aria-label="Next slide" title="Presentation controls are not implemented.">
+          <button type="button" className="icon-button icon-button--small icon-button--next" disabled={scheduleCount === 0} onClick={() => void run(() => studio.nextItem())} aria-label="Next schedule item" title="Next schedule item">
             <Icon name="chevron" size={15} />
           </button>
-          <button type="button" className="button button--small" disabled title="Presentation controls are not implemented.">Clear</button>
+          <button type="button" className="button button--small" disabled={live === null} onClick={() => void run(studio.clearLive)} title="Clear the live output">Clear</button>
           <button type="button" className="icon-button icon-button--small" onClick={() => onNavigate('settings')} aria-label="Production settings" title="Open settings">
             <Icon name="settings" size={16} />
           </button>
@@ -266,7 +400,7 @@ function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) 
           <div><strong>Auto Projection</strong><span><span className="status-dot" />Off</span></div>
         </div>
 
-        <p className="production-help">Presentation controls arrive with the live controller.</p>
+        <p className="production-help">Auto-projection arrives with offline scripture detection.</p>
       </div>
     </section>
   );

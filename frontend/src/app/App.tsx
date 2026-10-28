@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { BibleWorkspace } from '../features/bible/BibleWorkspace';
+import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
+import { StudioProvider } from '../stores/StudioProvider';
 
 type FeaturePage = {
   icon: IconName;
@@ -13,14 +15,7 @@ type FeaturePage = {
   next: string;
 };
 
-const featurePages: Record<Exclude<PageId, 'bible'>, FeaturePage> = {
-  service: {
-    icon: 'order',
-    title: 'A place for the whole service',
-    description: 'No service order yet. Planning and service storage are not implemented.',
-    purpose: 'Organize scripture, songs and media into an ordered service without changing the live output.',
-    next: 'Service storage, item editing and operator-controlled cues.',
-  },
+const featurePages: Record<Exclude<PageId, 'bible' | 'service'>, FeaturePage> = {
   songs: {
     icon: 'music',
     title: 'Songs and lyrics, ready for the set',
@@ -64,10 +59,14 @@ export default function App() {
   const [activePage, setActivePage] = useState<PageId>('bible');
 
   return (
-    <AppShell activePage={activePage} onNavigate={setActivePage}>
-      {activePage === 'bible'
-        ? <BibleWorkspace />
-        : <FeatureScaffold page={featurePages[activePage]} />}
-    </AppShell>
+    <StudioProvider>
+      <AppShell activePage={activePage} onNavigate={setActivePage}>
+        {activePage === 'bible'
+          ? <BibleWorkspace />
+          : activePage === 'service'
+            ? <ServiceOrderWorkspace />
+            : <FeatureScaffold page={featurePages[activePage]} />}
+      </AppShell>
+    </StudioProvider>
   );
 }

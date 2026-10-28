@@ -242,3 +242,64 @@ svg { flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Schedule sidebar items */
+.schedule-items { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; }
+.schedule-item { border-radius: 6px; }
+.schedule-item-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+}
+.schedule-item-main:hover { background: var(--color-elevated); }
+.schedule-item--live .schedule-item-main { border-color: #1E4D40; background: #0E2A24; }
+.schedule-item--preview .schedule-item-main { border-color: #304C80; background: var(--color-selected); }
+.schedule-position { width: 16px; flex-shrink: 0; text-align: center; color: var(--color-secondary); font-size: 9.5px; }
+.schedule-copy { flex: 1; min-width: 0; }
+.schedule-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 500; }
+.schedule-copy span { display: block; margin-top: 1px; color: var(--color-secondary); font-size: 9px; }
+.schedule-item .status-pill { flex-shrink: 0; }
+.studio-error {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #5A2B35;
+  border-radius: 6px;
+  background: #1C1217;
+  color: #FFB1B7;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+/* Shared status */
+.status-pill--on { border-color: #1E4D40; background: #0E2A24; color: #6EE7C0; }
+
+/* Slide previews */
+.slide-content {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 4px 10px;
+  text-align: center;
+}
+.slide-verses {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+  max-width: 92%;
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.slide-reference { display: flex; align-items: center; gap: 7px; color: var(--color-secondary); font-size: 10px; }
+.slide-reference em { font-style: normal; opacity: .6; }

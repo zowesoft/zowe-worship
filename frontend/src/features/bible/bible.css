@@ -194,6 +194,7 @@
 .bible-message--error strong { color: var(--color-error); }
 
 .bible-note { padding-top: 10px; border-top: 1px solid var(--color-border); color: var(--color-secondary); font-size: 10px; }
+.bible-note--error { color: var(--color-error); }
 
 @media (max-width: 1279px) {
   .bible-header { gap: 12px; }
