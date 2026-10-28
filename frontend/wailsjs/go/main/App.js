@@ -5,3 +5,11 @@
 export function GetAppInfo() {
   return window['go']['main']['App']['GetAppInfo']();
 }
+
+export function ListTranslations() {
+  return window['go']['main']['App']['ListTranslations']();
+}
+
+export function SearchBible(arg1) {
+  return window['go']['main']['App']['SearchBible'](arg1);
+}

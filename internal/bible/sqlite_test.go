@@ -295,6 +295,86 @@ func TestInstallRejectsInvalidDataWithoutPublishing(t *testing.T) {
 	}
 }
 
+func TestPassageReturnsWholeChapterInOrder(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newTestRepository(t)
+	if _, err := repo.Install(ctx, fixture("kjv", "1.0.0", "The LORD is my shepherd; I shall not want.")); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	results, err := repo.Passage(ctx, "kjv", 19, 23, 0, 0)
+	if err != nil {
+		t.Fatalf("passage: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("verses = %d, want 2", len(results))
+	}
+	if results[0].Reference() != "Psalms 23:1" || results[1].Reference() != "Psalms 23:2" {
+		t.Fatalf("verse order = %v", results)
+	}
+
+	single, err := repo.Passage(ctx, "kjv", 19, 23, 2, 2)
+	if err != nil {
+		t.Fatalf("single verse: %v", err)
+	}
+	if len(single) != 1 || single[0].Reference() != "Psalms 23:2" {
+		t.Fatalf("single verse = %v", single)
+	}
+
+	ranged, err := repo.Passage(ctx, "kjv", 19, 23, 1, 2)
+	if err != nil {
+		t.Fatalf("range: %v", err)
+	}
+	if len(ranged) != 2 {
+		t.Fatalf("range verses = %d, want 2", len(ranged))
+	}
+
+	missing, err := repo.Passage(ctx, "kjv", 19, 24, 0, 0)
+	if err != nil {
+		t.Fatalf("missing chapter: %v", err)
+	}
+	if len(missing) != 0 {
+		t.Fatalf("missing chapter returned %v", missing)
+	}
+
+	missingVerse, err := repo.Passage(ctx, "kjv", 43, 3, 17, 0)
+	if err != nil {
+		t.Fatalf("missing verse: %v", err)
+	}
+	if len(missingVerse) != 0 {
+		t.Fatalf("missing verse returned %v", missingVerse)
+	}
+}
+
+func TestPassageRejectsInvalidArguments(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newTestRepository(t)
+	if _, err := repo.Install(ctx, fixture("kjv", "1.0.0", "The LORD is my shepherd.")); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	cases := []struct {
+		name                        string
+		bookID, chapter, start, end int
+	}{
+		{"unknown book", 99, 1, 0, 0},
+		{"zero chapter", 19, 0, 0, 0},
+		{"negative verse", 19, 23, -1, 0},
+		{"range without start", 19, 23, 0, 2},
+		{"reversed range", 19, 23, 2, 1},
+	}
+
+	for _, tc := range cases {
+		if _, err := repo.Passage(ctx, "kjv", tc.bookID, tc.chapter, tc.start, tc.end); err == nil {
+			t.Fatalf("%s: expected an error", tc.name)
+		}
+	}
+
+	if _, err := repo.Passage(ctx, "niv", 19, 23, 0, 0); !errors.Is(err, ErrTranslationNotFound) {
+		t.Fatalf("unknown translation err = %v, want ErrTranslationNotFound", err)
+	}
+}
+
 func TestSearchSurvivesRepositoryReopen(t *testing.T) {
 	ctx := context.Background()
 	paths := database.Paths{Root: filepath.Join(t.TempDir(), "Zowe Worship")}

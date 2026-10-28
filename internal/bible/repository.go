@@ -10,4 +10,7 @@ type Repository interface {
 	Install(ctx context.Context, data TranslationData) (Translation, error)
 	Remove(ctx context.Context, id string) error
 	Search(ctx context.Context, req SearchRequest) ([]SearchResult, error)
+	// Passage returns a chapter, or a verse range inside it, in verse order.
+	// startVerse and endVerse are zero when the whole chapter is requested.
+	Passage(ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int) ([]SearchResult, error)
 }

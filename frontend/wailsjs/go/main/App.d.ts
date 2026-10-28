@@ -3,3 +3,7 @@
 import {main} from '../models';
 
 export function GetAppInfo():Promise<main.AppInfo>;
+
+export function ListTranslations():Promise<Array<main.TranslationView>>;
+
+export function SearchBible(arg1:main.BibleSearchRequest):Promise<main.BibleSearchResponse>;

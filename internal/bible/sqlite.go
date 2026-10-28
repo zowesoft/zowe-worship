@@ -215,23 +215,11 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 		return nil, err
 	}
 
-	_, filename, err := r.catalogEntry(ctx, req.TranslationID)
+	packageDB, err := r.openPackage(ctx, req.TranslationID)
 	if err != nil {
 		return nil, err
-	}
-	if filepath.Base(filename) != filename {
-		return nil, fmt.Errorf("%w: unsafe package filename", ErrInvalidTranslation)
-	}
-
-	packageDB, err := database.OpenReadOnly(ctx, filepath.Join(r.dir, filename))
-	if err != nil {
-		return nil, fmt.Errorf("open translation %s: %w", req.TranslationID, err)
 	}
 	defer packageDB.Close()
-
-	if err := checkPackageVersion(ctx, packageDB); err != nil {
-		return nil, err
-	}
 
 	limit := req.Limit
 	if limit <= 0 {
@@ -254,6 +242,80 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 	}
 	defer rows.Close()
 
+	return scanSearchResults(rows)
+}
+
+// Passage returns a chapter, or a verse range inside it, in verse order.
+func (r *SQLiteRepository) Passage(
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
+) ([]SearchResult, error) {
+	if _, ok := BookByID(bookID); !ok {
+		return nil, fmt.Errorf("passage: unknown book id %d", bookID)
+	}
+	if chapter <= 0 {
+		return nil, errors.New("passage: chapter must be positive")
+	}
+	if startVerse < 0 || endVerse < 0 {
+		return nil, errors.New("passage: verse numbers cannot be negative")
+	}
+	if startVerse == 0 && endVerse != 0 {
+		return nil, errors.New("passage: a verse range needs a start")
+	}
+	if startVerse > 0 && endVerse == 0 {
+		endVerse = startVerse
+	}
+	if endVerse < startVerse {
+		return nil, errors.New("passage: range ends before it starts")
+	}
+
+	packageDB, err := r.openPackage(ctx, translationID)
+	if err != nil {
+		return nil, err
+	}
+	defer packageDB.Close()
+
+	query := `
+		SELECT b.id, b.name, b.abbreviation, b.testament, v.chapter, v.verse, v.text
+		FROM verses v
+		JOIN books b ON b.id = v.book_id
+		WHERE v.book_id = ? AND v.chapter = ?`
+	args := []any{bookID, chapter}
+	if startVerse > 0 {
+		query += ` AND v.verse BETWEEN ? AND ?`
+		args = append(args, startVerse, endVerse)
+	}
+	query += ` ORDER BY v.verse`
+
+	rows, err := packageDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read passage from %s: %w", translationID, err)
+	}
+	defer rows.Close()
+
+	return scanSearchResults(rows)
+}
+
+func (r *SQLiteRepository) openPackage(ctx context.Context, id string) (*sql.DB, error) {
+	_, filename, err := r.catalogEntry(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Base(filename) != filename {
+		return nil, fmt.Errorf("%w: unsafe package filename", ErrInvalidTranslation)
+	}
+
+	packageDB, err := database.OpenReadOnly(ctx, filepath.Join(r.dir, filename))
+	if err != nil {
+		return nil, fmt.Errorf("open translation %s: %w", id, err)
+	}
+	if err := checkPackageVersion(ctx, packageDB); err != nil {
+		_ = packageDB.Close()
+		return nil, err
+	}
+	return packageDB, nil
+}
+
+func scanSearchResults(rows *sql.Rows) ([]SearchResult, error) {
 	var results []SearchResult
 	for rows.Next() {
 		var result SearchResult
@@ -262,13 +324,13 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 			&result.Book.ID, &result.Book.Name, &result.Book.Abbreviation, &testament,
 			&result.Chapter, &result.Verse, &result.Text,
 		); err != nil {
-			return nil, fmt.Errorf("read search result: %w", err)
+			return nil, fmt.Errorf("read verse: %w", err)
 		}
 		result.Book.Testament = Testament(testament)
 		results = append(results, result)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("search %s: %w", req.TranslationID, err)
+		return nil, fmt.Errorf("read verses: %w", err)
 	}
 	return results, nil
 }

@@ -3,12 +3,46 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"zowe-worship/internal/bible"
 )
+
+func newTestApp(t *testing.T) *App {
+	t.Helper()
+
+	app := newAppAt(filepath.Join(t.TempDir(), "Zowe Worship"))
+	app.startup(context.Background())
+	t.Cleanup(func() { app.shutdown(context.Background()) })
+	if app.bible == nil {
+		t.Fatal("startup did not initialize storage")
+	}
+	return app
+}
+
+func installTestBible(t *testing.T, app *App) {
+	t.Helper()
+
+	_, err := app.bible.Install(context.Background(), bible.TranslationData{
+		TranslationMeta: bible.TranslationMeta{
+			ID: "kjv", Name: "King James Version", Abbreviation: "KJV", Language: "en", Version: "1.0.0",
+		},
+		Verses: []bible.Verse{
+			{BookID: 19, Chapter: 23, Number: 1, Text: "The LORD is my shepherd; I shall not want."},
+			{BookID: 19, Chapter: 23, Number: 2, Text: "He maketh me to lie down in green pastures."},
+			{BookID: 43, Chapter: 3, Number: 16, Text: "For God so loved the world, that he gave his only begotten Son."},
+			{BookID: 43, Chapter: 4, Number: 24, Text: "God is a Spirit: and they that worship him must worship him in spirit and in truth."},
+			{BookID: 58, Chapter: 11, Number: 1, Text: "Now faith is the substance of things hoped for."},
+		},
+	})
+	if err != nil {
+		t.Fatalf("install test bible: %v", err)
+	}
+}
 
 func TestStartupStoresRuntimeContext(t *testing.T) {
 	app := newAppAt(t.TempDir())
@@ -87,5 +121,134 @@ func TestGetAppInfo(t *testing.T) {
 	}
 	if string(data) != `{"name":"Zowe Worship","version":"0.1.0"}` {
 		t.Fatalf("unexpected bridge payload: %s", data)
+	}
+}
+
+func TestBibleBindingsRequireStorage(t *testing.T) {
+	app := newAppAt(t.TempDir())
+
+	if _, err := app.ListTranslations(); !errors.Is(err, errStorageUnavailable) {
+		t.Fatalf("ListTranslations err = %v, want errStorageUnavailable", err)
+	}
+	if _, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "grace"}); !errors.Is(err, errStorageUnavailable) {
+		t.Fatalf("SearchBible err = %v, want errStorageUnavailable", err)
+	}
+}
+
+func TestListTranslationsBinding(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	views, err := app.ListTranslations()
+	if err != nil {
+		t.Fatalf("list translations: %v", err)
+	}
+	if len(views) != 1 {
+		t.Fatalf("translations = %d, want 1", len(views))
+	}
+	view := views[0]
+	if view.ID != "kjv" || view.Abbreviation != "KJV" || view.VerseCount != 5 {
+		t.Fatalf("unexpected translation view: %+v", view)
+	}
+}
+
+func TestSearchBibleResolvesReferencesBeforeText(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	reference, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "John 3:16"})
+	if err != nil {
+		t.Fatalf("reference search: %v", err)
+	}
+	if reference.Kind != "reference" || reference.Reference != "John 3:16" {
+		t.Fatalf("unexpected reference response: %+v", reference)
+	}
+	if len(reference.Results) != 1 || !strings.Contains(reference.Results[0].Text, "God so loved") {
+		t.Fatalf("reference results = %+v", reference.Results)
+	}
+	if reference.Results[0].Book != "John" || reference.Results[0].Verse != 16 {
+		t.Fatalf("verse identity = %+v", reference.Results[0])
+	}
+
+	chapter, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "Psalm 23"})
+	if err != nil {
+		t.Fatalf("chapter search: %v", err)
+	}
+	if chapter.Kind != "reference" || chapter.Reference != "Psalms 23" || len(chapter.Results) != 2 {
+		t.Fatalf("unexpected chapter response: %+v", chapter)
+	}
+
+	text, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "shepherd"})
+	if err != nil {
+		t.Fatalf("text search: %v", err)
+	}
+	if text.Kind != "text" || len(text.Results) != 1 || text.Results[0].Reference != "Psalms 23:1" {
+		t.Fatalf("unexpected text response: %+v", text)
+	}
+}
+
+func TestSearchBibleExplicitModes(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	phrase, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv", Query: "god is a spirit", Mode: "phrase",
+	})
+	if err != nil {
+		t.Fatalf("phrase search: %v", err)
+	}
+	if len(phrase.Results) != 1 || phrase.Results[0].Reference != "John 4:24" {
+		t.Fatalf("phrase results = %+v", phrase.Results)
+	}
+
+	prefix, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv", Query: "shep", Mode: "prefix",
+	})
+	if err != nil {
+		t.Fatalf("prefix search: %v", err)
+	}
+	if len(prefix.Results) != 1 || prefix.Results[0].Reference != "Psalms 23:1" {
+		t.Fatalf("prefix results = %+v", prefix.Results)
+	}
+
+	if _, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv", Query: "grace", Mode: "fuzzy",
+	}); err == nil {
+		t.Fatal("unknown mode was accepted")
+	}
+}
+
+func TestSearchBibleReportsBadReferences(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	if _, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv", Query: "Romans 8:28-30",
+	}); err == nil || !strings.Contains(err.Error(), "was not found") {
+		t.Fatalf("missing reference err = %v", err)
+	}
+
+	if _, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv", Query: "John 0:1",
+	}); err == nil || !strings.Contains(err.Error(), "invalid scripture reference") {
+		t.Fatalf("invalid reference err = %v", err)
+	}
+
+	if _, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "niv", Query: "John 3:16",
+	}); !errors.Is(err, bible.ErrTranslationNotFound) {
+		t.Fatalf("unknown translation err = %v", err)
+	}
+}
+
+func TestSearchBibleValidation(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	if _, err := app.SearchBible(BibleSearchRequest{Query: "grace"}); err == nil {
+		t.Fatal("empty translation was accepted")
+	}
+	if _, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "  "}); err == nil {
+		t.Fatal("empty query was accepted")
 	}
 }
