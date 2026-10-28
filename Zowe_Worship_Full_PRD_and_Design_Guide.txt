@@ -133,6 +133,8 @@ Search behavior
   • Results are ranked deterministically using reference matches, phrase matches, term matches and relevance.
   • Punctuation and capitalization differences should not prevent ordinary text matches.
   • Support multiword queries, exact-phrase matching and common punctuation variations.
+  • Partial-word and inflection tolerance: a query such as "God love world" must still find "For God so loved the world" by matching word stems or prefixes and ranking verses that satisfy more terms, instead of requiring every literal term. This relaxed mode is a planned follow-up to the initial all-terms FTS5 search and must be evaluated for false positives before release.
+  • AI-assisted search may expand a natural-language query or partial quotation into candidate passages, labelled as approximate and ranked behind exact reference and phrase matches. It must return canonical stored verse text only, never generated or paraphrased scripture, and similarity must never authorize projection on its own.
   • Search must never fabricate, paraphrase or silently change Bible text.
   • Missing translations or unavailable passages must be reported clearly.
   • Search remains usable offline after translation and index installation.
