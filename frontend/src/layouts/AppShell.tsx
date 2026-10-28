@@ -43,6 +43,15 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
     }
   }
 
+  async function sendItemLive(itemID: string) {
+    try {
+      await studio.previewItem(itemID);
+      await studio.sendPreviewLive();
+    } catch {
+      // The studio error is shown below the schedule.
+    }
+  }
+
   return (
     <aside className="sidebar" aria-label="Service schedule">
       <div className="brand">
@@ -85,13 +94,11 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
                   <li
                     key={item.id}
                     className={`schedule-item${isLive ? ' schedule-item--live' : ''}${isPreview ? ' schedule-item--preview' : ''}`}
+                    title={`Click to preview ${item.title} · double-click to send live`}
+                    onClick={() => void previewItem(item.id)}
+                    onDoubleClick={() => void sendItemLive(item.id)}
                   >
-                    <button
-                      type="button"
-                      className="schedule-item-main"
-                      aria-pressed={isPreview}
-                      onClick={() => void previewItem(item.id)}
-                    >
+                    <button type="button" className="schedule-item-main" aria-pressed={isPreview}>
                       <span className="schedule-position">{item.position}</span>
                       <span className="schedule-copy">
                         <strong>{item.title}</strong>

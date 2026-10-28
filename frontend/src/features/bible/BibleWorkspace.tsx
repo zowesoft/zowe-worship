@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { Icon } from '../../components/Icon';
 import { hasDesktopBridge } from '../../lib/desktop';
 import { useStudio } from '../../stores/StudioProvider';
@@ -28,6 +28,10 @@ type ActionState = {
   busy: string | null;
   status: { kind: 'message' | 'error'; text: string } | null;
 };
+
+function fromActionArea(event: ReactMouseEvent<HTMLElement>): boolean {
+  return (event.target as HTMLElement).closest('.bible-result-actions') !== null;
+}
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -160,11 +164,13 @@ export function BibleWorkspace() {
     try {
       if (kind === 'preview') {
         await studio.previewScripture(input);
+        setSelectedReference(result.reference);
         setAction({ busy: null, status: { kind: 'message', text: `Previewing ${result.reference}.` } });
         return;
       }
       if (kind === 'live') {
         await studio.projectScripture(input);
+        setSelectedReference(result.reference);
         setAction({ busy: null, status: { kind: 'message', text: `${result.reference} is live.` } });
         return;
       }
@@ -254,13 +260,17 @@ export function BibleWorkspace() {
                 <li
                   key={`${result.bookId}-${result.chapter}-${result.verse}`}
                   className={`bible-result${selected ? ' bible-result--selected' : ''}`}
+                  title={`Click to preview ${result.reference} · double-click to send live`}
+                  onClick={(event) => {
+                    if (fromActionArea(event) || !canAct) return;
+                    void perform('preview', result);
+                  }}
+                  onDoubleClick={(event) => {
+                    if (fromActionArea(event) || !canAct) return;
+                    void perform('live', result);
+                  }}
                 >
-                  <button
-                    type="button"
-                    className="bible-result-main"
-                    aria-pressed={selected}
-                    onClick={() => setSelectedReference(result.reference)}
-                  >
+                  <button type="button" className="bible-result-main" aria-pressed={selected}>
                     <span className="bible-reference">{result.reference}</span>
                     <span className="bible-badge">{activeTranslation?.abbreviation ?? ''}</span>
                     <span className="bible-text">{result.text}</span>
@@ -270,7 +280,10 @@ export function BibleWorkspace() {
                       type="button"
                       className="bible-action"
                       disabled={!canAct}
-                      onClick={() => void perform('preview', result)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void perform('preview', result);
+                      }}
                       aria-label={`Preview ${result.reference}`}
                       title={`Preview ${result.reference}`}
                     >
@@ -280,7 +293,10 @@ export function BibleWorkspace() {
                       type="button"
                       className="bible-action"
                       disabled={!canAct}
-                      onClick={() => void perform('live', result)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void perform('live', result);
+                      }}
                       aria-label={`Send ${result.reference} live`}
                       title={`Send ${result.reference} live`}
                     >
@@ -290,7 +306,10 @@ export function BibleWorkspace() {
                       type="button"
                       className="bible-action"
                       disabled={!canAct}
-                      onClick={() => void perform('add', result)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void perform('add', result);
+                      }}
                       aria-label={`Add ${result.reference} to the service`}
                       title={`Add ${result.reference} to the service`}
                     >

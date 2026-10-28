@@ -115,6 +115,8 @@
   border: 1px solid transparent;
   border-radius: 7px;
   background: var(--color-app);
+  cursor: pointer;
+  user-select: none;
 }
 .bible-result:hover { background: #0C1523; }
 .bible-result--selected,

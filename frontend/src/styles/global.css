@@ -245,7 +245,7 @@ svg { flex-shrink: 0; }
 
 /* Schedule sidebar items */
 .schedule-items { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; }
-.schedule-item { border-radius: 6px; }
+.schedule-item { border-radius: 6px; cursor: pointer; user-select: none; }
 .schedule-item-main {
   width: 100%;
   display: flex;
