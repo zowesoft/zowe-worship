@@ -220,49 +220,55 @@ function DetectionPanel() {
   );
 }
 
-function ProductionBar({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   return (
-    <footer className="production-bar" aria-label="Production controls">
-      <div className="production-audio">
-        <span className="production-icon"><Icon name="mic" size={20} /></span>
-        <div className="production-copy"><strong>Audio input</strong><span>Not configured</span></div>
-        <Icon name="chevron" size={14} />
+    <section className="panel production-card" aria-label="Production controls">
+      <div className="panel-heading">
+        <h2><Icon name="display" size={16} />Production</h2>
+        <span className="badge badge--muted">Scaffold</span>
       </div>
 
-      <div className="level-meter" aria-hidden="true">
-        {Array.from({ length: 18 }, (_, index) => <span key={index} />)}
-      </div>
-
-      <div className="production-output">
-        <div className="production-chip">
-          <Icon name="display" size={18} />
-          <div><strong>Live output</strong><span>No display</span></div>
-          <span className="status-pill status-pill--off">Off air</span>
+      <div className="production-card-body">
+        <div className="audio-input-card">
+          <span className="icon-tile icon-tile--small icon-tile--violet"><Icon name="mic" size={18} /></span>
+          <div><span>Audio input</span><strong>Not configured</strong></div>
+          <Icon name="chevron" size={14} />
         </div>
-        <div className="production-chip">
-          <Icon name="preview" size={18} />
-          <div><strong>Preview</strong><span>No content</span></div>
-          <span className="status-pill status-pill--warn">Idle</span>
-        </div>
-      </div>
 
-      <div className="production-actions">
-        <button type="button" className="icon-button icon-button--prev" disabled aria-label="Previous slide" title="Presentation controls are not implemented.">
-          <Icon name="chevron" size={16} />
-        </button>
-        <button type="button" className="icon-button icon-button--next" disabled aria-label="Next slide" title="Presentation controls are not implemented.">
-          <Icon name="chevron" size={16} />
-        </button>
-        <button type="button" className="button" disabled title="Presentation controls are not implemented.">Clear</button>
-        <div className="auto-projection" title="Automatic projection is not implemented.">
+        <div className="production-states">
+          <div className="production-state">
+            <Icon name="display" size={15} />
+            <div><strong>Live output</strong><span>No display</span></div>
+            <span className="status-pill status-pill--off">Off air</span>
+          </div>
+          <div className="production-state">
+            <Icon name="preview" size={15} />
+            <div><strong>Preview</strong><span>No content</span></div>
+            <span className="status-pill status-pill--warn">Idle</span>
+          </div>
+        </div>
+
+        <div className="production-controls">
+          <button type="button" className="icon-button icon-button--small icon-button--prev" disabled aria-label="Previous slide" title="Presentation controls are not implemented.">
+            <Icon name="chevron" size={15} />
+          </button>
+          <button type="button" className="icon-button icon-button--small icon-button--next" disabled aria-label="Next slide" title="Presentation controls are not implemented.">
+            <Icon name="chevron" size={15} />
+          </button>
+          <button type="button" className="button button--small" disabled title="Presentation controls are not implemented.">Clear</button>
+          <button type="button" className="icon-button icon-button--small" onClick={() => onNavigate('settings')} aria-label="Production settings" title="Open settings">
+            <Icon name="settings" size={16} />
+          </button>
+        </div>
+
+        <div className="production-auto" title="Automatic projection is not implemented.">
           <span className="toggle toggle--off" aria-hidden="true"><span /></span>
           <div><strong>Auto Projection</strong><span><span className="status-dot" />Off</span></div>
         </div>
-        <button type="button" className="icon-button" onClick={() => onNavigate('settings')} aria-label="Production settings" title="Open settings">
-          <Icon name="settings" size={17} />
-        </button>
+
+        <p className="production-help">Presentation controls arrive with the live controller.</p>
       </div>
-    </footer>
+    </section>
   );
 }
 
@@ -315,9 +321,11 @@ export function AppShell({ activePage, onNavigate, children }: {
             {children}
           </section>
         </div>
-        <DetectionPanel />
+        <div className="workspace-side">
+          <DetectionPanel />
+          <ProductionCard onNavigate={onNavigate} />
+        </div>
       </main>
-      <ProductionBar onNavigate={onNavigate} />
     </div>
   );
 }
