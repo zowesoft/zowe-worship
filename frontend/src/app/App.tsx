@@ -21,19 +21,19 @@ const featurePages: Record<Exclude<PageId, 'home' | 'bible'>, FeaturePage> = {
     purpose: 'Organize scripture, songs and media into an ordered service without changing the live output.',
     next: 'Service storage, item editing and operator-controlled cues.',
   },
+  songs: {
+    icon: 'music',
+    title: 'Songs and lyrics, ready for the set',
+    description: 'No songs are stored yet. Lyrics management and display are not implemented.',
+    purpose: 'Keep reusable songs with sections and arrangements, then prepare lyric slides for a service without changing the live output.',
+    next: 'Song storage, sections, arrangements and lyric presentation.',
+  },
   media: {
     icon: 'media',
     title: 'Your media library starts here',
     description: 'No media is available. Importing and indexing are not implemented.',
     purpose: 'Browse reusable media and prepare selected items for a service. Local media management will be handled by the Go backend.',
     next: 'Local imports, metadata indexing and media previews.',
-  },
-  detection: {
-    icon: 'detection',
-    title: 'Assistance, with the operator in control',
-    description: 'No model loaded. Audio capture, transcription and scripture matching are not implemented.',
-    purpose: 'The Go backend will coordinate local audio and speech services. Candidate review belongs in the persistent detection panel, separate from live output.',
-    next: 'Audio configuration, model loading and reviewed scripture candidates. Auto-projection is off.',
   },
   settings: {
     icon: 'settings',
@@ -47,6 +47,7 @@ const featurePages: Record<Exclude<PageId, 'home' | 'bible'>, FeaturePage> = {
 const nextAreas: { page: PageId; icon: IconName; label: string; detail: string }[] = [
   { page: 'service', icon: 'order', label: 'Service Order', detail: 'Plan the flow of a service' },
   { page: 'bible', icon: 'bible', label: 'Bible workspace', detail: 'Prepare scripture for presentation' },
+  { page: 'songs', icon: 'music', label: 'Songs', detail: 'Prepare lyrics for the service' },
   { page: 'media', icon: 'media', label: 'Media Library', detail: 'Build a reusable media collection' },
 ];
 
@@ -98,7 +99,7 @@ function FeatureScaffold({ page }: { page: FeaturePage }) {
 }
 
 export default function App() {
-  const [activePage, setActivePage] = useState<PageId>('home');
+  const [activePage, setActivePage] = useState<PageId>('bible');
 
   return (
     <AppShell activePage={activePage} onNavigate={setActivePage}>

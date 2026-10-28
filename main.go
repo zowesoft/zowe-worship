@@ -16,11 +16,12 @@ func main() {
 	app := NewApp()
 
 	if err := wails.Run(&options.App{
-		Title:     "Zowe Worship",
-		Width:     1440,
-		Height:    900,
-		MinWidth:  960,
-		MinHeight: 640,
+		Title:            "Zowe Worship",
+		Width:            1200,
+		Height:           660,
+		MinWidth:         960,
+		MinHeight:        600,
+		WindowStartState: options.Maximised,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
