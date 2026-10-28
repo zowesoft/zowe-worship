@@ -1,0 +1,698 @@
+ZOWE WORSHIP
+Full Product Requirements Document, UI Design Guide, and Technical Implementation Specification
+Version 1.1 | Zowesoft | Expanded feature roadmap: 2026-10-28
+SCRIPTURE FIRST. ALWAYS.
+==============================================================================
+
+Executive Summary
+-----------------
+Zowe Worship is a desktop-first, AI-powered worship presentation application by Zowesoft. It combines the simplicity of traditional church presentation software with advanced live-production controls and an intelligent, scripture-first assistant.
+
+The defining principle is that the live service must remain in the operator's control, while scripture discovery and presentation become faster and more intelligent. Full-text Bible search is a core feature, not merely a reference lookup. Live output, preview, audio status, and essential controls remain available while operators navigate the application.
+
+
+1. Product Vision and Goals
+---------------------------
+
+Vision
+Build a reliable, lightweight, scripture-aware worship presentation system that helps churches prepare services, search and present Bible passages, manage media and slides, and respond intelligently to a speaker's words in real time.
+
+
+Target users
+  • Church projection operators and media teams.
+  • Pastors, preachers, worship leaders, and Bible teachers.
+  • Churches using a single projector or multiple displays.
+  • Churches that need dependable offline presentation.
+  • Churches that want to automate scripture projection without surrendering control of the service.
+
+Product goals
+  1. Make scripture search faster than manually browsing books and chapters.
+  1. Keep the live screen stable and independent of page navigation.
+  1. Make AI-assisted scripture projection useful, transparent, and safe.
+  1. Make service preparation, media management, and presentation intuitive for non-technical volunteers.
+  1. Keep resource consumption modest on ordinary Windows computers.
+  1. Establish an architecture that can support more advanced production features later.
+
+Non-goals for V1
+  • Full live audio/video conferencing or remote congregation broadcasting.
+  • A cloud-dependent presentation engine.
+  • Automatic AI generation of canonical Bible text.
+  • A full professional video-editing suite.
+  • Automatic projection of uncertain paraphrases.
+  • A requirement for users to create cloud accounts before using local presentation features.
+
+2. Product Scope and Priorities
+-------------------------------
+
+P0 — Essential for V1
+  • Full-text Bible search, installable local translations with KJV as the initial data target, service order, live/preview outputs, manual scripture projection, persistent production controls, and an operator window with a configured audience display.
+  • Basic song lyrics management and display, plus local image, video and audio media items.
+  • AI-powered scripture detection using offline Whisper speech recognition, explicit spoken-reference parsing, operator confirmation, and the hybrid projection safety policy.
+  • Offline preparation, search and presentation after the required content and models are installed.
+
+P1 — After the core workflow is stable
+  • Licensed NIV, ESV, NLT and NASB translation packages, subject to rights and offline distribution approval.
+  • Custom theme editor, advanced media playlists, additional audience outputs, presentation history, and configurable operator shortcuts.
+  • Quotation matching, contextual reference resolution, and semantic search for scriptures and locally stored songs.
+  • Optional online lyrics discovery through Genius and read-only import from supported EasyWorship databases or exports.
+
+Future versions
+  • Advanced AI worship assistance, richer production automation, remote control, advanced stage displays, additional screen-routing features, and optional cloud synchronization.
+
+All ten requested capabilities are planned product features. P0/P1 indicate delivery order, not completed implementation; online integrations must not become dependencies of the offline core. Section 17 groups the work into feature workstreams.
+
+3. Recommended Technology Stack
+-------------------------------
+
+Layer | Recommended technology | Responsibility
+------------------------------------------------------------------------------
+Desktop shell | Wails | Native desktop packaging and Go/frontend bridge
+UI | React + TypeScript | Workspace, Bible browser, songs, service order, media, theme editor and settings
+Styling | CSS variables + component system | Design tokens and responsive layout
+Core engine | Go | Application services, scripture resolution, presentation control and orchestration
+Local database | SQLite | Bible and song data, FTS indexes, schedules, themes, settings and local history
+Full-text search | SQLite FTS5 | Indexed Bible text, song titles and lyrics
+Audio | Go audio-device adapter with platform-specific integration as needed | Input selection, level monitoring and audio stream management
+Speech recognition | Whisper through a pluggable local ASR adapter | Offline speech-to-text and model lifecycle
+Semantic search | Local embedding model and retrieval adapter; model and vector storage selected after benchmarking | Meaning-based scripture and song discovery
+External integrations | Go adapters for permitted Genius API access and supported EasyWorship formats | Optional online discovery and local migration
+Communication | Wails bindings and typed application events | UI-to-engine commands and status updates
+Optional cloud | NestJS + PostgreSQL, only when justified | Accounts, licensing, synchronization and shared metadata
+
+Architecture rule: do not introduce NestJS, PostgreSQL, or Redis into the V1 local runtime unless a specific requirement demands them. The core application should not need a running cloud backend to present a service.
+
+The selected ASR engine must be benchmarked independently. Go is the application engine, not a guarantee that speech recognition itself will consume little memory.
+
+
+4. Application Information Architecture
+---------------------------------------
+The application uses a persistent shell with three areas: navigation, the active page, and the live-detection workspace. A fixed production bar anchors the bottom.
+
+
+Navigation pages
+  • Home — overview of the current service, live workspace, recent activity and quick actions.
+  • Service Order — create, organize and run presentation schedules.
+  • Media Library — import and organize images, videos, audio, backgrounds and reusable slides.
+  • Songs — manage local lyrics and arrangements, search songs, and optionally discover lyrics sources through Genius.
+  • Bible — reference, full-text and semantic scripture search, passage browsing, translation selection and projection.
+  • Live Detection — configure and monitor Whisper speech recognition, candidates, confidence and routing policy.
+  • Settings — display configuration, audio, custom theme editor, shortcuts, privacy, models, integrations, EasyWorship import and database management.
+
+Persistent application state
+  • Active service and service-order position.
+  • Current live slide and its content.
+  • Current preview slide and its content.
+  • Display output connections.
+  • Audio device and audio-stream status.
+  • Speech-recognition lifecycle.
+  • Detection policy and pending candidates.
+  • Current Bible translation.
+  • Presentation history and emergency pause state.
+Navigating between pages must not stop audio capture, change the live slide, reset the service order, or discard pending candidates. The system must distinguish page navigation, preview selection, manual projection, and AI projection as separate actions.
+
+
+5. Full-Text Bible Search — Core Feature
+----------------------------------------
+Full-text search is a first-class feature in Zowe Worship. Users must be able to search the actual text of installed Bible translations, not just book names, chapter numbers, or reference strings.
+
+
+Search modes
+  • Reference search: John 3:16, Romans 8:28-30, Psalm 23, 1 John 5:7. Resolve known passages directly and validate book, chapter, verse and range.
+  • Word and phrase search: grace, faith without works, the Lord is my shepherd, love your enemies. Search verse text across the selected translation and highlight matching words.
+  • Passage browsing: select a translation, book, chapter and verse; browse adjacent verses and chapters.
+  • Speech-assisted scripture search: use recognized words or manually entered transcription to find likely passages. Clearly label exact text matches, reference matches and approximate quotations.
+
+Search behavior
+  • One search box accepts references or text queries.
+  • Pressing Enter performs the search.
+  • Search operates against the selected translation by default.
+  • Search can be restricted to a specific book or Testament.
+  • Users can switch translation without leaving the Bible workspace.
+  • Results display reference, translation, full verse text and matching context.
+  • Search terms are highlighted in returned text.
+  • Results are ranked deterministically using reference matches, phrase matches, term matches and relevance.
+  • Punctuation and capitalization differences should not prevent ordinary text matches.
+  • Support multiword queries, exact-phrase matching and common punctuation variations.
+  • Search must never fabricate, paraphrase or silently change Bible text.
+  • Missing translations or unavailable passages must be reported clearly.
+  • Search remains usable offline after translation and index installation.
+
+Search result design
+  • Book, chapter and verse reference.
+  • Translation abbreviation.
+  • Full verse text.
+  • Highlighted matching words or phrase.
+  • Match type or relevance information when useful.
+  • Preview, Project and Add to Service actions.
+  • Optional passage expansion to include neighboring verses.
+Selecting a search result opens it in the Bible workspace or preview by default. It must not replace the live output accidentally.
+
+
+Search implementation
+Use SQLite FTS5 as the initial full-text search engine.
+
+  • bible_translations — installed translation metadata.
+  • bible_books — canonical book identity and ordering.
+  • bible_chapters — chapter metadata.
+  • bible_verses — canonical verse text.
+  • bible_fts — full-text index over verse text and appropriate search metadata.
+  • bible_book_aliases — reference parsing aliases.
+  1. Each verse should have a stable identifier and foreign keys to its translation, book and chapter. The FTS index must support efficient translation/book filtering.
+  1. Parse references before interpreting the query as a phrase.
+  1. For ordinary words, tokenize and query the full-text index.
+  1. For exact phrases, use a phrase-query mode with correct FTS5 escaping.
+  1. Validate and parameterize user-controlled inputs; never concatenate untrusted text into SQL syntax.
+  1. Use deterministic ranking and stable tie-breakers.
+  1. Apply limits and pagination for broad queries.
+  1. Keep canonical verse text in the database; the index is only a retrieval mechanism.
+  1. Update or rebuild the index when a translation is installed or replaced.
+  1. Normalize searchable text separately from display text.
+  1. Never silently substitute another translation when the selected translation lacks content.
+Initial performance target: reference lookup p95 below 50 ms and full-text search p95 below 150 ms on a representative local database and test computer. These are targets to measure, not guaranteed results.
+
+
+Bible translation and licensing
+Target translations are KJV, NIV, ESV, NLT and NASB. The first release should use a validated KJV dataset; its completeness, provenance and usage rights must be checked before distribution. Each additional translation requires its own license and offline distribution approval before it can be bundled or downloaded. Listing a translation as a target does not mean its content or distribution rights have been obtained.
+
+Translations must be installable as separate, versioned data packages with integrity checks, source attribution and license metadata. Search, browsing, detection resolution and projection use the selected installed translation. Missing or unlicensed packages remain explicitly unavailable; the application must never silently replace them with KJV or another translation.
+
+Semantic scripture and song search
+  • Add a clearly labeled semantic search mode for meaning-based queries over installed scripture and locally stored songs; retain deterministic reference and full-text search as independent modes.
+  • Use a local embedding model and versioned indexes so semantic discovery works offline after explicit model installation and indexing.
+  • Index song titles and authorized stored lyrics, and filter scripture results by the selected translation and existing book/Testament controls.
+  • Return ranked candidate references or song records with stored text and source information. Similarity scores are not scripture-detection confidence scores.
+  • Semantic results must never generate or rewrite Bible text or song lyrics, and must not trigger automatic projection by themselves.
+  • Rebuild affected indexes after content or model changes. Index creation and cancellation must not interrupt live presentation.
+  • If the model or semantic index is unavailable, explain this and keep reference/full-text search operational; do not silently switch to a cloud service.
+  • Select the model and vector storage only after measuring retrieval relevance, indexing cost, memory use and latency on the supported Windows baseline.
+
+
+6. Live and Preview Production Workspace
+----------------------------------------
+
+Live output
+  • Represents what the audience currently sees.
+  • Remains unchanged during navigation and preview selection.
+  • Changes only through a valid projection command or authorized automatic-projection decision.
+  • Continues displaying the last valid slide when audio, search or recognition fails.
+  • Supports explicit clearing, with confirmation where appropriate.
+  • Tracks projected slide and output connection state.
+  • Records projection actions in local history.
+
+Preview output
+  • Shows a candidate slide before projection.
+  • Allows passage and slide selection from Bible, media library and service order.
+  • Supports manual projection after review.
+  • Does not change the live slide until the operator explicitly projects it.
+  • Clearly labels the selected preview and destination.
+
+Persistent production bar
+  • Audio input selection and current signal level.
+  • Speech-recognition health.
+  • Live-output destination and status.
+  • Preview destination and status.
+  • Previous and Next controls.
+  • Clear live output.
+  • Auto-projection enabled/disabled status.
+  • Hybrid-mode status.
+  • Emergency pause control.
+  • Route to output configuration.
+The production bar remains mounted across all normal application pages. Next must operate on the presentation controller's state, not whichever page is open.
+
+
+Multiple displays
+V1 must support a primary operator window and a configured audience output where supported by the operating system and display hardware. The audience display must be a dedicated presentation surface rather than a scaled screenshot of the operator interface. Operators select the destination monitor explicitly and can identify displays before routing content.
+
+Additional audience outputs follow after the single-output workflow is stable. Display routing, fullscreen behavior, aspect ratios, DPI scaling, disconnects and reconnections must be tested independently of page navigation. A disconnected audience display must not move confidential operator content onto another monitor or clear the controller's last valid live state. Advanced stage displays and independent output layouts remain future extensions.
+
+
+7. Scripture-First Live Voice Detection
+---------------------------------------
+
+Core workflow
+  2. Capture audio from selected microphone or direct mixer feed.
+  2. Transcribe speech with the installed speech-recognition engine.
+  1. Detect explicit references and possible quotations.
+  1. Validate the reference and retrieve exact text from the local Bible repository.
+  1. Apply hybrid policy: auto-project, request confirmation or take no action.
+  1. Update the presentation through the central controller.
+Speech recognition must never directly write to live output. It produces evidence and candidates; a separate controller decides whether a candidate may change the audience display.
+
+Offline Whisper recognition
+  • Whisper is the initial speech-recognition engine, behind the SpeechService adapter; the Go binding or worker implementation is selected after a Windows prototype and benchmarks.
+  • Model downloads are explicit, integrity-checked and versioned. Expose installation, loading, readiness, failure and removal states, and document disk/RAM requirements for supported model sizes.
+  • Provide a CPU-capable configuration rather than requiring a GPU or internet access during a service.
+  • Use bounded audio buffering and distinguish interim text from finalized segments. Low-quality audio, silence and transcription hallucinations must still pass reference validation and intent/safety gates before any projection decision.
+  • Keep inference failures isolated from manual controls, and do not silently fall back to remote transcription.
+  • Evaluate model choice, end-to-end speech-to-candidate latency and detection accuracy with the representative preaching recordings defined in the testing requirements.
+
+Detection types
+  • Explicit reference: “Open your Bible to Romans chapter eight, verse twenty-eight.”
+  • Contextual reference: “Now read verse twenty-nine,” when the current passage is established.
+  • Quotation match: “The Lord is my shepherd.”
+  • Reference correction: speaker corrects or repeats a reference and the engine updates the candidate.
+  • Multiple references: speaker mentions several passages in sequence.
+Explicit reference parsing is the initial priority. Contextual and quotation-based detection should be introduced after the explicit-reference pipeline is reliable.
+
+
+Hybrid decision policy
+
+Result | Required behavior
+------------------------------------------------------------------------------
+High confidence, validated explicit reference, stable transcript | May auto-project if all safety gates pass and auto-projection is enabled
+Medium confidence | Add to confirmation queue
+Low confidence | Do not change live output
+Ambiguous book or passage | Request operator selection
+Invalid reference | Reject candidate and preserve current live output
+Quotation with multiple plausible matches | Queue candidates or require manual search
+Audio/model/display error | Show error and preserve current live output
+
+Illustrative confidence bands can begin at 0.92 for high confidence and 0.65 for medium confidence. These are initial tuning values, not claims of achieved accuracy. Each detection type must be calibrated against real, labeled audio.
+
+
+Auto-projection safety gates
+  • Transcript segment is finalized and sufficiently stable.
+  • Reference parses unambiguously.
+  • Passage exists in the selected translation.
+  • Detected content strongly indicates scripture-reference intent.
+  • No conflicting or newer candidate supersedes it.
+  • Auto-projection is enabled and not paused.
+  • Presentation controller accepts the command.
+  • Duplicate and rapid-repeat protection has passed.
+
+Detection panel
+  • Listening status and selected audio input.
+  • Current transcription.
+  • Detected book, chapter and verse.
+  • Detection method and confidence.
+  • Exact retrieved verse text and translation.
+  • Project, Preview, Dismiss and Search actions.
+  • Pending confirmation queue.
+  • Recent projected and dismissed detections.
+  • Decision explanation such as “Explicit reference detected” or “Possible quotation; multiple matches.”
+Operators must be able to disable automatic projection without stopping audio capture. A separate Pause Detection action may stop the recognition pipeline.
+
+
+8. Service Order and Presentation Content
+-----------------------------------------
+
+Service order
+Operators must be able to create, rename, duplicate, reorder, save and reopen service schedules.
+
+  • Bible passage.
+  • Text slide.
+  • Image slide.
+  • Video.
+  • Audio track.
+  • Song or lyric sequence.
+  • Announcement.
+  • Blank or section-divider slide.
+Each item should support title, type, content, optional duration, notes, status and ordering. Items may reference reusable library content rather than copying all media into each schedule.
+
+
+Live status
+Items indicate completed, current/live, next or upcoming. Status changes are driven by the presentation controller and explicit operator actions, not merely by the selected editor row.
+
+
+Song lyrics management and display
+  • Create, edit, duplicate, organize and delete local songs, preserving title, author, copyright, source and licensing information where available.
+  • Structure lyrics into named sections such as verse, chorus and bridge, with reusable arrangements and explicit section ordering.
+  • Search local song titles and lyrics using full-text search; add semantic discovery in the later search workstream.
+  • Preview lyric slides, add song arrangements to a service order, and advance them through the presentation controller.
+  • Theme changes and lyric editing affect preparation or preview only until an explicit projection command is accepted.
+  • Store authorized lyrics locally so editing and display remain usable offline; online search is not a prerequisite.
+
+Media library
+Support importing and organizing reusable images, videos and audio tracks, searching by filename or metadata, previewing items, and adding them to a service order. Declare supported formats/codecs rather than promising every media format. Store media type, duration where applicable, source path and availability; support relinking missing files.
+
+Provide explicit playback, pause, stop, seek and volume controls where supported. Preview playback must remain separate from audience playback, and audio-only cues must not blank a valid live slide. Missing or unsupported media must be clearly marked. If media fails during a service, the application must retain a valid live output and report the failure. Advanced playlists follow the basic media workflow.
+
+Custom theme editor
+  • Create, duplicate, edit, save and delete reusable themes for scripture, lyrics and text slides.
+  • Configure typography, font size, line spacing, alignment, text color, background, margins and reference/copyright placement.
+  • Provide a live theme preview, readable defaults and overflow feedback for different aspect ratios and long passages or lyrics.
+  • Apply themes to prepared content without silently changing an already-live slide. Theme content must not alter canonical scripture or stored lyrics.
+  • Persist themes and local background references offline, report missing assets, and prevent arbitrary executable scripts in theme definitions.
+
+Online lyrics search — Genius integration
+  • Offer an optional online search for song titles and artists through permitted Genius API access, with attribution and links to the original results.
+  • The integration is a discovery source, not an assumption that the API grants access to full lyrics or a license to cache/project them. Import full lyrics only through an explicitly authorized source and permitted usage terms; do not scrape around access restrictions.
+  • Operator review and confirmation are required before importing authorized content into the local song library. Preserve source and rights metadata.
+  • Handle unavailable credentials, rate limits, connection failures and unavailable lyrics without blocking local songs, service preparation or presentation.
+  • Keep credentials in the operating system credential store, never in frontend bundles, repository files or logs; use a provider-permitted authentication flow without shipping a client secret.
+
+EasyWorship database import
+  • Import user-supplied EasyWorship databases or exports through versioned, read-only adapters, with an explicit supported-version/format list.
+  • Inspect only user-authorized, accessible source data. Do not modify the original database, bypass encryption or remove content protections.
+  • Show a preflight preview of songs, lyric sections, supported service data and media references. Identify unsupported records, unavailable files, duplicates and licensing restrictions before import.
+  • Let the operator select records and confirm duplicate handling, preserving source identifiers, section ordering and available attribution.
+  • Import into local storage transactionally, support cancellation without partially applying a batch, and produce a summary of imported, skipped and failed records.
+  • Preserve the current library and live output on failure. Import only content the user has rights to use; media references may require relinking rather than copying.
+
+
+9. UI Design Guide
+------------------
+
+Brand direction
+  • Product name: Zowe Worship.
+  • Brand line: “Scripture First. Always.”
+  • Character: minimal, confident, modern and production-focused.
+  • Avoid decorative religious clip art, excessive gradients, crowded toolbars and overly playful controls.
+  • Use Zowesoft as parent brand and Zowe Worship as product brand.
+
+Color tokens
+
+Token | Hex | Use
+------------------------------------------------------------------------------
+App background | #080F1C | Primary application canvas
+Panel background | #0F1A2B | Cards, navigation and workspace panels
+Elevated surface | #17253B | Selected rows, inputs and overlays
+Primary blue | #4778FF | Main actions and selected navigation
+Accent violet | #8068F7 | Secondary brand accents
+Success teal | #21D6A2 | Connected state and validated projection
+Warning amber | #F4BD4F | Pending or uncertain candidates
+Error red | #FF626F | Failures and critical warnings
+Primary text | #F3F6FC | Headings and essential content
+Secondary text | #A3B2CA | Supporting labels and metadata
+
+These are design tokens, not restrictions on audience-facing slide backgrounds. Slide themes may use photographs, gradients, solid colors or church-specific branding.
+
+
+Typography
+  • UI font: Inter or similarly legible modern sans-serif.
+  • Page titles: 22–28 px.
+  • Section headings: 16–20 px.
+  • Standard interface text: 13–15 px.
+  • Supporting labels: 11–12 px with adequate contrast.
+  • Scripture slide typography is configurable independently of UI typography.
+  • Bible reference and translation are visually distinct from the verse body.
+
+Spacing and components
+  • Use an 8 px base spacing system.
+  • Standard panel radius: 8–12 px.
+  • Use subtle borders and restrained shadows.
+  • Reserve bright accents for actions, selection and meaningful status.
+  • Use consistent outline iconography.
+  • Provide hover, focus, disabled, loading and error states.
+  • Keep confirmation actions near the relevant candidate.
+  • Avoid layout shifts when transcripts update or candidates arrive.
+
+Persistent shell sizing
+  • Reference desktop size: 1440 × 900.
+  • Sidebar: approximately 220–250 px.
+  • Detection panel: approximately 320–380 px.
+  • Production bar: approximately 76–100 px tall.
+  • Header: approximately 56–72 px tall.
+On smaller windows, the detection panel may collapse into a drawer, but live status and essential production controls remain accessible.
+
+
+Accessibility and operation
+  • All primary actions are keyboard accessible.
+  • Do not use color alone to communicate confidence or connection state.
+  • Provide tooltips for icon-only buttons.
+  • Support adjustable scripture slide font size and line spacing.
+  • Make destructive or potentially disruptive actions explicit.
+  • Avoid focus stealing while an operator types or searches.
+  • Keep a visible pause control and distinct emergency auto-projection disable.
+
+10. Interaction and Keyboard Controls
+-------------------------------------
+
+Shortcut | Action
+------------------------------------------------------------------------------
+F8 | Start/stop scripture listening
+F9 | Pause/resume automatic projection
+Enter | Approve selected candidate when detection queue has focus
+Esc | Dismiss selected candidate or close dialog
+Alt+Enter | Project selected preview or candidate
+Ctrl+Up / Ctrl+Down | Move through candidate queue
+Ctrl+Shift+S | Open scripture search
+Left / Right | Previous/Next slide when presentation navigation has focus
+F12 | Emergency disable automatic projection
+
+Shortcuts must be configurable and conflict-tested. F12 must not blank the audience display. Escape must not clear live output by default. Shortcuts must not interfere with normal text input.
+
+
+11. Data Model
+--------------
+Use a local SQLite database with versioned migrations.
+
+  • bible_translations
+  • bible_books
+  • bible_chapters
+  • bible_verses
+  • bible_fts
+  • bible_book_aliases
+  • services
+  • service_items
+  • songs
+  • song_sections
+  • song_arrangements
+  • song_arrangement_items
+  • song_fts
+  • media_assets
+  • slide_templates
+  • search_embeddings
+  • import_runs
+  • app_settings
+  • presentation_history
+  • detection_history
+Introduce these tables through the owning feature's migrations, not as empty functionality in the scaffold. slide_templates stores reusable theme definitions. Embedding records identify their content source, translation where relevant, content version and model version. Imported records preserve provenance and available rights metadata; provider secrets belong in the OS credential store, not these tables.
+
+Audio transcripts and candidate records may be kept in bounded in-memory state during operation. Persistent transcript logging should be optional.
+
+
+Scripture reference representation
+  • Translation ID.
+  • Canonical book ID.
+  • Chapter.
+  • Optional start verse.
+  • Optional end verse.
+Validate every reference against the installed translation. Passage ranges must not cross invalid boundaries silently.
+
+
+Bible source of truth
+The canonical verse table is the source of truth for displayed scripture. Search indexes, speech recognition, AI models and quotation matchers may find candidate references, but must not supply replacement Bible text.
+
+
+Application events
+  • audio.input.started
+  • audio.input.health_changed
+  • transcript.updated
+  • transcript.finalized
+  • scripture.candidate_detected
+  • scripture.candidate_updated
+  • scripture.candidate_queued
+  • scripture.candidate_approved
+  • presentation.scripture_projected
+  • scripture.detection.paused
+  • scripture.detection.resumed
+  • scripture.detection.error
+Every candidate should have a stable ID and generation/version so revised transcripts cannot cause stale candidates to override newer operator decisions.
+
+
+12. Technical Architecture and Implementation Rules
+---------------------------------------------------
+
+Runtime services
+  • BibleService — translation management, reference validation, passage retrieval and search.
+  • SearchService — reference parsing, scripture/song full-text queries, ranking and pagination.
+  • SemanticSearchService — local embedding model lifecycle, indexing and meaning-based scripture/song retrieval.
+  • AudioService — device discovery, capture, levels and stream health.
+  • SpeechService — speech-recognition provider abstraction with an initial offline Whisper adapter.
+  • ScriptureDetectionService — explicit references, contextual references and quotation candidates.
+  • ConfidenceService — calibrated scoring and policy gates.
+  • PresentationService — authoritative live/preview state, projection and display management.
+  • ServiceOrderService — schedule editing and progression.
+  • SongService — local lyrics, sections, arrangements, attribution and slide preparation.
+  • MediaService — image/video/audio import, indexing and playback coordination.
+  • ThemeService — reusable theme definitions, validation and preview preparation.
+  • LyricsDiscoveryService — permitted Genius search, source attribution and authorized import handoff.
+  • ImportService — EasyWorship format adapters, preflight, deduplication and transactional import.
+  • SettingsService — preferences, device settings and detection policies.
+Services communicate through typed commands and events. The UI must not implement scripture parsing, projection decisions, audio processing, embedding inference or provider authentication.
+
+
+Suggested project structure
+zowe-worship/\n├── app.go\n├── main.go\n├── internal/\n│   ├── bible/\n│   ├── search/\n│   ├── audio/\n│   ├── speech/\n│   ├── scripture/\n│   ├── confidence/\n│   ├── presentation/\n│   ├── serviceorder/\n│   ├── media/\n│   ├── settings/\n│   └── database/\n├── frontend/\n│   └── src/\n│       ├── app/\n│       ├── components/\n│       ├── layouts/\n│       ├── features/\n│       │   ├── bible/\n│       │   ├── service-order/\n│       │   ├── media/\n│       │   ├── live-detection/\n│       │   └── presentation/\n│       ├── stores/\n│       └── styles/\n├── migrations/\n├── assets/\n└── tests/
+
+
+Additional planned feature modules
+Add internal/songs, internal/themes, internal/semantic, internal/integrations/genius and internal/importers/easyworship when their features are implemented. Their UI work belongs under frontend/src/features/songs, themes, search and imports, reusing the existing persistent shell and global settings. A directory or placeholder screen does not count as a completed feature.
+
+Resource management
+  • Do not poll hardware continuously when event-driven updates are available.
+  • Use bounded audio and transcript queues.
+  • Keep audio callbacks non-blocking.
+  • Release file handles, media decoders and audio resources when no longer needed.
+  • Do not load entire Bible translations into memory unnecessarily.
+  • Keep database operations short and indexed.
+  • Debounce rapidly changing search input.
+  • Avoid unnecessary React rerenders when audio levels change.
+  • Use virtualization for large search results and media lists.
+  • Load speech models lazily and expose model readiness.
+  • Do not run an LLM continuously when deterministic parsing is sufficient.
+
+Initial performance targets
+
+Metric | Initial target
+------------------------------------------------------------------------------
+Reference lookup | p95 below 50 ms
+Full-text search | p95 below 150 ms
+Ordinary UI actions | Responsive without noticeable stalls
+Qualified automatic projection | At least 99% precision on the defined evaluation set
+Explicit-reference detection | At least 95% recall on the defined evaluation set
+Duplicate projection | Zero duplicate actions for the same stable candidate
+Offline core workflow | Works without internet when required assets are installed
+Audio disconnection | Visible warning without clearing live output
+
+Speech targets must be evaluated using representative preaching recordings, varied speaking speeds, Nigerian English accents, biblical names and realistic room noise. If the automatic-projection precision target is not met, automatic projection should remain disabled for the affected detection type.
+
+
+13. Privacy, Reliability and Error Handling
+-------------------------------------------
+
+Privacy
+  • Local processing is preferred wherever practical.
+  • No raw audio recording by default.
+  • Cloud transcription or AI services must be optional, disclosed and configurable.
+  • Persistent transcript logging must be optional and deletable.
+  • Users should see when listening is active.
+  • Model and translation downloads must be explicit.
+  • License and data-source information should be available for installed Bible translations.
+
+Reliability requirements
+  • Audio disconnects must not clear the current live slide.
+  • Recognition errors must not stop manual projection.
+  • Missing Bible verses must not be invented or silently substituted.
+  • A stale detection candidate must not override a newer manual selection.
+  • Restarting the application must not silently resume automatic projection.
+  • Failed media playback must be reported while retaining a valid fallback display.
+  • Display reconnection should restore the configured output when possible.
+  • A crash in the detection subsystem should not take down manual presentation controls.
+Save recoverable service and configuration state regularly, using database transactions and versioned migrations.
+
+
+14. Testing and Acceptance Criteria
+-----------------------------------
+
+Full-text search
+  • John 3:16 resolves the intended reference.
+  • Romans 8:28-30 returns the specified passage.
+  • Searching grace returns matching verses from the selected translation.
+  • Searching the Lord is my shepherd retrieves Psalm 23:1 in the KJV.
+  • Exact-phrase search differs correctly from broad word matching.
+  • Translation filtering excludes results from other translations.
+  • Invalid references produce clear feedback.
+  • Large queries remain responsive and support pagination.
+  • Search results display exact stored Bible text.
+  • Search continues to work offline.
+
+Persistent production
+  • Navigating from Home to Bible does not interrupt live output.
+  • Searching for a verse does not replace live output.
+  • Preview selection does not change live output.
+  • Manual projection updates the correct output.
+  • The production bar remains available across normal pages.
+  • Detection candidates continue to update while another page is open.
+  • A display or audio error does not erase the last valid live slide.
+
+Hybrid scripture detection
+  • A clear, explicit and valid reference may auto-project when all safety gates pass.
+  • A contextual reference is queued for confirmation by default.
+  • An ambiguous quotation does not auto-project.
+  • Invalid or missing references preserve the current output.
+  • Corrected transcripts cancel stale candidates.
+  • Repeated references do not generate duplicate projection actions.
+  • Emergency disable stops automatic projection without blanking the live display.
+  • Offline detection continues when the local speech model is available.
+  • The operator can manually search and project scripture if recognition fails.
+
+Translations and offline Whisper
+  • Install, validate and switch every legally available target translation package; search and projection retain its exact stored text and attribution.
+  • Unavailable NIV, ESV, NLT or NASB packages produce a clear message rather than substituted content.
+  • With networking disabled and required assets installed, Whisper produces finalized transcripts and explicit-reference candidates through the same safety controller.
+  • Missing/corrupt models, silence and device failures leave manual presentation usable; automatic projection remains disabled for detection types that miss the precision target.
+
+Songs, media and themes
+  • Create and reopen songs with verse/chorus arrangements, preview lyric slides, and advance the intended section without changing live output during editing.
+  • Import and play each declared image/video/audio format; test missing files, unsupported codecs, relinking and failure without blanking a valid live slide.
+  • Save and reopen custom themes, test long-text overflow and output aspect ratios, and verify that editing a theme cannot silently restyle live content.
+
+Multi-display output
+  • Identify and select the audience monitor, keep operator content private, and test mixed DPI, fullscreen behavior and disconnect/reconnect recovery.
+  • Additional audience outputs must receive only their explicitly configured content, without navigation or preview selection changing live state.
+
+Semantic search
+  • Evaluate scripture and song retrieval against a labeled query set, including meaning-based queries without exact word overlap.
+  • Results point to authorized stored text, respect scripture translation filters and cannot auto-project solely because of similarity.
+  • Model/index absence or rebuild failure leaves exact/reference search available; measure relevance, latency and memory before selecting the supported model.
+
+Genius and EasyWorship integrations
+  • Genius search displays attribution and original-source links, distinguishes discovery from permitted lyrics import, and handles offline, authentication and rate-limit failures without blocking local work.
+  • API credentials do not appear in frontend assets, source control or logs.
+  • Test supported EasyWorship formats with permitted fixtures; verify preflight counts, duplicate choices, lyric ordering, missing media and unsupported schema reports.
+  • Cancellation or failed imports preserve both the source database and the existing local library; successful imports include a reviewable result summary.
+
+Desktop and performance
+Test on representative Windows computers, including systems with limited RAM and CPU capacity. Measure idle memory, memory during Bible search, memory during sustained audio recognition, startup time, CPU usage, recovery from device disconnects, and prolonged service stability. Include semantic indexing, media playback and Whisper running together when defining the supported hardware baseline.
+
+
+15. Delivery Roadmap
+--------------------
+  1. Foundation — F01: complete desktop persistence, migrations and settings on top of the existing Wails/Go/React scaffold.
+  2. Scripture and manual presentation — F02 and F03: validate KJV, implement reference/full-text search, translation packages, service order, live/preview state and operator/audience displays. Begin licensing work for NIV, ESV, NLT and NASB early.
+  3. Service content — F04 and F05: local song management, lyric arrangements and image/video/audio playback through the central presentation controller.
+  4. Offline AI detection — F07: audio capture, Whisper model lifecycle, finalized transcripts, explicit-reference resolution, candidate review, calibrated confidence and gated automatic projection.
+  5. Core V1 stabilization — validate the P0 definition of done, offline operation, output recovery, real-world audio accuracy, resource usage and release packaging.
+  6. Customization and richer discovery — F06 and F08: custom theme editor and local semantic scripture/song search. Extend F02 with approved translation packages and F03 with additional audience outputs.
+  7. Integrations and migration — F09 and F10: permitted Genius discovery and supported EasyWorship imports, with independent failure handling and rights checks.
+  8. Expanded release stabilization — verify the P1 acceptance criteria, interoperability, migration fixtures and supported hardware/model combinations.
+
+These phases express dependencies and priorities, not release dates or implementation claims. License acquisition and supported EasyWorship format research can proceed before their runtime integrations.
+
+16. V1 Definition of Done
+-------------------------
+  • Users can install and launch the desktop application without setting up a separate backend server.
+  • A local Bible translation can be searched by reference, word or phrase.
+  • Operators can create and run a service order with stored song arrangements and supported image, video and audio items.
+  • The application has separate live and preview states, with an operator window and a configured audience display.
+  • The production bar remains available across page navigation.
+  • Manual scripture and lyric projection work independently of AI detection.
+  • The system can recognize and resolve explicit spoken references using an installed offline Whisper model.
+  • The hybrid controller enforces confidence and safety gates.
+  • Search, detection and presentation continue to function offline when required assets are installed.
+  • Core failure modes preserve the last valid live output.
+  • Resource use and detection quality have been measured against defined test datasets.
+  • Bible content provenance, licensing and privacy behavior are documented.
+Product decision: full-text Bible search, persistent live/preview controls and manual projection are foundational V1 features. AI scripture detection enhances that foundation; it must never compromise live presentation reliability.
+
+
+17. Feature Workstreams and Delivery Backlog
+--------------------------------------------
+Status baseline: 2026-10-28. Only the desktop scaffold, persistent placeholder UI, typed application-info bridge and build/test setup are implemented. Database persistence, presentation outputs, content management, AI, search and integrations remain planned. The feature groups below describe work to build, not features already shipped.
+
+ID | Feature group | Scope | Dependencies | Status
+------------------------------------------------------------------------------
+F01 | Desktop foundation and reliability | Wails/Go/React shell, typed bindings/events, SQLite migrations, settings, packaging and recovery | None | Scaffold implemented; persistence and recovery planned
+F02 | Bible library and translation search | KJV, NIV, ESV, NLT and NASB packages; reference/phrase/full-text search; browsing and attribution | F01; validated data and distribution rights | Planned
+F03 | Service order and multi-display presentation | Services, live/preview controller, manual projection, production controls, operator/audience displays and reconnection | F01; F02 for scripture content | Planned
+F04 | Songs and lyric presentation | Local song library, sections, arrangements, full-text lookup, lyric slides and service cues | F01 and F03 | Planned
+F05 | Media library and playback | Image/video/audio imports, metadata, preview, transport controls, service items and relinking | F01 and F03 | Planned
+F06 | Custom theme editor | Reusable scripture/lyrics/text themes, backgrounds, typography, layout preview and persistence | F03; F04/F05 for content and backgrounds | Planned
+F07 | Offline AI scripture detection | Audio devices, Whisper, transcript lifecycle, scripture candidates, confidence gates, approval queue and emergency disable | F01, F02 and F03 | Planned
+F08 | Semantic scripture and song search | Local embeddings, model/version-aware indexes, relevance evaluation and ranked stored-content results | F02 and F04 | Planned
+F09 | Online lyrics discovery | Genius search, attribution, provider-permitted authentication and authorized song import | F04; provider terms and content rights | Planned
+F10 | EasyWorship migration | Supported-format adapters, read-only preflight, duplicate decisions, song/media mapping and transactional import reports | F01, F03, F04 and F05; permitted source fixtures | Planned
+
+Feature completion rules
+  • Deliver each feature as a working vertical slice: backend commands and persistence where needed, typed bindings, UI, tests and documented acceptance evidence.
+  • Preserve offline behavior and the live-output safety rules in every feature. An unavailable online provider must not disable local presentation.
+  • Do not treat an empty package, disabled button, mock data or a roadmap entry as implementation.
+  • Record translation/lyrics licensing, model selection and supported importer versions before enabling their dependent capabilities.
+  • Review real Windows behavior, keyboard operation and failure paths before marking a feature complete.
+
+Commit grouping
+  • Use scoped Conventional Commits reflecting actual changes, such as feat(bible), feat(presentation), feat(songs), feat(media), feat(themes), feat(detection), feat(search), feat(genius) and feat(import).
+  • Keep the expanded roadmap in docs(prd), native scaffold/build setup in feat(desktop), and the React shell in feat(workspace).
+  • Future feature commits must include the implementation and relevant tests, not just a placeholder claiming completion. Do not create empty commits for planned features.
