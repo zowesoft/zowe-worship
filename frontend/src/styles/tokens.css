@@ -1,0 +1,20 @@
+:root {
+  color-scheme: dark;
+  --color-app: #080F1C;
+  --color-panel: #0F1A2B;
+  --color-elevated: #17253B;
+  --color-blue: #4778FF;
+  --color-violet: #8068F7;
+  --color-teal: #21D6A2;
+  --color-amber: #F4BD4F;
+  --color-error: #FF626F;
+  --color-text: #F3F6FC;
+  --color-secondary: #A3B2CA;
+  --color-border: #24334A;
+  --color-selected: #192C50;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --radius: 10px;
+  --sidebar-width: 224px;
+  --header-height: 72px;
+  --production-height: 88px;
+}
