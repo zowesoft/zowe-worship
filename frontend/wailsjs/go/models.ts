@@ -89,6 +89,83 @@ export namespace main {
 		}
 	}
 
+	export class LyricHitView {
+	    songId: string;
+	    songTitle: string;
+	    author: string;
+	    copyright: string;
+	    sectionId: string;
+	    label: string;
+	    text: string;
+	    position: number;
+
+	    static createFrom(source: any = {}) {
+	        return new LyricHitView(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.songId = source["songId"];
+	        this.songTitle = source["songTitle"];
+	        this.author = source["author"];
+	        this.copyright = source["copyright"];
+	        this.sectionId = source["sectionId"];
+	        this.label = source["label"];
+	        this.text = source["text"];
+	        this.position = source["position"];
+	    }
+	}
+	export class NewSongSectionRequest {
+	    label: string;
+	    text: string;
+
+	    static createFrom(source: any = {}) {
+	        return new NewSongSectionRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.text = source["text"];
+	    }
+	}
+	export class NewSongRequest {
+	    title: string;
+	    author: string;
+	    copyright: string;
+	    sections: NewSongSectionRequest[];
+
+	    static createFrom(source: any = {}) {
+	        return new NewSongRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.author = source["author"];
+	        this.copyright = source["copyright"];
+	        this.sections = this.convertValues(source["sections"], NewSongSectionRequest);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
 	export class PresentationView {
 	    preview?: presentation.Content;
 	    live?: presentation.Content;
@@ -151,6 +228,8 @@ export namespace main {
 	    chapter: number;
 	    verseStart: number;
 	    verseEnd: number;
+	    songId: string;
+	    sectionId: string;
 
 	    static createFrom(source: any = {}) {
 	        return new ServiceItemView(source);
@@ -167,6 +246,8 @@ export namespace main {
 	        this.chapter = source["chapter"];
 	        this.verseStart = source["verseStart"];
 	        this.verseEnd = source["verseEnd"];
+	        this.songId = source["songId"];
+	        this.sectionId = source["sectionId"];
 	    }
 	}
 	export class ServiceView {
@@ -216,6 +297,108 @@ export namespace main {
 		}
 	}
 
+	export class SongSectionRequest {
+	    songId: string;
+	    sectionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new SongSectionRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.songId = source["songId"];
+	        this.sectionId = source["sectionId"];
+	    }
+	}
+	export class SongSectionView {
+	    id: string;
+	    label: string;
+	    text: string;
+	    position: number;
+
+	    static createFrom(source: any = {}) {
+	        return new SongSectionView(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	        this.text = source["text"];
+	        this.position = source["position"];
+	    }
+	}
+	export class SongView {
+	    id: string;
+	    title: string;
+	    author: string;
+	    copyright: string;
+	    sections: SongSectionView[];
+
+	    static createFrom(source: any = {}) {
+	        return new SongView(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.author = source["author"];
+	        this.copyright = source["copyright"];
+	        this.sections = this.convertValues(source["sections"], SongSectionView);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SongsView {
+	    songs: SongView[];
+	    hits: LyricHitView[];
+
+	    static createFrom(source: any = {}) {
+	        return new SongsView(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.songs = this.convertValues(source["songs"], SongView);
+	        this.hits = this.convertValues(source["hits"], LyricHitView);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class TranslationView {
 	    id: string;
 	    name: string;
@@ -243,34 +426,15 @@ export namespace main {
 
 export namespace presentation {
 
-	export class Verse {
-	    bookId: number;
-	    book: string;
-	    chapter: number;
-	    verse: number;
-	    text: string;
-
-	    static createFrom(source: any = {}) {
-	        return new Verse(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.bookId = source["bookId"];
-	        this.book = source["book"];
-	        this.chapter = source["chapter"];
-	        this.verse = source["verse"];
-	        this.text = source["text"];
-	    }
-	}
 	export class Content {
 	    itemId?: string;
 	    kind: string;
 	    title: string;
-	    reference: string;
-	    translation: string;
-	    translationId: string;
-	    verses: Verse[];
+	    subtitle?: string;
+	    label: string;
+	    reference?: string;
+	    translation?: string;
+	    lines: string[];
 
 	    static createFrom(source: any = {}) {
 	        return new Content(source);
@@ -281,29 +445,13 @@ export namespace presentation {
 	        this.itemId = source["itemId"];
 	        this.kind = source["kind"];
 	        this.title = source["title"];
+	        this.subtitle = source["subtitle"];
+	        this.label = source["label"];
 	        this.reference = source["reference"];
 	        this.translation = source["translation"];
-	        this.translationId = source["translationId"];
-	        this.verses = this.convertValues(source["verses"], Verse);
+	        this.lines = source["lines"];
 	    }
-
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }
+

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { BibleWorkspace } from '../features/bible/BibleWorkspace';
+import { SongsWorkspace } from '../features/songs/SongsWorkspace';
 import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
@@ -15,14 +16,7 @@ type FeaturePage = {
   next: string;
 };
 
-const featurePages: Record<Exclude<PageId, 'bible' | 'service'>, FeaturePage> = {
-  songs: {
-    icon: 'music',
-    title: 'Songs and lyrics, ready for the set',
-    description: 'No songs are stored yet. Lyrics management and display are not implemented.',
-    purpose: 'Keep reusable songs with sections and arrangements, then prepare lyric slides for a service without changing the live output.',
-    next: 'Song storage, sections, arrangements and lyric presentation.',
-  },
+const featurePages: Record<Exclude<PageId, 'bible' | 'service' | 'songs'>, FeaturePage> = {
   media: {
     icon: 'media',
     title: 'Your media library starts here',
@@ -63,9 +57,11 @@ export default function App() {
       <AppShell activePage={activePage} onNavigate={setActivePage}>
         {activePage === 'bible'
           ? <BibleWorkspace />
-          : activePage === 'service'
-            ? <ServiceOrderWorkspace />
-            : <FeatureScaffold page={featurePages[activePage]} />}
+          : activePage === 'songs'
+            ? <SongsWorkspace />
+            : activePage === 'service'
+              ? <ServiceOrderWorkspace />
+              : <FeatureScaffold page={featurePages[activePage]} />}
       </AppShell>
     </StudioProvider>
   );

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/serviceorder"
+	"zowe-worship/internal/songs"
 )
 
 var (
@@ -16,24 +18,17 @@ var (
 	ErrEmptyPassage = errors.New("passage has no verses")
 )
 
-type Verse struct {
-	BookID  int    `json:"bookId"`
-	Book    string `json:"book"`
-	Chapter int    `json:"chapter"`
-	Verse   int    `json:"verse"`
-	Text    string `json:"text"`
-}
-
-// Content is a frozen snapshot of scripture so live output survives a
-// translation being removed or updated mid-service.
+// Content is one slide. It is a frozen snapshot, so live output survives a
+// translation update or a song edit until the operator projects something else.
 type Content struct {
-	ItemID        string  `json:"itemId,omitempty"`
-	Kind          string  `json:"kind"`
-	Title         string  `json:"title"`
-	Reference     string  `json:"reference"`
-	Translation   string  `json:"translation"`
-	TranslationID string  `json:"translationId"`
-	Verses        []Verse `json:"verses"`
+	ItemID      string   `json:"itemId,omitempty"`
+	Kind        string   `json:"kind"`
+	Title       string   `json:"title"`
+	Subtitle    string   `json:"subtitle,omitempty"`
+	Label       string   `json:"label"`
+	Reference   string   `json:"reference,omitempty"`
+	Translation string   `json:"translation,omitempty"`
+	Lines       []string `json:"lines"`
 }
 
 type State struct {
@@ -46,6 +41,10 @@ type ScriptureReader interface {
 	Translation(ctx context.Context, id string) (bible.Translation, error)
 }
 
+type SongReader interface {
+	Section(ctx context.Context, songID, sectionID string) (songs.Song, songs.Section, error)
+}
+
 type ScheduleReader interface {
 	Current(ctx context.Context) (serviceorder.Service, []serviceorder.Item, error)
 	Item(ctx context.Context, itemID string) (serviceorder.Item, error)
@@ -56,15 +55,16 @@ type ScheduleReader interface {
 // live state directly; only the explicit projection commands here do.
 type Controller struct {
 	mu        sync.Mutex
-	Scripture ScriptureReader
-	Schedule  ScheduleReader
+	scripture ScriptureReader
+	song      SongReader
+	schedule  ScheduleReader
 
 	preview *Content
 	live    *Content
 }
 
-func New(scripture ScriptureReader, schedule ScheduleReader) *Controller {
-	return &Controller{Scripture: scripture, Schedule: schedule}
+func New(scripture ScriptureReader, schedule ScheduleReader, song SongReader) *Controller {
+	return &Controller{scripture: scripture, schedule: schedule, song: song}
 }
 
 func (c *Controller) State() State {
@@ -83,7 +83,19 @@ func (c *Controller) PreviewScripture(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.resolve(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
+	content, err := c.scriptureContent(ctx, "", translationID, bookID, chapter, startVerse, endVerse)
+	if err != nil {
+		return c.stateLocked(), err
+	}
+	c.preview = content
+	return c.stateLocked(), nil
+}
+
+func (c *Controller) PreviewSongSection(ctx context.Context, songID, sectionID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	content, err := c.songContent(ctx, "", songID, sectionID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -95,12 +107,11 @@ func (c *Controller) PreviewItem(ctx context.Context, itemID string) (State, err
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	item, err := c.Schedule.Item(ctx, itemID)
+	item, err := c.schedule.Item(ctx, itemID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
-	content, err := c.resolve(ctx, item.ID, item.Title, item.TranslationID,
-		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
+	content, err := c.itemContent(ctx, item)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -125,7 +136,20 @@ func (c *Controller) ProjectScripture(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.resolve(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
+	content, err := c.scriptureContent(ctx, "", translationID, bookID, chapter, startVerse, endVerse)
+	if err != nil {
+		return c.stateLocked(), err
+	}
+	c.preview = content
+	c.live = clone(content)
+	return c.stateLocked(), nil
+}
+
+func (c *Controller) ProjectSongSection(ctx context.Context, songID, sectionID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	content, err := c.songContent(ctx, "", songID, sectionID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -159,13 +183,13 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 	currentIndex := -1
 
 	if c.preview != nil && c.preview.ItemID != "" {
-		item, err := c.Schedule.Item(ctx, c.preview.ItemID)
+		item, err := c.schedule.Item(ctx, c.preview.ItemID)
 		if err != nil {
 			return c.stateLocked(), err
 		}
 		serviceID = item.ServiceID
 	} else {
-		service, _, err := c.Schedule.Current(ctx)
+		service, _, err := c.schedule.Current(ctx)
 		if err != nil {
 			if errors.Is(err, serviceorder.ErrNoService) {
 				return c.stateLocked(), ErrNoSchedule
@@ -175,7 +199,7 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 		serviceID = service.ID
 	}
 
-	items, err := c.Schedule.Items(ctx, serviceID)
+	items, err := c.schedule.Items(ctx, serviceID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -203,9 +227,7 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 		target = len(items) - 1
 	}
 
-	item := items[target]
-	content, err := c.resolve(ctx, item.ID, item.Title, item.TranslationID,
-		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
+	content, err := c.itemContent(ctx, items[target])
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -213,46 +235,79 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 	return c.stateLocked(), nil
 }
 
-func (c *Controller) resolve(
-	ctx context.Context, itemID, title, translationID string, bookID, chapter, startVerse, endVerse int,
+func (c *Controller) itemContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
+	if item.Kind == serviceorder.KindSong {
+		return c.songContent(ctx, item.ID, item.SongID, item.SectionID)
+	}
+	return c.scriptureContent(ctx, item.ID, item.TranslationID,
+		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
+}
+
+func (c *Controller) scriptureContent(
+	ctx context.Context, itemID, translationID string, bookID, chapter, startVerse, endVerse int,
 ) (*Content, error) {
-	verses, err := c.Scripture.Passage(ctx, translationID, bookID, chapter, startVerse, endVerse)
+	verses, err := c.scripture.Passage(ctx, translationID, bookID, chapter, startVerse, endVerse)
 	if err != nil {
 		return nil, err
 	}
 	if len(verses) == 0 {
 		return nil, ErrEmptyPassage
 	}
-	translation, err := c.Scripture.Translation(ctx, translationID)
+	translation, err := c.scripture.Translation(ctx, translationID)
 	if err != nil {
 		return nil, err
 	}
 
-	reference := title
-	if reference == "" {
-		reference = referenceFromVerses(verses)
-	}
-
-	rendered := make([]Verse, 0, len(verses))
+	reference := referenceFromVerses(verses)
+	lines := make([]string, 0, len(verses))
 	for _, verse := range verses {
-		rendered = append(rendered, Verse{
-			BookID:  verse.Book.ID,
-			Book:    verse.Book.Name,
-			Chapter: verse.Chapter,
-			Verse:   verse.Verse,
-			Text:    verse.Text,
-		})
+		lines = append(lines, splitLines(verse.Text)...)
 	}
 
 	return &Content{
-		ItemID:        itemID,
-		Kind:          "scripture",
-		Title:         reference,
-		Reference:     reference,
-		Translation:   translation.Abbreviation,
-		TranslationID: translationID,
-		Verses:        rendered,
+		ItemID:      itemID,
+		Kind:        "scripture",
+		Title:       reference,
+		Label:       reference,
+		Reference:   reference,
+		Translation: translation.Abbreviation,
+		Lines:       lines,
 	}, nil
+}
+
+func (c *Controller) songContent(ctx context.Context, itemID, songID, sectionID string) (*Content, error) {
+	if c.song == nil {
+		return nil, errors.New("songs are not available")
+	}
+	song, section, err := c.song.Section(ctx, songID, sectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	label := song.Title
+	if section.Label != "" {
+		label = fmt.Sprintf("%s · %s", song.Title, section.Label)
+	}
+
+	return &Content{
+		ItemID:   itemID,
+		Kind:     "song",
+		Title:    song.Title,
+		Subtitle: section.Label,
+		Label:    label,
+		Lines:    splitLines(section.Text),
+	}, nil
+}
+
+func splitLines(text string) []string {
+	parts := strings.Split(text, "\n")
+	lines := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			lines = append(lines, trimmed)
+		}
+	}
+	return lines
 }
 
 func referenceFromVerses(verses []bible.SearchResult) string {
@@ -272,6 +327,6 @@ func clone(content *Content) *Content {
 		return nil
 	}
 	copied := *content
-	copied.Verses = append([]Verse(nil), content.Verses...)
+	copied.Lines = append([]string(nil), content.Lines...)
 	return &copied
 }

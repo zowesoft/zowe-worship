@@ -291,6 +291,7 @@ svg { flex-shrink: 0; }
   padding: 4px 10px;
   text-align: center;
 }
+.slide-verses span { display: block; }
 .slide-verses {
   display: -webkit-box;
   overflow: hidden;

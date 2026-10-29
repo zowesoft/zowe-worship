@@ -173,8 +173,10 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
 function SlideContent({ content }: { content: presentation.Content }) {
   return (
     <div className="slide-content">
-      <p className="slide-verses">{content.verses.map((verse) => verse.text).join(' ')}</p>
-      <p className="slide-reference"><span>{content.reference}</span><em>·</em><span>{content.translation}</span></p>
+      <p className="slide-verses">
+        {content.lines.map((line, index) => <span key={index}>{line}</span>)}
+      </p>
+      <p className="slide-reference">{content.label}</p>
     </div>
   );
 }
@@ -243,7 +245,7 @@ function PresentationPanes() {
 
         <div className="pane-caption">
           <span className="status-dot" />
-          {preview ? `Preview holds ${preview.reference}.` : 'Preview is not connected to the presentation controller.'}
+          {preview ? `Preview holds ${preview.label}.` : 'Preview is not connected to the presentation controller.'}
         </div>
       </section>
 
@@ -379,12 +381,12 @@ function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) 
         <div className="production-states">
           <div className="production-state">
             <Icon name="display" size={15} />
-            <div><strong>Live output</strong><span>{live ? live.reference : 'No content'}</span></div>
+            <div><strong>Live output</strong><span>{live ? live.label : 'No content'}</span></div>
             <span className={`status-pill${live ? ' status-pill--on' : ''}`}>{live ? 'On air' : 'Off air'}</span>
           </div>
           <div className="production-state">
             <Icon name="preview" size={15} />
-            <div><strong>Preview</strong><span>{preview ? preview.reference : 'No content'}</span></div>
+            <div><strong>Preview</strong><span>{preview ? preview.label : 'No content'}</span></div>
             <span className="status-pill status-pill--warn">{preview ? 'Ready' : 'Idle'}</span>
           </div>
         </div>

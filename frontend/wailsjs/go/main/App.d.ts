@@ -4,15 +4,23 @@ import {main} from '../models';
 
 export function AddScriptureToService(arg1:main.ScriptureRequest):Promise<main.ServiceOrderView>;
 
+export function AddSongSectionToService(arg1:main.SongSectionRequest):Promise<main.ServiceOrderView>;
+
 export function ClearLive():Promise<main.PresentationView>;
 
 export function CreateService(arg1:string):Promise<main.ServiceOrderView>;
+
+export function CreateSong(arg1:main.NewSongRequest):Promise<main.SongsView>;
+
+export function DeleteSong(arg1:string):Promise<main.SongsView>;
 
 export function GetAppInfo():Promise<main.AppInfo>;
 
 export function GetPresentationState():Promise<main.PresentationView>;
 
 export function GetServiceOrder():Promise<main.ServiceOrderView>;
+
+export function ListSongs(arg1:string):Promise<main.SongsView>;
 
 export function ListTranslations():Promise<Array<main.TranslationView>>;
 
@@ -22,9 +30,13 @@ export function PreviewScripture(arg1:main.ScriptureRequest):Promise<main.Presen
 
 export function PreviewServiceItem(arg1:string):Promise<main.PresentationView>;
 
+export function PreviewSongSection(arg1:main.SongSectionRequest):Promise<main.PresentationView>;
+
 export function PreviousServiceItem():Promise<main.PresentationView>;
 
 export function ProjectScripture(arg1:main.ScriptureRequest):Promise<main.PresentationView>;
+
+export function ProjectSongSection(arg1:main.SongSectionRequest):Promise<main.PresentationView>;
 
 export function RemoveServiceItem(arg1:string):Promise<main.ServiceOrderView>;
 

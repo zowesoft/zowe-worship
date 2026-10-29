@@ -6,12 +6,24 @@ export function AddScriptureToService(arg1) {
   return window['go']['main']['App']['AddScriptureToService'](arg1);
 }
 
+export function AddSongSectionToService(arg1) {
+  return window['go']['main']['App']['AddSongSectionToService'](arg1);
+}
+
 export function ClearLive() {
   return window['go']['main']['App']['ClearLive']();
 }
 
 export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
+}
+
+export function CreateSong(arg1) {
+  return window['go']['main']['App']['CreateSong'](arg1);
+}
+
+export function DeleteSong(arg1) {
+  return window['go']['main']['App']['DeleteSong'](arg1);
 }
 
 export function GetAppInfo() {
@@ -24,6 +36,10 @@ export function GetPresentationState() {
 
 export function GetServiceOrder() {
   return window['go']['main']['App']['GetServiceOrder']();
+}
+
+export function ListSongs(arg1) {
+  return window['go']['main']['App']['ListSongs'](arg1);
 }
 
 export function ListTranslations() {
@@ -42,12 +58,20 @@ export function PreviewServiceItem(arg1) {
   return window['go']['main']['App']['PreviewServiceItem'](arg1);
 }
 
+export function PreviewSongSection(arg1) {
+  return window['go']['main']['App']['PreviewSongSection'](arg1);
+}
+
 export function PreviousServiceItem() {
   return window['go']['main']['App']['PreviousServiceItem']();
 }
 
 export function ProjectScripture(arg1) {
   return window['go']['main']['App']['ProjectScripture'](arg1);
+}
+
+export function ProjectSongSection(arg1) {
+  return window['go']['main']['App']['ProjectSongSection'](arg1);
 }
 
 export function RemoveServiceItem(arg1) {

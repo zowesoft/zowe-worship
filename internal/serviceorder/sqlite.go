@@ -2,14 +2,17 @@ package serviceorder
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"zowe-worship/internal/database"
 )
+
+const itemColumns = `id, service_id, position, kind, title, translation_id, book_id, chapter,
+	verse_start, verse_end, song_id, section_id, created_at`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -47,7 +50,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, name string) (Service, er
 		return Service{}, fmt.Errorf("%w: a service name is required", ErrInvalidService)
 	}
 
-	id, err := newID()
+	id, err := database.NewID()
 	if err != nil {
 		return Service{}, err
 	}
@@ -67,7 +70,30 @@ func (r *SQLiteRepository) AddScripture(ctx context.Context, serviceID string, i
 	if err := input.validate(); err != nil {
 		return Item{}, err
 	}
+	return r.addItem(ctx, serviceID, Item{
+		Kind:          KindScripture,
+		Title:         strings.TrimSpace(input.Title),
+		TranslationID: input.TranslationID,
+		BookID:        input.BookID,
+		Chapter:       input.Chapter,
+		VerseStart:    input.VerseStart,
+		VerseEnd:      input.VerseEnd,
+	})
+}
 
+func (r *SQLiteRepository) AddSong(ctx context.Context, serviceID string, input SongInput) (Item, error) {
+	if err := input.validate(); err != nil {
+		return Item{}, err
+	}
+	return r.addItem(ctx, serviceID, Item{
+		Kind:      KindSong,
+		Title:     strings.TrimSpace(input.Title),
+		SongID:    input.SongID,
+		SectionID: input.SectionID,
+	})
+}
+
+func (r *SQLiteRepository) addItem(ctx context.Context, serviceID string, item Item) (Item, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Item{}, fmt.Errorf("begin adding service item: %w", err)
@@ -90,7 +116,7 @@ func (r *SQLiteRepository) AddScripture(ctx context.Context, serviceID string, i
 		return Item{}, fmt.Errorf("read service position: %w", err)
 	}
 
-	id, err := newID()
+	id, err := database.NewID()
 	if err != nil {
 		_ = tx.Rollback()
 		return Item{}, err
@@ -99,10 +125,12 @@ func (r *SQLiteRepository) AddScripture(ctx context.Context, serviceID string, i
 
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO service_items
-			(id, service_id, position, kind, title, translation_id, book_id, chapter, verse_start, verse_end, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, serviceID, position, KindScripture, input.Title, input.TranslationID,
-		input.BookID, input.Chapter, input.VerseStart, input.VerseEnd, now.Format(time.RFC3339),
+			(id, service_id, position, kind, title, translation_id, book_id, chapter,
+			 verse_start, verse_end, song_id, section_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, serviceID, position, item.Kind, item.Title, item.TranslationID,
+		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd, item.SongID, item.SectionID,
+		now.Format(time.RFC3339),
 	); err != nil {
 		_ = tx.Rollback()
 		return Item{}, fmt.Errorf("add service item: %w", err)
@@ -117,19 +145,11 @@ func (r *SQLiteRepository) AddScripture(ctx context.Context, serviceID string, i
 		return Item{}, fmt.Errorf("commit service item: %w", err)
 	}
 
-	return Item{
-		ID:            id,
-		ServiceID:     serviceID,
-		Position:      position,
-		Kind:          KindScripture,
-		Title:         input.Title,
-		TranslationID: input.TranslationID,
-		BookID:        input.BookID,
-		Chapter:       input.Chapter,
-		VerseStart:    input.VerseStart,
-		VerseEnd:      input.VerseEnd,
-		CreatedAt:     now,
-	}, nil
+	item.ID = id
+	item.ServiceID = serviceID
+	item.Position = position
+	item.CreatedAt = now
+	return item, nil
 }
 
 func (r *SQLiteRepository) RemoveItem(ctx context.Context, itemID string) error {
@@ -167,10 +187,8 @@ func (r *SQLiteRepository) RemoveItem(ctx context.Context, itemID string) error 
 }
 
 func (r *SQLiteRepository) Item(ctx context.Context, itemID string) (Item, error) {
-	item, err := scanItem(r.db.QueryRowContext(ctx, `
-		SELECT id, service_id, position, kind, title, translation_id, book_id, chapter,
-		       verse_start, verse_end, created_at
-		FROM service_items WHERE id = ?`, itemID))
+	item, err := scanItem(r.db.QueryRowContext(ctx,
+		`SELECT `+itemColumns+` FROM service_items WHERE id = ?`, itemID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Item{}, ErrItemNotFound
 	}
@@ -181,12 +199,8 @@ func (r *SQLiteRepository) Item(ctx context.Context, itemID string) (Item, error
 }
 
 func (r *SQLiteRepository) Items(ctx context.Context, serviceID string) ([]Item, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, service_id, position, kind, title, translation_id, book_id, chapter,
-		       verse_start, verse_end, created_at
-		FROM service_items
-		WHERE service_id = ?
-		ORDER BY position`, serviceID)
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+itemColumns+` FROM service_items WHERE service_id = ? ORDER BY position`, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("list service items: %w", err)
 	}
@@ -196,7 +210,7 @@ func (r *SQLiteRepository) Items(ctx context.Context, serviceID string) ([]Item,
 	for rows.Next() {
 		item, err := scanItem(rows)
 		if err != nil {
-			return nil, fmt.Errorf("read service item: %w", err)
+			return nil, err
 		}
 		items = append(items, item)
 	}
@@ -231,7 +245,8 @@ func scanItem(row interface{ Scan(...any) error }) (Item, error) {
 	var kind, createdAt string
 	if err := row.Scan(
 		&item.ID, &item.ServiceID, &item.Position, &kind, &item.Title, &item.TranslationID,
-		&item.BookID, &item.Chapter, &item.VerseStart, &item.VerseEnd, &createdAt,
+		&item.BookID, &item.Chapter, &item.VerseStart, &item.VerseEnd, &item.SongID, &item.SectionID,
+		&createdAt,
 	); err != nil {
 		return Item{}, err
 	}
@@ -243,12 +258,4 @@ func scanItem(row interface{ Scan(...any) error }) (Item, error) {
 	item.Kind = ItemKind(kind)
 	item.CreatedAt = created
 	return item, nil
-}
-
-func newID() (string, error) {
-	var raw [16]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("generate id: %w", err)
-	}
-	return hex.EncodeToString(raw[:]), nil
 }
