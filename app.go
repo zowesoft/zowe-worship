@@ -302,6 +302,46 @@ func (a *App) CreateService(name string) (ServiceOrderView, error) {
 	return a.serviceOrderView(a.context())
 }
 
+func (a *App) ListServices() ([]ServiceView, error) {
+	if a.order == nil {
+		return nil, errStorageUnavailable
+	}
+	list, err := a.order.List(a.context())
+	if err != nil {
+		return nil, err
+	}
+
+	views := make([]ServiceView, 0, len(list))
+	for _, service := range list {
+		views = append(views, ServiceView{ID: service.ID, Name: service.Name})
+	}
+	return views, nil
+}
+
+// UseService makes another saved service the one the studio works on. Live
+// output is untouched: the audience keeps whatever is on air.
+func (a *App) UseService(serviceID string) (ServiceOrderView, error) {
+	if a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if err := a.order.Use(ctx, strings.TrimSpace(serviceID)); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
+func (a *App) RenameService(serviceID, name string) (ServiceOrderView, error) {
+	if a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if err := a.order.Rename(ctx, serviceID, name); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
 func (a *App) AddScriptureToService(request ScriptureRequest) (ServiceOrderView, error) {
 	if a.bible == nil || a.order == nil {
 		return ServiceOrderView{}, errStorageUnavailable

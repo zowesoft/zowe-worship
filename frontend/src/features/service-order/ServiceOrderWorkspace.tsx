@@ -13,6 +13,8 @@ function errorMessage(error: unknown): string {
 export function ServiceOrderWorkspace() {
   const studio = useStudio();
   const [name, setName] = useState('Sunday Service');
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<{ kind: 'message' | 'error'; text: string } | null>(null);
 
@@ -48,6 +50,13 @@ export function ServiceOrderWorkspace() {
       () => studio.reorderItems(moveWithin(items.map((item) => item.id), from, to)),
       'Saved the new order.',
     );
+  }
+
+  async function submitRename() {
+    const trimmed = draft.trim();
+    if (trimmed === '' || service === null) return;
+    await perform('rename', () => studio.renameService(service.id, trimmed), `Renamed to ${trimmed}.`);
+    setRenaming(false);
   }
 
   const drag = useDragOrder((from, to) => void moveItem(from, to));
@@ -99,11 +108,51 @@ export function ServiceOrderWorkspace() {
         ) : (
           <>
             <div className="service-order-head">
-              <div>
-                <p className="eyebrow">Current service</p>
-                <h3>{service.name}</h3>
+              {renaming ? (
+                <form
+                  className="service-rename"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitRename();
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={draft}
+                    aria-label="Service name"
+                    autoComplete="off"
+                    autoFocus
+                    onChange={(event) => setDraft(event.target.value)}
+                  />
+                  <button type="submit" className="button button--small button--primary" disabled={draft.trim() === ''}>
+                    Save
+                  </button>
+                  <button type="button" className="button button--small" onClick={() => setRenaming(false)}>
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <div>
+                  <p className="eyebrow">Current service</p>
+                  <h3>{service.name}</h3>
+                </div>
+              )}
+              <div className="service-order-head-actions">
+                <span className="quiet-label">{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+                {!renaming && (
+                  <button
+                    type="button"
+                    className="button button--small"
+                    disabled={!canAct}
+                    onClick={() => {
+                      setDraft(service.name);
+                      setRenaming(true);
+                    }}
+                  >
+                    Rename
+                  </button>
+                )}
               </div>
-              <span className="quiet-label">{items.length} {items.length === 1 ? 'item' : 'items'}</span>
             </div>
 
             {items.length === 0 ? (

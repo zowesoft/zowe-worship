@@ -10,6 +10,7 @@ import {
   DeleteSong,
   GetPresentationState,
   GetServiceOrder,
+  ListServices,
   ListSongs,
   NextServiceItem,
   PreviewScripture,
@@ -19,8 +20,10 @@ import {
   ProjectScripture,
   ProjectSongSection,
   RemoveServiceItem,
+  RenameService,
   ReorderServiceItems,
   SendPreviewLive,
+  UseService,
 } from '../../wailsjs/go/main/App.js';
 import { hasDesktopBridge } from '../lib/desktop';
 
@@ -49,10 +52,13 @@ type StudioValue = {
   bridgeAvailable: boolean;
   error: string | null;
   order: main.ServiceOrderView | null;
+  services: main.ServiceView[];
   presentation: main.PresentationView | null;
   songs: main.SongsView | null;
   refreshSongs: (query?: string) => Promise<void>;
   createService: (name: string) => Promise<main.ServiceOrderView>;
+  useService: (serviceID: string) => Promise<main.ServiceOrderView>;
+  renameService: (serviceID: string, name: string) => Promise<main.ServiceOrderView>;
   addScripture: (input: ScriptureInput) => Promise<main.ServiceOrderView>;
   removeItem: (itemID: string) => Promise<main.ServiceOrderView>;
   reorderItems: (itemIDs: string[]) => Promise<main.ServiceOrderView>;
@@ -109,6 +115,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     bridgeAvailable ? null : 'Open the Zowe Worship desktop app to run a service.',
   );
   const [order, setOrder] = useState<main.ServiceOrderView | null>(null);
+  const [services, setServices] = useState<main.ServiceView[]>([]);
   const [presentationState, setPresentationState] = useState<main.PresentationView | null>(null);
   const [songs, setSongs] = useState<main.SongsView | null>(null);
 
@@ -116,12 +123,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (!bridgeAvailable) return;
 
     let active = true;
-    Promise.all([GetServiceOrder(), GetPresentationState(), ListSongs('')])
-      .then(([initialOrder, initialPresentation, initialSongs]) => {
+    Promise.all([GetServiceOrder(), GetPresentationState(), ListSongs(''), ListServices()])
+      .then(([initialOrder, initialPresentation, initialSongs, initialServices]) => {
         if (!active) return;
         setOrder(initialOrder);
         setPresentationState(initialPresentation);
         setSongs(initialSongs);
+        setServices(initialServices);
       })
       .catch((cause: unknown) => {
         if (active) setError(errorMessage(cause));
@@ -148,17 +156,28 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Every service mutation can add or rename a row in the switcher, so the
+  // list is reread alongside the schedule instead of patched in the client.
+  const orderWithList = useCallback(async (action: () => Promise<main.ServiceOrderView>) => {
+    const value = await action();
+    setServices(await ListServices());
+    return value;
+  }, []);
+
   const value = useMemo<StudioValue>(() => ({
     ready,
     bridgeAvailable,
     error,
     order,
+    services,
     presentation: presentationState,
     songs,
     refreshSongs: async (query = '') => {
       await run(() => ListSongs(query), setSongs);
     },
-    createService: (name) => run(() => CreateService(name), setOrder),
+    createService: (name) => run(() => orderWithList(() => CreateService(name)), setOrder),
+    useService: (serviceID) => run(() => orderWithList(() => UseService(serviceID)), setOrder),
+    renameService: (serviceID, name) => run(() => orderWithList(() => RenameService(serviceID, name)), setOrder),
     addScripture: (input) => run(() => AddScriptureToService(toRequest(input)), setOrder),
     removeItem: (itemID) => run(() => RemoveServiceItem(itemID), setOrder),
     reorderItems: (itemIDs) => run(() => ReorderServiceItems(itemIDs), setOrder),
@@ -174,7 +193,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     clearLive: () => run(ClearLive, setPresentationState),
     nextItem: () => run(NextServiceItem, setPresentationState),
     previousItem: () => run(PreviousServiceItem, setPresentationState),
-  }), [bridgeAvailable, error, order, presentationState, ready, run, songs]);
+  }), [bridgeAvailable, error, order, orderWithList, presentationState, ready, run, services, songs]);
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
 }

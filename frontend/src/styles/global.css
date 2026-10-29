@@ -59,6 +59,60 @@ svg { flex-shrink: 0; }
 .service-switcher { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--color-text); font-size: 15px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; }
 .service-switcher:disabled { color: var(--color-text); opacity: .95; cursor: default; }
 .service-switcher svg { color: var(--color-secondary); }
+.service-switcher-wrap { position: relative; display: flex; min-width: 0; }
+.service-switcher:not(:disabled):hover { color: var(--color-blue); }
+.service-switcher:not(:disabled):hover svg { color: var(--color-blue); }
+.service-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-elevated);
+  box-shadow: 0 16px 36px rgba(2, 6, 14, .6);
+}
+.service-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 11.5px;
+  text-align: left;
+}
+.service-menu-item:hover { background: var(--color-selected); }
+.service-menu-item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.service-menu-item svg { flex-shrink: 0; color: transparent; }
+.service-menu-item--current svg { color: var(--color-teal); }
+.service-menu-empty { padding: 6px 8px; color: var(--color-secondary); font-size: 10.5px; }
+.service-menu-new {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+.service-menu-new input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #35445C;
+  border-radius: 6px;
+  background: var(--color-app);
+  color: var(--color-text);
+  font-size: 11.5px;
+}
+.service-menu-new input:focus { border-color: var(--color-blue); outline: none; }
+.service-menu-new input::placeholder { color: #6F809B; }
 .header-meta { display: flex; align-items: center; gap: 14px; padding-left: 18px; border-left: 1px solid var(--color-border); color: var(--color-secondary); font-size: 10.5px; white-space: nowrap; }
 .connection-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid #1E4D40; border-radius: 5px; background: #0E2A24; color: #6EE7C0; font-size: 9.5px; white-space: nowrap; }
 .connection-pill .status-dot { background: var(--color-teal); }

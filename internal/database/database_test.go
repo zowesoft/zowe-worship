@@ -60,8 +60,8 @@ func TestMigrateIsIdempotentAndSurvivesReopen(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&applied); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if applied != 3 {
-		t.Fatalf("applied migrations = %d, want 3", applied)
+	if applied != 4 {
+		t.Fatalf("applied migrations = %d, want 4", applied)
 	}
 
 	if _, err := db.Exec(`

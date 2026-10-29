@@ -24,17 +24,14 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	return &SQLiteRepository{db: db}
 }
 
+const settingCurrentService = "current_service_id"
+
+const serviceColumns = `id, name, created_at, updated_at`
+
 func (r *SQLiteRepository) Current(ctx context.Context) (Service, []Item, error) {
-	service, err := scanService(r.db.QueryRowContext(ctx, `
-		SELECT id, name, created_at, updated_at
-		FROM services
-		ORDER BY created_at DESC, rowid DESC
-		LIMIT 1`))
-	if errors.Is(err, sql.ErrNoRows) {
-		return Service{}, nil, ErrNoService
-	}
+	service, err := r.currentService(ctx)
 	if err != nil {
-		return Service{}, nil, fmt.Errorf("read current service: %w", err)
+		return Service{}, nil, err
 	}
 
 	items, err := r.Items(ctx, service.ID)
@@ -42,6 +39,117 @@ func (r *SQLiteRepository) Current(ctx context.Context) (Service, []Item, error)
 		return Service{}, nil, err
 	}
 	return service, items, nil
+}
+
+// currentService follows the stored pointer and repairs it when it is missing
+// or points at a service that no longer exists.
+func (r *SQLiteRepository) currentService(ctx context.Context) (Service, error) {
+	var stored string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT value FROM settings WHERE key = ?`, settingCurrentService,
+	).Scan(&stored)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return Service{}, fmt.Errorf("read current service: %w", err)
+	}
+	if err == nil {
+		service, lookupErr := r.serviceByID(ctx, stored)
+		if lookupErr == nil {
+			return service, nil
+		}
+		if !errors.Is(lookupErr, ErrServiceNotFound) {
+			return Service{}, lookupErr
+		}
+	}
+
+	newest, err := scanService(r.db.QueryRowContext(ctx, `
+		SELECT `+serviceColumns+`
+		FROM services
+		ORDER BY created_at DESC, rowid DESC
+		LIMIT 1`))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Service{}, ErrNoService
+	}
+	if err != nil {
+		return Service{}, fmt.Errorf("read newest service: %w", err)
+	}
+	if err := r.setCurrent(ctx, newest.ID); err != nil {
+		return Service{}, err
+	}
+	return newest, nil
+}
+
+func (r *SQLiteRepository) serviceByID(ctx context.Context, id string) (Service, error) {
+	service, err := scanService(r.db.QueryRowContext(ctx, `
+		SELECT `+serviceColumns+` FROM services WHERE id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Service{}, ErrServiceNotFound
+	}
+	if err != nil {
+		return Service{}, fmt.Errorf("read service: %w", err)
+	}
+	return service, nil
+}
+
+func (r *SQLiteRepository) setCurrent(ctx context.Context, serviceID string) error {
+	if _, err := r.db.ExecContext(ctx, `
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		settingCurrentService, serviceID,
+	); err != nil {
+		return fmt.Errorf("store current service: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) List(ctx context.Context) ([]Service, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT `+serviceColumns+`
+		FROM services
+		ORDER BY updated_at DESC, created_at DESC, rowid DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list services: %w", err)
+	}
+	defer rows.Close()
+
+	services := make([]Service, 0)
+	for rows.Next() {
+		service, err := scanService(rows)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list services: %w", err)
+	}
+	return services, nil
+}
+
+func (r *SQLiteRepository) Use(ctx context.Context, serviceID string) error {
+	if _, err := r.serviceByID(ctx, serviceID); err != nil {
+		return err
+	}
+	return r.setCurrent(ctx, serviceID)
+}
+
+func (r *SQLiteRepository) Rename(ctx context.Context, serviceID, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("%w: a service name is required", ErrInvalidService)
+	}
+
+	result, err := r.db.ExecContext(ctx, `UPDATE services SET name = ? WHERE id = ?`, name, serviceID)
+	if err != nil {
+		return fmt.Errorf("rename service: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rename service: %w", err)
+	}
+	if updated == 0 {
+		return ErrServiceNotFound
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) Create(ctx context.Context, name string) (Service, error) {
@@ -61,6 +169,10 @@ func (r *SQLiteRepository) Create(ctx context.Context, name string) (Service, er
 		id, name, now.Format(time.RFC3339), now.Format(time.RFC3339),
 	); err != nil {
 		return Service{}, fmt.Errorf("create service: %w", err)
+	}
+	// Starting a service means working on it, so it becomes the current one.
+	if err := r.setCurrent(ctx, id); err != nil {
+		return Service{}, err
 	}
 
 	return Service{ID: id, Name: name, CreatedAt: now, UpdatedAt: now}, nil

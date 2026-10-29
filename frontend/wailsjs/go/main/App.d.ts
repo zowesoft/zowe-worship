@@ -20,6 +20,8 @@ export function GetPresentationState():Promise<main.PresentationView>;
 
 export function GetServiceOrder():Promise<main.ServiceOrderView>;
 
+export function ListServices():Promise<Array<main.ServiceView>>;
+
 export function ListSongs(arg1:string):Promise<main.SongsView>;
 
 export function ListTranslations():Promise<Array<main.TranslationView>>;
@@ -40,8 +42,12 @@ export function ProjectSongSection(arg1:main.SongSectionRequest):Promise<main.Pr
 
 export function RemoveServiceItem(arg1:string):Promise<main.ServiceOrderView>;
 
+export function RenameService(arg1:string,arg2:string):Promise<main.ServiceOrderView>;
+
 export function ReorderServiceItems(arg1:Array<string>):Promise<main.ServiceOrderView>;
 
 export function SearchBible(arg1:main.BibleSearchRequest):Promise<main.BibleSearchResponse>;
 
 export function SendPreviewLive():Promise<main.PresentationView>;
+
+export function UseService(arg1:string):Promise<main.ServiceOrderView>;

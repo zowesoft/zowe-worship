@@ -35,6 +35,20 @@
 
 .service-order-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .service-order-head h3 { font-size: 16px; margin-top: 4px; }
+.service-order-head-actions { display: flex; align-items: center; gap: 10px; }
+.service-rename { display: flex; align-items: center; gap: 6px; }
+.service-rename input {
+  width: 220px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #35445C;
+  border-radius: 6px;
+  background: var(--color-app);
+  color: var(--color-text);
+  font-size: 12px;
+}
+.service-rename input:focus { border-color: var(--color-blue); outline: none; }
 
 .service-order-list { list-style: none; display: grid; gap: 5px; margin: 0; padding: 0; }
 .service-order-item {

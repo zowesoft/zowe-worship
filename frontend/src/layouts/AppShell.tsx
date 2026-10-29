@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { BackendStatus } from '../components/BackendStatus';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
@@ -145,21 +145,106 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
   );
 }
 
+function ServiceSwitcher() {
+  const studio = useStudio();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const current = studio.order?.service ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+
+    function dismiss(event: MouseEvent) {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+
+    document.addEventListener('mousedown', dismiss);
+    return () => document.removeEventListener('mousedown', dismiss);
+  }, [open]);
+
+  async function pick(serviceID: string) {
+    setOpen(false);
+    try {
+      await studio.useService(serviceID);
+    } catch {
+      // The studio error is shown in the sidebar.
+    }
+  }
+
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+    try {
+      await studio.createService(trimmed);
+      setName('');
+      setOpen(false);
+    } catch {
+      // The studio error is shown in the sidebar.
+    }
+  }
+
+  return (
+    <div className="service-switcher-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="service-switcher"
+        disabled={!studio.bridgeAvailable}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>{current?.name ?? 'No service selected'}</span>
+        <Icon name="chevron" size={14} />
+      </button>
+
+      {open && (
+        <div className="service-menu" role="menu">
+          {studio.services.map((service) => (
+            <button
+              key={service.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={current?.id === service.id}
+              className={`service-menu-item${current?.id === service.id ? ' service-menu-item--current' : ''}`}
+              onClick={() => void pick(service.id)}
+            >
+              <Icon name="check" size={13} />
+              <span>{service.name}</span>
+            </button>
+          ))}
+          {studio.services.length === 0 && <p className="service-menu-empty">No saved services yet.</p>}
+
+          <form className="service-menu-new" onSubmit={(event) => void create(event)}>
+            <input
+              type="text"
+              value={name}
+              placeholder="New service"
+              aria-label="New service name"
+              autoComplete="off"
+              onChange={(event) => setName(event.target.value)}
+            />
+            <button type="submit" className="button button--small button--primary" disabled={name.trim() === ''}>
+              Add
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const connected = hasDesktopBridge();
   const now = useClock();
   const dateLabel = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const timeLabel = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  const studio = useStudio();
-  const service = studio.order?.service ?? null;
 
   return (
     <header className="app-header">
       <div className="service-context">
-        <button type="button" className="service-switcher" disabled title="Switching between saved services is not implemented.">
-          <span>{service?.name ?? 'No service selected'}</span>
-          <Icon name="chevron" size={14} />
-        </button>
+        <ServiceSwitcher />
         <div className="header-meta">
           <span>{dateLabel}</span>
           <span>{timeLabel}</span>

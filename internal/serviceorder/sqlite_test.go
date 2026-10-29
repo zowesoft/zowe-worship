@@ -205,6 +205,76 @@ func TestCreateAndInputValidation(t *testing.T) {
 	}
 }
 
+func TestServiceSwitching(t *testing.T) {
+	ctx := context.Background()
+	repo, db, _ := newTestRepository(t)
+
+	first, err := repo.Create(ctx, "Christmas Eve")
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	if current, _, err := repo.Current(ctx); err != nil || current.ID != first.ID {
+		t.Fatalf("current = %+v err = %v, want the only service", current, err)
+	}
+
+	second, err := repo.Create(ctx, "Easter")
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	if current, _, err := repo.Current(ctx); err != nil || current.ID != second.ID {
+		t.Fatalf("current after create = %+v err = %v, want the new service", current, err)
+	}
+
+	if _, err := repo.AddScripture(ctx, second.ID, scriptureInput("John 3:16", 43, 3, 16)); err != nil {
+		t.Fatalf("add item: %v", err)
+	}
+	if err := repo.Use(ctx, first.ID); err != nil {
+		t.Fatalf("switch to first: %v", err)
+	}
+	current, items, err := repo.Current(ctx)
+	if err != nil {
+		t.Fatalf("current: %v", err)
+	}
+	if current.ID != first.ID {
+		t.Fatalf("current = %s, want %s", current.ID, first.ID)
+	}
+	if len(items) != 0 {
+		t.Fatalf("switching services carried %d items over", len(items))
+	}
+
+	services, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("list services: %v", err)
+	}
+	if len(services) != 2 {
+		t.Fatalf("services = %+v, want two", services)
+	}
+
+	if err := repo.Use(ctx, "missing"); !errors.Is(err, ErrServiceNotFound) {
+		t.Fatalf("use missing err = %v", err)
+	}
+	if err := repo.Rename(ctx, first.ID, "  Baptism Service  "); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if current, _, err := repo.Current(ctx); err != nil || current.Name != "Baptism Service" {
+		t.Fatalf("current after rename = %+v err = %v", current, err)
+	}
+	if err := repo.Rename(ctx, first.ID, "   "); !errors.Is(err, ErrInvalidService) {
+		t.Fatalf("empty rename err = %v", err)
+	}
+	if err := repo.Rename(ctx, "missing", "Name"); !errors.Is(err, ErrServiceNotFound) {
+		t.Fatalf("rename missing err = %v", err)
+	}
+
+	// Deleting the stored service leaves a dangling pointer that has to heal.
+	if _, err := db.ExecContext(ctx, `DELETE FROM services WHERE id = ?`, first.ID); err != nil {
+		t.Fatalf("delete current service: %v", err)
+	}
+	if current, _, err := repo.Current(ctx); err != nil || current.ID != second.ID {
+		t.Fatalf("current after deletion = %+v err = %v, want the surviving service", current, err)
+	}
+}
+
 func TestScheduleSurvivesReopen(t *testing.T) {
 	ctx := context.Background()
 	repo, db, path := newTestRepository(t)

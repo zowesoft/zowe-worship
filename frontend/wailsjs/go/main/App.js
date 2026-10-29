@@ -38,6 +38,10 @@ export function GetServiceOrder() {
   return window['go']['main']['App']['GetServiceOrder']();
 }
 
+export function ListServices() {
+  return window['go']['main']['App']['ListServices']();
+}
+
 export function ListSongs(arg1) {
   return window['go']['main']['App']['ListSongs'](arg1);
 }
@@ -78,6 +82,10 @@ export function RemoveServiceItem(arg1) {
   return window['go']['main']['App']['RemoveServiceItem'](arg1);
 }
 
+export function RenameService(arg1, arg2) {
+  return window['go']['main']['App']['RenameService'](arg1, arg2);
+}
+
 export function ReorderServiceItems(arg1) {
   return window['go']['main']['App']['ReorderServiceItems'](arg1);
 }
@@ -88,4 +96,8 @@ export function SearchBible(arg1) {
 
 export function SendPreviewLive() {
   return window['go']['main']['App']['SendPreviewLive']();
+}
+
+export function UseService(arg1) {
+  return window['go']['main']['App']['UseService'](arg1);
 }

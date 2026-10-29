@@ -75,6 +75,58 @@ func TestScheduleReorderDrivesPresentation(t *testing.T) {
 	}
 }
 
+func TestServiceSwitchingThroughBindings(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	first, err := app.CreateService("Christmas Eve")
+	if err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	if _, err := app.AddScriptureToService(scriptureAt(43, 3, 16)); err != nil {
+		t.Fatalf("add item: %v", err)
+	}
+
+	second, err := app.CreateService("Easter")
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	if second.Service == nil || second.Service.Name != "Easter" {
+		t.Fatalf("current after create = %+v", second.Service)
+	}
+	if len(second.Items) != 0 {
+		t.Fatalf("new service inherited items: %+v", second.Items)
+	}
+
+	back, err := app.UseService(first.Service.ID)
+	if err != nil {
+		t.Fatalf("switch back: %v", err)
+	}
+	if back.Service == nil || back.Service.Name != "Christmas Eve" || len(back.Items) != 1 {
+		t.Fatalf("switched view = %+v", back)
+	}
+
+	renamed, err := app.RenameService(first.Service.ID, "  Baptism Service  ")
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if renamed.Service == nil || renamed.Service.Name != "Baptism Service" {
+		t.Fatalf("renamed view = %+v", renamed.Service)
+	}
+
+	list, err := app.ListServices()
+	if err != nil {
+		t.Fatalf("list services: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("services = %+v, want two", list)
+	}
+
+	if _, err := app.UseService("missing"); err == nil {
+		t.Fatal("switching to a missing service succeeded")
+	}
+}
+
 func itemIDs(items []ServiceItemView) []string {
 	ids := make([]string, 0, len(items))
 	for _, item := range items {
