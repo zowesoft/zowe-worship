@@ -11,6 +11,7 @@ var (
 	ErrServiceNotFound = errors.New("service not found")
 	ErrItemNotFound    = errors.New("service item not found")
 	ErrInvalidService  = errors.New("invalid service")
+	ErrInvalidOrder    = errors.New("invalid schedule order")
 )
 
 type ItemKind string

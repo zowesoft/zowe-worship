@@ -4,6 +4,7 @@ import { BackendStatus } from '../components/BackendStatus';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { useStudio } from '../stores/StudioProvider';
+import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import { hasDesktopBridge } from '../lib/desktop';
 import type { presentation } from '../../wailsjs/go/models';
 
@@ -52,6 +53,16 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
     }
   }
 
+  async function moveItem(from: number, to: number) {
+    try {
+      await studio.reorderItems(moveWithin(items.map((item) => item.id), from, to));
+    } catch {
+      // The studio error is shown below the schedule.
+    }
+  }
+
+  const drag = useDragOrder((from, to) => void moveItem(from, to));
+
   return (
     <aside className="sidebar" aria-label="Service schedule">
       <div className="brand">
@@ -87,18 +98,27 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
             </div>
           ) : (
             <ol className="schedule-items">
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const isLive = liveID !== '' && liveID === item.id;
                 const isPreview = previewID !== '' && previewID === item.id;
+                const isDropTarget = drag.over === index && drag.dragging !== null && drag.dragging !== index;
                 return (
                   <li
                     key={item.id}
-                    className={`schedule-item${isLive ? ' schedule-item--live' : ''}${isPreview ? ' schedule-item--preview' : ''}`}
-                    title={`Click to preview ${item.title} · double-click to send live`}
+                    className={[
+                      'schedule-item',
+                      isLive ? 'schedule-item--live' : '',
+                      isPreview ? 'schedule-item--preview' : '',
+                      drag.dragging === index ? 'schedule-item--dragging' : '',
+                      isDropTarget ? 'schedule-item--target' : '',
+                    ].filter(Boolean).join(' ')}
+                    title={`Click to preview ${item.title} · double-click to send live · drag to reorder`}
                     onClick={() => void previewItem(item.id)}
                     onDoubleClick={() => void sendItemLive(item.id)}
+                    {...drag.rowProps(index)}
                   >
                     <button type="button" className="schedule-item-main" aria-pressed={isPreview}>
+                      <span className="schedule-grip" aria-hidden="true"><Icon name="grip" size={13} /></span>
                       <span className="schedule-position">{item.position}</span>
                       <span className="schedule-copy">
                         <strong>{item.title}</strong>

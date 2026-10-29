@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
+import { moveWithin, useDragOrder } from '../../lib/useDragOrder';
 import './service-order.css';
 
 function errorMessage(error: unknown): string {
@@ -40,6 +41,16 @@ export function ServiceOrderWorkspace() {
     if (trimmed === '') return;
     void perform('create', () => studio.createService(trimmed), `Created ${trimmed}.`);
   }
+
+  async function moveItem(from: number, to: number) {
+    await perform(
+      'reorder',
+      () => studio.reorderItems(moveWithin(items.map((item) => item.id), from, to)),
+      'Saved the new order.',
+    );
+  }
+
+  const drag = useDragOrder((from, to) => void moveItem(from, to));
 
   return (
     <section className="panel service-order" aria-labelledby="service-order-title">
@@ -103,14 +114,24 @@ export function ServiceOrderWorkspace() {
               </div>
             ) : (
               <ol className="service-order-list">
-                {items.map((item) => {
+                {items.map((item, index) => {
                   const isLive = liveID !== '' && liveID === item.id;
                   const isPreview = previewID !== '' && previewID === item.id;
+                  const isDropTarget = drag.over === index && drag.dragging !== null && drag.dragging !== index;
                   return (
                     <li
                       key={item.id}
-                      className={`service-order-item${isLive ? ' service-order-item--live' : ''}${isPreview ? ' service-order-item--preview' : ''}`}
+                      className={[
+                        'service-order-item',
+                        isLive ? 'service-order-item--live' : '',
+                        isPreview ? 'service-order-item--preview' : '',
+                        drag.dragging === index ? 'service-order-item--dragging' : '',
+                        isDropTarget ? 'service-order-item--target' : '',
+                      ].filter(Boolean).join(' ')}
+                      title="Drag to reorder"
+                      {...drag.rowProps(index)}
                     >
+                      <span className="service-order-grip" aria-hidden="true"><Icon name="grip" size={14} /></span>
                       <span className="service-order-position">{item.position}</span>
                       <div className="service-order-copy">
                         <strong>{item.title}</strong>
@@ -158,7 +179,7 @@ export function ServiceOrderWorkspace() {
           </p>
         )}
 
-        <p className="service-order-note">Reordering, songs and media arrive with the full service editor.</p>
+        <p className="service-order-note">Drag a row to change the running order. Media arrives with the media library.</p>
       </div>
     </section>
   );

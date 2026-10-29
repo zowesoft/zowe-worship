@@ -186,6 +186,84 @@ func (r *SQLiteRepository) RemoveItem(ctx context.Context, itemID string) error 
 	return nil
 }
 
+// Reorder stores a complete schedule order for the service that owns the given
+// items. Positions are unique per service, so the rows step aside under
+// negative numbers before their final positions land.
+func (r *SQLiteRepository) Reorder(ctx context.Context, itemIDs []string) error {
+	if len(itemIDs) == 0 {
+		return fmt.Errorf("%w: the order is empty", ErrInvalidOrder)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin reordering service: %w", err)
+	}
+
+	args := make([]any, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		args = append(args, id)
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(itemIDs)), ",")
+
+	var serviceID string
+	var matched int
+	var distinct int
+	err = tx.QueryRowContext(ctx, `
+		SELECT service_id, COUNT(*), COUNT(DISTINCT id)
+		FROM service_items WHERE id IN (`+placeholders+`)
+		GROUP BY service_id`, args...).Scan(&serviceID, &matched, &distinct)
+	if err != nil {
+		_ = tx.Rollback()
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrItemNotFound
+		}
+		return fmt.Errorf("read reordered items: %w", err)
+	}
+	if matched != len(itemIDs) || distinct != len(itemIDs) {
+		_ = tx.Rollback()
+		return fmt.Errorf("%w: an item was listed twice or belongs to another service", ErrInvalidOrder)
+	}
+
+	var total int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM service_items WHERE service_id = ?`, serviceID,
+	).Scan(&total); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("count service items: %w", err)
+	}
+	if total != len(itemIDs) {
+		_ = tx.Rollback()
+		return fmt.Errorf("%w: %d of %d items were ordered", ErrInvalidOrder, len(itemIDs), total)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE service_items SET position = -position - 1 WHERE service_id = ?`, serviceID,
+	); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("clear service positions: %w", err)
+	}
+	for position, id := range itemIDs {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE service_items SET position = ? WHERE id = ?`, position+1, id,
+		); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("set service item position: %w", err)
+		}
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE services SET updated_at = ? WHERE id = ?`, now.Format(time.RFC3339), serviceID,
+	); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("update service: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit service order: %w", err)
+	}
+	return nil
+}
+
 func (r *SQLiteRepository) Item(ctx context.Context, itemID string) (Item, error) {
 	item, err := scanItem(r.db.QueryRowContext(ctx,
 		`SELECT `+itemColumns+` FROM service_items WHERE id = ?`, itemID))

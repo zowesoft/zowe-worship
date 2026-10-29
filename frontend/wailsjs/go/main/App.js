@@ -78,6 +78,10 @@ export function RemoveServiceItem(arg1) {
   return window['go']['main']['App']['RemoveServiceItem'](arg1);
 }
 
+export function ReorderServiceItems(arg1) {
+  return window['go']['main']['App']['ReorderServiceItems'](arg1);
+}
+
 export function SearchBible(arg1) {
   return window['go']['main']['App']['SearchBible'](arg1);
 }

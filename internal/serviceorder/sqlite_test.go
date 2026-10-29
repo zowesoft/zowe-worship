@@ -113,6 +113,67 @@ func TestCreateAddAndRemoveScheduleItems(t *testing.T) {
 	}
 }
 
+func TestReorderSchedule(t *testing.T) {
+	ctx := context.Background()
+	repo, _, _ := newTestRepository(t)
+
+	service, err := repo.Create(ctx, "Sunday Service")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	ids := make([]string, 0, 3)
+	for index, title := range []string{"John 3:16", "Psalms 23:1", "Genesis 1:1"} {
+		item, err := repo.AddScripture(ctx, service.ID, scriptureInput(title, 43, 3, 16+index))
+		if err != nil {
+			t.Fatalf("add %s: %v", title, err)
+		}
+		ids = append(ids, item.ID)
+	}
+
+	if err := repo.Reorder(ctx, []string{ids[2], ids[0], ids[1]}); err != nil {
+		t.Fatalf("reorder: %v", err)
+	}
+	assertOrder(t, repo, service.ID, []string{ids[2], ids[0], ids[1]})
+
+	// A dropped row must not leave the schedule half-written.
+	if err := repo.Reorder(ctx, []string{ids[0], ids[1]}); !errors.Is(err, ErrInvalidOrder) {
+		t.Fatalf("partial reorder err = %v", err)
+	}
+	assertOrder(t, repo, service.ID, []string{ids[2], ids[0], ids[1]})
+
+	for _, bad := range [][]string{
+		{},
+		{ids[0], ids[0], ids[1]},
+		{ids[0], ids[1], ids[2], "missing"},
+	} {
+		if err := repo.Reorder(ctx, bad); !errors.Is(err, ErrInvalidOrder) && !errors.Is(err, ErrItemNotFound) {
+			t.Fatalf("reorder %v err = %v", bad, err)
+		}
+	}
+	assertOrder(t, repo, service.ID, []string{ids[2], ids[0], ids[1]})
+}
+
+func assertOrder(t *testing.T, repo *SQLiteRepository, serviceID string, want []string) {
+	t.Helper()
+
+	items, err := repo.Items(context.Background(), serviceID)
+	if err != nil {
+		t.Fatalf("list items: %v", err)
+	}
+	if len(items) != len(want) {
+		t.Fatalf("items = %d, want %d", len(items), len(want))
+	}
+	for index, item := range items {
+		if item.ID != want[index] {
+			t.Fatalf("position %d = %s, want %s", index+1, item.ID, want[index])
+		}
+		if item.Position != index+1 {
+			t.Fatalf("item %s position = %d, want %d", item.ID, item.Position, index+1)
+		}
+	}
+}
+
 func TestCreateAndInputValidation(t *testing.T) {
 	ctx := context.Background()
 	repo, _, _ := newTestRepository(t)

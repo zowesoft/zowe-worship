@@ -9,6 +9,7 @@ type Repository interface {
 	AddScripture(ctx context.Context, serviceID string, input ScriptureInput) (Item, error)
 	AddSong(ctx context.Context, serviceID string, input SongInput) (Item, error)
 	RemoveItem(ctx context.Context, itemID string) error
+	Reorder(ctx context.Context, itemIDs []string) error
 	Item(ctx context.Context, itemID string) (Item, error)
 	Items(ctx context.Context, serviceID string) ([]Item, error)
 }

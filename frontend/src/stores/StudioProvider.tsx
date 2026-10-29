@@ -19,6 +19,7 @@ import {
   ProjectScripture,
   ProjectSongSection,
   RemoveServiceItem,
+  ReorderServiceItems,
   SendPreviewLive,
 } from '../../wailsjs/go/main/App.js';
 import { hasDesktopBridge } from '../lib/desktop';
@@ -54,6 +55,7 @@ type StudioValue = {
   createService: (name: string) => Promise<main.ServiceOrderView>;
   addScripture: (input: ScriptureInput) => Promise<main.ServiceOrderView>;
   removeItem: (itemID: string) => Promise<main.ServiceOrderView>;
+  reorderItems: (itemIDs: string[]) => Promise<main.ServiceOrderView>;
   previewItem: (itemID: string) => Promise<main.PresentationView>;
   previewScripture: (input: ScriptureInput) => Promise<main.PresentationView>;
   projectScripture: (input: ScriptureInput) => Promise<main.PresentationView>;
@@ -159,6 +161,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     createService: (name) => run(() => CreateService(name), setOrder),
     addScripture: (input) => run(() => AddScriptureToService(toRequest(input)), setOrder),
     removeItem: (itemID) => run(() => RemoveServiceItem(itemID), setOrder),
+    reorderItems: (itemIDs) => run(() => ReorderServiceItems(itemIDs), setOrder),
     previewItem: (itemID) => run(() => PreviewServiceItem(itemID), setPresentationState),
     previewScripture: (input) => run(() => PreviewScripture(toRequest(input)), setPresentationState),
     projectScripture: (input) => run(() => ProjectScripture(toRequest(input)), setPresentationState),

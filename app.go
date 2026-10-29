@@ -349,6 +349,19 @@ func (a *App) RemoveServiceItem(itemID string) (ServiceOrderView, error) {
 	return a.serviceOrderView(a.context())
 }
 
+// ReorderServiceItems stores the whole schedule order at once, so the gap an
+// operator drops a row into is the position that gets written.
+func (a *App) ReorderServiceItems(itemIDs []string) (ServiceOrderView, error) {
+	if a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if err := a.order.Reorder(ctx, itemIDs); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
 func (a *App) GetPresentationState() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable

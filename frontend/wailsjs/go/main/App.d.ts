@@ -40,6 +40,8 @@ export function ProjectSongSection(arg1:main.SongSectionRequest):Promise<main.Pr
 
 export function RemoveServiceItem(arg1:string):Promise<main.ServiceOrderView>;
 
+export function ReorderServiceItems(arg1:Array<string>):Promise<main.ServiceOrderView>;
+
 export function SearchBible(arg1:main.BibleSearchRequest):Promise<main.BibleSearchResponse>;
 
 export function SendPreviewLive():Promise<main.PresentationView>;
