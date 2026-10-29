@@ -10,14 +10,22 @@ import (
 	"testing"
 
 	"zowe-worship/internal/bible"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 
 	app := newAppAt(filepath.Join(t.TempDir(), "Zowe Worship"))
-	app.startup(context.Background())
-	t.Cleanup(func() { app.shutdown(context.Background()) })
+	if err := app.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatalf("service startup: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.ServiceShutdown(); err != nil {
+			t.Errorf("service shutdown: %v", err)
+		}
+	})
 	if app.bible == nil {
 		t.Fatal("startup did not initialize storage")
 	}
@@ -49,8 +57,10 @@ func TestStartupStoresRuntimeContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	app.startup(ctx)
-	defer app.shutdown(context.Background())
+	if err := app.ServiceStartup(ctx, application.ServiceOptions{}); err != nil {
+		t.Fatalf("service startup: %v", err)
+	}
+	defer func() { _ = app.ServiceShutdown() }()
 
 	if app.ctx != ctx {
 		t.Fatal("startup did not retain the runtime context")
@@ -62,7 +72,9 @@ func TestStartupInitializesPersistentStorage(t *testing.T) {
 	app := newAppAt(root)
 
 	ctx := context.Background()
-	app.startup(ctx)
+	if err := app.ServiceStartup(ctx, application.ServiceOptions{}); err != nil {
+		t.Fatalf("service startup: %v", err)
+	}
 
 	if app.core == nil || app.bible == nil {
 		t.Fatal("startup did not open storage")
@@ -90,7 +102,9 @@ func TestStartupInitializesPersistentStorage(t *testing.T) {
 	}
 
 	core := app.core
-	app.shutdown(ctx)
+	if err := app.ServiceShutdown(); err != nil {
+		t.Fatalf("service shutdown: %v", err)
+	}
 	if err := core.PingContext(ctx); err == nil {
 		t.Fatal("database was not closed on shutdown")
 	}
@@ -98,8 +112,10 @@ func TestStartupInitializesPersistentStorage(t *testing.T) {
 		t.Fatal("shutdown did not release the database handle")
 	}
 
-	app.startup(ctx)
-	defer app.shutdown(context.Background())
+	if err := app.ServiceStartup(ctx, application.ServiceOptions{}); err != nil {
+		t.Fatalf("service startup after restart: %v", err)
+	}
+	defer func() { _ = app.ServiceShutdown() }()
 	translations, err := app.bible.ListTranslations(ctx)
 	if err != nil {
 		t.Fatalf("list translations after restart: %v", err)
@@ -360,7 +376,9 @@ func TestSchedulePersistsAcrossRestart(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "Zowe Worship")
 
 	first := newAppAt(root)
-	first.startup(context.Background())
+	if err := first.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatalf("first startup: %v", err)
+	}
 	installTestBible(t, first)
 	order, err := first.AddScriptureToService(ScriptureRequest{
 		TranslationID: "kjv", BookID: 43, Chapter: 3, VerseStart: 16,
@@ -374,11 +392,15 @@ func TestSchedulePersistsAcrossRestart(t *testing.T) {
 	if _, err := first.SendPreviewLive(); err != nil {
 		t.Fatalf("send live: %v", err)
 	}
-	first.shutdown(context.Background())
+	if err := first.ServiceShutdown(); err != nil {
+		t.Fatalf("first shutdown: %v", err)
+	}
 
 	second := newAppAt(root)
-	second.startup(context.Background())
-	defer second.shutdown(context.Background())
+	if err := second.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
+		t.Fatalf("second startup: %v", err)
+	}
+	defer func() { _ = second.ServiceShutdown() }()
 
 	restored, err := second.GetServiceOrder()
 	if err != nil {

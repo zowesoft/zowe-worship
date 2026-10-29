@@ -5,8 +5,7 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { useStudio } from '../stores/StudioProvider';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
-import { hasDesktopBridge } from '../lib/desktop';
-import type { presentation } from '../../wailsjs/go/models';
+import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
 
 export type PageId = 'bible' | 'songs' | 'media' | 'service' | 'settings';
 
@@ -236,7 +235,8 @@ function ServiceSwitcher() {
 }
 
 function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
-  const connected = hasDesktopBridge();
+  const studio = useStudio();
+  const connected = studio.bridgeAvailable;
   const now = useClock();
   const dateLabel = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const timeLabel = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -275,11 +275,11 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   );
 }
 
-function SlideContent({ content }: { content: presentation.Content }) {
+function SlideContent({ content }: { content: Content }) {
   return (
     <div className="slide-content">
       <p className="slide-verses">
-        {content.lines.map((line, index) => <span key={index}>{line}</span>)}
+        {(content.lines ?? []).map((line, index) => <span key={index}>{line}</span>)}
       </p>
       <p className="slide-reference">{content.label}</p>
     </div>
@@ -290,7 +290,7 @@ function PresentationPanes() {
   const studio = useStudio();
   const preview = studio.presentation?.preview ?? null;
   const live = studio.presentation?.live ?? null;
-  const scheduleCount = studio.order?.items.length ?? 0;
+  const scheduleCount = studio.order?.items?.length ?? 0;
 
   async function sendLive() {
     try {
@@ -459,7 +459,7 @@ function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) 
   const studio = useStudio();
   const preview = studio.presentation?.preview ?? null;
   const live = studio.presentation?.live ?? null;
-  const scheduleCount = studio.order?.items.length ?? 0;
+  const scheduleCount = studio.order?.items?.length ?? 0;
 
   async function run(action: () => Promise<unknown>) {
     try {

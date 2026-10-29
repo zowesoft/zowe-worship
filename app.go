@@ -8,6 +8,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/database"
 	"zowe-worship/internal/presentation"
@@ -76,28 +77,32 @@ func newAppAt(dataRoot string) *App {
 	return &App{dataRoot: dataRoot}
 }
 
-func (a *App) startup(ctx context.Context) {
+// ServiceStartup opens storage before the studio window can call a bound
+// method. A failure is logged and left for the bindings to report, rather than
+// aborting the run: an operator who sees "storage is not available" in the app
+// can act on it, whereas a process that exits silently cannot.
+func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
 
 	paths, err := a.paths()
 	if err != nil {
 		log.Printf("zowe: storage unavailable: %v", err)
-		return
+		return nil
 	}
 	if err := paths.Ensure(); err != nil {
 		log.Printf("zowe: storage unavailable: %v", err)
-		return
+		return nil
 	}
 
 	core, err := database.Open(ctx, paths.CoreDatabase())
 	if err != nil {
 		log.Printf("zowe: open database: %v", err)
-		return
+		return nil
 	}
 	if err := database.Migrate(ctx, core, paths.Backups()); err != nil {
 		_ = core.Close()
 		log.Printf("zowe: migrate database: %v", err)
-		return
+		return nil
 	}
 
 	a.core = core
@@ -105,16 +110,19 @@ func (a *App) startup(ctx context.Context) {
 	a.order = serviceorder.NewSQLiteRepository(core)
 	a.songs = songs.NewSQLiteRepository(core)
 	a.presentation = presentation.New(a.bible, a.order, a.songs)
+	return nil
 }
 
-func (a *App) shutdown(_ context.Context) {
+func (a *App) ServiceShutdown() error {
 	if a.core == nil {
-		return
+		return nil
 	}
-	if err := a.core.Close(); err != nil {
-		log.Printf("zowe: close database: %v", err)
-	}
+	core := a.core
 	a.core = nil
+	if err := core.Close(); err != nil {
+		return fmt.Errorf("close database: %w", err)
+	}
+	return nil
 }
 
 func (a *App) paths() (database.Paths, error) {

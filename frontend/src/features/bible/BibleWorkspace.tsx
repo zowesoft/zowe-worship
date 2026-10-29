@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { Icon } from '../../components/Icon';
-import { hasDesktopBridge } from '../../lib/desktop';
 import { useStudio } from '../../stores/StudioProvider';
-import { ListTranslations, SearchBible } from '../../../wailsjs/go/main/App.js';
-import { main } from '../../../wailsjs/go/models';
+import { App } from '../../../bindings/zowe-worship';
+import * as models from '../../../bindings/zowe-worship/models';
 import './bible.css';
 
 const modes = [
@@ -19,7 +18,7 @@ type Mode = (typeof modes)[number]['value'];
 type SearchState =
   | { kind: 'idle' }
   | { kind: 'error'; message: string }
-  | { kind: 'results'; response: main.BibleSearchResponse };
+  | { kind: 'results'; response: models.BibleSearchResponse };
 
 const SEARCH_DEBOUNCE_MS = 250;
 const MIN_QUERY_LENGTH = 2;
@@ -39,9 +38,9 @@ function errorMessage(error: unknown): string {
 }
 
 export function BibleWorkspace() {
-  const bridgeAvailable = hasDesktopBridge();
   const studio = useStudio();
-  const [translations, setTranslations] = useState<main.TranslationView[]>([]);
+  const bridgeAvailable = studio.bridgeAvailable;
+  const [translations, setTranslations] = useState<models.TranslationView[]>([]);
   const [translationId, setTranslationId] = useState('');
   const [translationError, setTranslationError] = useState<string | null>(
     bridgeAvailable ? null : 'Open the Zowe Worship desktop app to search installed translations.',
@@ -61,11 +60,12 @@ export function BibleWorkspace() {
     if (!bridgeAvailable) return;
 
     let active = true;
-    ListTranslations()
+    App.ListTranslations()
       .then((items) => {
         if (!active) return;
-        setTranslations(items);
-        const preferred = items.find((item) => item.id === 'kjv') ?? items[0];
+        const installed = items ?? [];
+        setTranslations(installed);
+        const preferred = installed.find((item) => item.id === 'kjv') ?? installed[0];
         setTranslationId(preferred?.id ?? '');
       })
       .catch((error: unknown) => {
@@ -97,15 +97,15 @@ export function BibleWorkspace() {
     setPending(true);
 
     try {
-      const response = await SearchBible(new main.BibleSearchRequest({
+      const response = await App.SearchBible({
         translationId: targetTranslation,
         query: text,
         mode,
         limit: 50,
-      }));
+      });
       if (currentRequest !== requestId.current) return;
       setSearch({ kind: 'results', response });
-      setSelectedReference(response.results[0]?.reference ?? null);
+      setSelectedReference(response.results?.[0]?.reference ?? null);
     } catch (error: unknown) {
       if (currentRequest !== requestId.current) return;
       setSearch({ kind: 'error', message: errorMessage(error) });
@@ -149,7 +149,7 @@ export function BibleWorkspace() {
     searchNow();
   }
 
-  async function perform(kind: 'preview' | 'live' | 'add', result: main.BibleVerse) {
+  async function perform(kind: 'preview' | 'live' | 'add', result: models.BibleVerse) {
     const key = `${kind}:${result.reference}`;
     setAction({ busy: key, status: null });
 
@@ -234,7 +234,9 @@ export function BibleWorkspace() {
     }
 
     if (search.kind === 'results') {
-        if (search.response.results.length === 0 && pending) {
+        const results = search.response.results ?? [];
+
+        if (results.length === 0 && pending) {
           return (
             <div className="bible-message" role="status">
               <strong>Searching {activeTranslation?.abbreviation ?? ''}…</strong>
@@ -243,7 +245,7 @@ export function BibleWorkspace() {
           );
         }
 
-        if (search.response.results.length === 0) {
+        if (results.length === 0) {
           return (
             <div className="bible-message" role="status">
               <strong>No verses found</strong>
@@ -254,7 +256,7 @@ export function BibleWorkspace() {
 
         return (
           <ul className="bible-results" aria-label="Search results">
-            {search.response.results.map((result) => {
+            {results.map((result) => {
               const selected = selectedReference === result.reference;
               return (
                 <li
@@ -344,7 +346,7 @@ export function BibleWorkspace() {
     );
   }
 
-  const resultCount = search.kind === 'results' ? search.response.results.length : null;
+  const resultCount = search.kind === 'results' ? (search.response.results?.length ?? 0) : null;
 
   return (
     <section className="panel bible-workspace" aria-labelledby="bible-workspace-title">

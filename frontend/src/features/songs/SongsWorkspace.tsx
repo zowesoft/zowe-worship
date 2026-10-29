@@ -360,7 +360,7 @@ export function SongsWorkspace() {
                 <summary>
                   <span className="song-title">{song.title}</span>
                   <span className="song-meta">
-                    {song.sections.length} {song.sections.length === 1 ? 'section' : 'sections'}
+                    {(song.sections ?? []).length} {(song.sections ?? []).length === 1 ? 'section' : 'sections'}
                     {song.author ? ` · ${song.author}` : ''}
                     {song.copyright ? ` · ${song.copyright}` : ''}
                   </span>
@@ -386,7 +386,7 @@ export function SongsWorkspace() {
                 </summary>
 
                 <ul className="song-sections">
-                  {song.sections.map((section) => {
+                  {(song.sections ?? []).map((section) => {
                     const label = `${song.title} · ${section.label}`;
                     const input = { songId: song.id, sectionId: section.id };
                     return (

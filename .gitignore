@@ -1,4 +1,8 @@
 /build/bin/
+/bin/
+/.task/
+# The v3 icons task always writes a macOS icon even on a Windows-only build.
+/build/darwin/
 /frontend/node_modules/
 /frontend/package.json.md5
 /frontend/dist/*

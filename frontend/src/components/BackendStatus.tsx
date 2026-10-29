@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { GetAppInfo } from '../../wailsjs/go/main/App.js';
-import { hasDesktopBridge } from '../lib/desktop';
+import { App } from '../../bindings/zowe-worship';
+import { useStudio } from '../stores/StudioProvider';
 
 type BridgeState =
   | { kind: 'connecting' }
@@ -9,34 +9,39 @@ type BridgeState =
   | { kind: 'error'; message: string };
 
 export function BackendStatus() {
-  const [bridge, setBridge] = useState<BridgeState>(() => ({
-    kind: hasDesktopBridge() ? 'connecting' : 'browser',
-  }));
+  const studio = useStudio();
+  const [info, setInfo] = useState<{ name: string; version: string } | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!hasDesktopBridge()) return;
+    if (!studio.bridgeAvailable) return;
 
     let mounted = true;
 
-    async function loadAppInfo() {
-      try {
-        const info = await GetAppInfo();
-        if (mounted) {
-          setBridge({ kind: 'connected', name: info.name, version: info.version });
-        }
-      } catch (error: unknown) {
-        if (mounted) {
-          const message = error instanceof Error ? error.message : String(error);
-          setBridge({ kind: 'error', message: message || 'Application information could not be loaded.' });
-        }
-      }
-    }
+    App.GetAppInfo()
+      .then((value) => {
+        if (mounted) setInfo({ name: value.name, version: value.version });
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        const message = error instanceof Error ? error.message : String(error);
+        setFailure(message || 'Application information could not be loaded.');
+      });
 
-    void loadAppInfo();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [studio.bridgeAvailable]);
+
+  const bridge: BridgeState = !studio.ready
+    ? { kind: 'connecting' }
+    : !studio.bridgeAvailable
+      ? { kind: 'browser' }
+      : failure !== null
+        ? { kind: 'error', message: failure }
+        : info !== null
+          ? { kind: 'connected', name: info.name, version: info.version }
+          : { kind: 'connecting' };
 
   return (
     <section className={`backend-status backend-status--${bridge.kind}`} aria-label="Application environment" aria-live="polite" aria-atomic="true">
@@ -49,7 +54,7 @@ export function BackendStatus() {
         </strong>
       </div>
       <p>
-        {bridge.kind === 'browser' && 'Desktop bridge unavailable in this browser.'}
+        {bridge.kind === 'browser' && (studio.error ?? 'Desktop bridge unavailable in this browser.')}
         {bridge.kind === 'connecting' && 'Reading application information.'}
         {bridge.kind === 'connected' && `${bridge.name} · v${bridge.version}`}
         {bridge.kind === 'error' && bridge.message}
