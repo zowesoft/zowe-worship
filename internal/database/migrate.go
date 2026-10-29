@@ -51,13 +51,15 @@ func loadMigrations() ([]migration, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read migration %s: %w", filename, err)
 		}
-		sum := sha256.Sum256(content)
+		// Git can hand the same migration over with CRLF endings, which would
+		// otherwise look like someone edited applied history.
+		normalised := normalizeSQL(content)
 
 		migrations = append(migrations, migration{
 			version:  version,
 			name:     strings.TrimSuffix(filename, ".sql"),
-			checksum: hex.EncodeToString(sum[:]),
-			sql:      string(content),
+			checksum: migrationChecksum(normalised),
+			sql:      normalised,
 		})
 	}
 
@@ -70,6 +72,17 @@ func loadMigrations() ([]migration, error) {
 		}
 	}
 	return migrations, nil
+}
+
+// normalizeSQL drops the CRLF endings Git can hand back for the same migration,
+// so a checkout on Windows is not mistaken for someone editing applied history.
+func normalizeSQL(content []byte) string {
+	return strings.ReplaceAll(string(content), "\r\n", "\n")
+}
+
+func migrationChecksum(statements string) string {
+	sum := sha256.Sum256([]byte(statements))
+	return hex.EncodeToString(sum[:])
 }
 
 // Migrate applies pending migrations in order. Each migration is its own
