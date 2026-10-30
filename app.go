@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/database"
+	"zowe-worship/internal/media"
 	"zowe-worship/internal/presentation"
 	"zowe-worship/internal/scripture"
 	"zowe-worship/internal/serviceorder"
@@ -26,6 +27,7 @@ type App struct {
 	bible         *bible.SQLiteRepository
 	order         *serviceorder.SQLiteRepository
 	songs         *songs.SQLiteRepository
+	media         *media.Library
 	presentation  *presentation.Controller
 	display       application.Window
 	displayScreen ScreenOption
@@ -111,6 +113,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.bible = bible.NewSQLiteRepository(core, paths.Translations())
 	a.order = serviceorder.NewSQLiteRepository(core)
 	a.songs = songs.NewSQLiteRepository(core)
+	a.media = media.NewLibrary(media.NewSQLiteRepository(core), paths.Media(), paths.MediaThumbnails())
 	a.presentation = presentation.New(a.bible, a.order, a.songs)
 	return nil
 }

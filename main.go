@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"log"
+	"net/http"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -11,14 +13,25 @@ import (
 var assets embed.FS
 
 func main() {
+	studio := NewApp()
+
 	app := application.New(application.Options{
 		Name:        "Zowe Worship",
 		Description: "Scripture-first worship presentation",
 		Services: []application.Service{
-			application.NewService(NewApp()),
+			application.NewService(studio),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
+			Middleware: func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if strings.HasPrefix(r.URL.Path, "/media/") {
+						studio.serveMedia(w, r)
+						return
+					}
+					next.ServeHTTP(w, r)
+				})
+			},
 		},
 	})
 

@@ -68,8 +68,19 @@ func (p Paths) Backups() string {
 	return filepath.Join(p.Root, "backups")
 }
 
+// Media holds the copies the library owns. Imported files are copied in rather
+// than referenced, so moving a file in the church's own folders cannot break a
+// service.
+func (p Paths) Media() string {
+	return filepath.Join(p.Root, "media")
+}
+
+func (p Paths) MediaThumbnails() string {
+	return filepath.Join(p.Media(), "thumbs")
+}
+
 func (p Paths) Ensure() error {
-	for _, dir := range []string{p.Root, p.Translations(), p.Backups()} {
+	for _, dir := range []string{p.Root, p.Translations(), p.Backups(), p.Media(), p.MediaThumbnails()} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("create data directory %s: %w", dir, err)
 		}

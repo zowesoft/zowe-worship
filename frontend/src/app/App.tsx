@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { BibleWorkspace } from '../features/bible/BibleWorkspace';
 import { AudienceDisplay } from '../features/display/AudienceDisplay';
+import { MediaWorkspace } from '../features/media/MediaWorkspace';
 import { SongsWorkspace } from '../features/songs/SongsWorkspace';
 import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
 import { AppShell } from '../layouts/AppShell';
@@ -17,14 +18,7 @@ type FeaturePage = {
   next: string;
 };
 
-const featurePages: Record<Exclude<PageId, 'bible' | 'service' | 'songs'>, FeaturePage> = {
-  media: {
-    icon: 'media',
-    title: 'Your media library starts here',
-    description: 'No media is available. Importing and indexing are not implemented.',
-    purpose: 'Browse reusable media and prepare selected items for a service. Local media management will be handled by the Go backend.',
-    next: 'Local imports, metadata indexing and media previews.',
-  },
+const featurePages: Record<Exclude<PageId, 'bible' | 'service' | 'songs' | 'media'>, FeaturePage> = {
   settings: {
     icon: 'settings',
     title: 'Configure the workspace, in time',
@@ -68,9 +62,11 @@ export default function App() {
           ? <BibleWorkspace />
           : activePage === 'songs'
             ? <SongsWorkspace />
-            : activePage === 'service'
-              ? <ServiceOrderWorkspace />
-              : <FeatureScaffold page={featurePages[activePage]} />}
+            : activePage === 'media'
+              ? <MediaWorkspace />
+              : activePage === 'service'
+                ? <ServiceOrderWorkspace />
+                : <FeatureScaffold page={featurePages[activePage]} />}
       </AppShell>
     </StudioProvider>
   );

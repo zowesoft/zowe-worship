@@ -33,6 +33,11 @@ type StudioValue = {
   display: models.DisplayView | null;
   screens: models.ScreenOption[];
   songs: models.SongsView | null;
+  media: models.MediaView[];
+  importResult: models.MediaImportResult | null;
+  refreshMedia: () => Promise<void>;
+  importMedia: (paths: string[]) => Promise<models.MediaImportResult>;
+  deleteMedia: (id: string) => Promise<void>;
   openDisplay: (screenID: string) => Promise<models.DisplayView>;
   closeDisplay: () => Promise<models.DisplayView>;
   refreshSongs: (query?: string) => Promise<void>;
@@ -96,6 +101,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [display, setDisplay] = useState<models.DisplayView | null>(null);
   const [screens, setScreens] = useState<models.ScreenOption[]>([]);
   const [songs, setSongs] = useState<models.SongsView | null>(null);
+  const [media, setMedia] = useState<models.MediaView[]>([]);
+  const [importResult, setImportResult] = useState<models.MediaImportResult | null>(null);
 
   // v3 has no `window.go` to sniff, so the bridge is whatever the first load
   // proves: opening in a plain browser rejects every call and the studio stays
@@ -110,8 +117,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       App.ListServices(),
       App.ListScreens(),
       App.GetAudienceDisplay(),
+      App.ListMedia(),
     ])
-      .then(([initialOrder, initialPresentation, initialSongs, initialServices, initialScreens, initialDisplay]) => {
+      .then(([
+        initialOrder, initialPresentation, initialSongs, initialServices,
+        initialScreens, initialDisplay, initialMedia,
+      ]) => {
         if (!active) return;
         setBridgeAvailable(true);
         setOrder(initialOrder);
@@ -120,6 +131,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setServices(initialServices ?? []);
         setScreens(initialScreens ?? []);
         setDisplay(initialDisplay);
+        setMedia(initialMedia ?? []);
       })
       .catch((cause: unknown) => {
         if (!active) return;
@@ -134,10 +146,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const run = useCallback(async <T,>(action: () => Promise<T>, apply: (value: T) => void): Promise<T> => {
+  const run = useCallback(async <T,>(action: () => Promise<T>, apply?: (value: T) => void): Promise<T> => {
     try {
       const value = await action();
-      apply(value);
+      apply?.(value);
       setError(null);
       return value;
     } catch (cause: unknown) {
@@ -155,6 +167,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     return value;
   }, []);
 
+  // The media grid is reread after every change so a rejected import leaves it
+  // showing exactly what the library holds, rather than what was guessed.
+  const mediaAction = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
+    const value = await action();
+    setMedia((await App.ListMedia()) ?? []);
+    return value;
+  }, []);
+
+  const importMedia = useCallback(async (paths: string[]) => {
+    const result = await run(() => mediaAction(() => App.ImportMedia(paths)));
+    setImportResult(result);
+    return result;
+  }, [mediaAction, run]);
+
   const value = useMemo<StudioValue>(() => ({
     ready,
     bridgeAvailable,
@@ -165,6 +191,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     display,
     screens,
     songs,
+    media,
+    importResult,
+    refreshMedia: async () => {
+      await run(() => mediaAction(App.ListMedia));
+    },
+    importMedia,
+    deleteMedia: async (id) => {
+      await run(() => App.DeleteMedia(id), (list) => setMedia(list ?? []));
+    },
     openDisplay: (screenID) => run(() => App.OpenAudienceDisplay(screenID), setDisplay),
     closeDisplay: () => run(() => App.CloseAudienceDisplay(), setDisplay),
     refreshSongs: async (query = '') => {
@@ -188,7 +223,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     clearLive: () => run(App.ClearLive, setPresentationState),
     nextItem: () => run(App.NextServiceItem, setPresentationState),
     previousItem: () => run(App.PreviousServiceItem, setPresentationState),
-  }), [bridgeAvailable, display, error, order, orderWithList, presentationState, ready, run, screens, services, songs]);
+  }), [bridgeAvailable, display, error, importMedia, importResult, media, mediaAction, order, orderWithList, presentationState, ready, run, screens, services, songs]);
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
 }

@@ -13,6 +13,8 @@ export type {
     BibleVerse,
     DisplayView,
     LyricHitView,
+    MediaImportResult,
+    MediaView,
     NewSongRequest,
     NewSongSectionRequest,
     PresentationView,

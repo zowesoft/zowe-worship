@@ -33,6 +33,10 @@ export function CreateSong(request: $models.NewSongRequest): $CancellablePromise
     return $Call.ByID(800922996, request);
 }
 
+export function DeleteMedia(id: string): $CancellablePromise<$models.MediaView[] | null> {
+    return $Call.ByID(3365336450, id);
+}
+
 export function DeleteSong(songID: string): $CancellablePromise<$models.SongsView> {
     return $Call.ByID(348664795, songID);
 }
@@ -51,6 +55,19 @@ export function GetPresentationState(): $CancellablePromise<$models.Presentation
 
 export function GetServiceOrder(): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(2748070250);
+}
+
+/**
+ * ImportMedia copies the chosen files into the library. Files that cannot be
+ * taken come back explained rather than failing the whole import, because the
+ * usual case is a folder dropped with a mix of usable and unusable things in it.
+ */
+export function ImportMedia(paths: string[] | null): $CancellablePromise<$models.MediaImportResult> {
+    return $Call.ByID(3099520704, paths);
+}
+
+export function ListMedia(): $CancellablePromise<$models.MediaView[] | null> {
+    return $Call.ByID(1688718951);
 }
 
 /**
@@ -85,6 +102,14 @@ export function NextServiceItem(): $CancellablePromise<$models.PresentationView>
  */
 export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$models.DisplayView> {
     return $Call.ByID(3719972303, screenID);
+}
+
+/**
+ * PickMediaFiles opens the native picker so an operator can reach any folder
+ * without learning where Zowe keeps its own copies.
+ */
+export function PickMediaFiles(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(4150223347);
 }
 
 export function PreviewScripture(request: $models.ScriptureRequest): $CancellablePromise<$models.PresentationView> {

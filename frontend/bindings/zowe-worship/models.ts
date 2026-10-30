@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as media$0 from "./internal/media/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as presentation$0 from "./internal/presentation/models.js";
 
 export interface AppInfo {
@@ -52,6 +55,26 @@ export interface LyricHitView {
     "label": string;
     "text": string;
     "position": number;
+}
+
+export interface MediaImportResult {
+    "added": MediaView[] | null;
+    "problems": media$0.ImportProblem[] | null;
+}
+
+export interface MediaView {
+    "id": string;
+    "kind": string;
+    "title": string;
+    "url": string;
+    "thumbnailUrl": string;
+    "sizeBytes": number;
+    "durationMs": number;
+    "width": number;
+    "height": number;
+    "hasThumbnail": boolean;
+    "missing": boolean;
+    "createdAt": string;
 }
 
 export interface NewSongRequest {
