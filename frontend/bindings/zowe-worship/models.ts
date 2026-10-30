@@ -57,6 +57,11 @@ export interface LyricHitView {
     "position": number;
 }
 
+export interface MediaEditorView {
+    "open": boolean;
+    "title": string;
+}
+
 export interface MediaImportResult {
     "added": MediaView[] | null;
     "problems": media$0.ImportProblem[] | null;

@@ -360,11 +360,34 @@ func TestAspectListIsUsable(t *testing.T) {
 			t.Fatalf("duplicate aspect %s", aspect.Value)
 		}
 		seen[aspect.Value] = true
-		if aspect.Value != AspectAuto && aspect.Ratio <= 0 {
+		if aspect.Value != AspectAuto && aspect.Value != AspectScreen && aspect.Ratio <= 0 {
 			t.Fatalf("aspect %s has no ratio", aspect.Value)
 		}
 	}
 	if !seen["16:9"] || !seen["1:1"] {
 		t.Fatalf("expected the common shapes to be offered: %v", seen)
+	}
+	if !seen[AspectScreen] {
+		t.Fatal("operators need a way to fill the whole screen")
+	}
+}
+
+func TestScreenAspectFillsWithoutAShape(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	source := t.TempDir()
+
+	imported, _, err := library.Import(ctx, []string{writeTestImage(t, source, "banner.png", 1000, 500)})
+	if err != nil || len(imported) != 1 {
+		t.Fatalf("import: %+v %v", imported, err)
+	}
+
+	slide, err := library.SetPresentation(ctx, imported[0].ID, Presentation{Aspect: AspectScreen, Fit: FitContain})
+	if err != nil {
+		t.Fatalf("set screen: %v", err)
+	}
+	// Filling the screen is its own instruction: it has no ratio, and the edges
+	// choice is decided for it so the picture cannot come back letterboxed.
+	if slide.Aspect != AspectScreen || slide.Ratio != 0 {
+		t.Fatalf("slide = %+v", slide)
 	}
 }

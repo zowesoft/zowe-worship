@@ -365,6 +365,7 @@ function SlideContent({ content }: { content: Content }) {
       <FittedImage
         src={content.image}
         alt={content.label}
+        aspect={content.aspect}
         ratio={content.ratio}
         fit={content.fit === 'cover' ? 'cover' : 'contain'}
       />

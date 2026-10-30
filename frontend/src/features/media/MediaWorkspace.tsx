@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { App } from '../../../bindings/zowe-worship';
 import type { MediaImportResult, MediaView } from '../../../bindings/zowe-worship/models';
@@ -45,10 +45,6 @@ function kindIcon(kind: string) {
   return <Icon name="layers" size={26} />;
 }
 
-function aspectLabel(aspect: string) {
-  return aspect === 'auto' ? 'its own shape' : aspect;
-}
-
 // The backend owns the shape list, so the ratio is looked up rather than parsed
 // from the label.
 function ratioOf(aspects: Aspect[], value: string): number {
@@ -60,7 +56,6 @@ export function MediaWorkspace() {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
-  const [selectedID, setSelectedID] = useState<string | null>(null);
   const [status, setStatus] = useState<{ kind: 'message' | 'error'; text: string } | null>(null);
 
   const shown = useMemo(() => studio.media.filter((item) => {
@@ -99,7 +94,6 @@ export function MediaWorkspace() {
   }
 
   const canAct = studio.bridgeAvailable && !busy;
-  const selected = studio.media.find((item) => item.id === selectedID) ?? null;
 
   async function act(action: () => Promise<unknown>, message: string) {
     setBusy(true);
@@ -114,14 +108,23 @@ export function MediaWorkspace() {
     }
   }
 
-  // Reframing the slide the room is looking at should change the room, so a
-  // saved frame is pushed live again when it matches what is already on air.
-  async function frame(item: MediaView, aspect: string, fit: string) {
-    const isLive = studio.presentation?.live?.image === item.url;
-    await act(async () => {
-      await studio.frameMedia(item.id, aspect, fit);
-      if (isLive) await studio.projectMedia(item.id);
-    }, `Framed ${item.title} · ${aspectLabel(aspect)}.`);
+  // The editor is a separate window, so the grid is reread whenever this tab is
+  // mounted and picks up framing saved there.
+  useEffect(() => {
+    void studio.refreshMedia();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function openEditor(item: MediaView) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      await App.OpenMediaEditor(item.id);
+    } catch (error: unknown) {
+      setStatus({ kind: 'error', text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
   }
 
   function sendLive(item: MediaView) {
@@ -180,56 +183,6 @@ export function MediaWorkspace() {
           </div>
         </div>
 
-        {selected && selected.kind === 'image' && (
-          <div className="media-framing" aria-label={`Framing for ${selected.title}`}>
-            <div className="media-framing-group">
-              <span className="media-framing-label">Shape</span>
-              <div className="media-chips">
-                {studio.mediaAspects.map((aspect) => (
-                  <button
-                    key={aspect.value}
-                    type="button"
-                    className={`media-chip${selected.aspect === aspect.value ? ' media-chip--active' : ''}`}
-                    aria-pressed={selected.aspect === aspect.value}
-                    disabled={!canAct}
-                    onClick={() => void frame(selected, aspect.value, selected.fit)}
-                  >
-                    {aspect.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="media-framing-group">
-              <span className="media-framing-label">Edges</span>
-              <div className="media-chips">
-                <button
-                  type="button"
-                  className={`media-chip${selected.fit !== 'cover' ? ' media-chip--active' : ''}`}
-                  aria-pressed={selected.fit !== 'cover'}
-                  disabled={!canAct}
-                  title="Show the whole picture, adding bars where needed"
-                  onClick={() => void frame(selected, selected.aspect, 'contain')}
-                >
-                  Show all
-                </button>
-                <button
-                  type="button"
-                  className={`media-chip${selected.fit === 'cover' ? ' media-chip--active' : ''}`}
-                  aria-pressed={selected.fit === 'cover'}
-                  disabled={!canAct}
-                  title="Fill the frame and crop whatever hangs over"
-                  onClick={() => void frame(selected, selected.aspect, 'cover')}
-                >
-                  Fill frame
-                </button>
-              </div>
-            </div>
-            <p className="media-framing-note">
-              {selected.title} · {aspectLabel(selected.aspect)} · {selected.fit === 'cover' ? 'fills the frame' : 'shows in full'}
-            </p>
-          </div>
-        )}
-
         {studio.media.length === 0 ? (
           <div className="media-empty">
             <span className="icon-tile"><Icon name="media" size={24} /></span>
@@ -256,16 +209,14 @@ export function MediaWorkspace() {
                     : 'Video and audio playback arrive with the next slice'}
                   onClick={(event) => {
                     if (!projectable || fromActions(event) || !canAct) return;
-                    setSelectedID(item.id);
                     void act(() => studio.previewMedia(item.id), `Previewing ${item.title}.`);
                   }}
                   onDoubleClick={(event) => {
                     if (!projectable || fromActions(event) || !canAct) return;
-                    setSelectedID(item.id);
                     void sendLive(item);
                   }}
                 >
-                  <div className={`media-thumb${selectedID === item.id ? ' media-thumb--selected' : ''}`}>
+                  <div className="media-thumb">
                     {item.hasThumbnail
                       ? (
                         <FittedImage
@@ -284,6 +235,19 @@ export function MediaWorkspace() {
                     <span>{item.kind} · {formatSize(item.sizeBytes)}</span>
                   </div>
                   <div className="media-tile-actions">
+                    {projectable && (
+                      <button
+                        type="button"
+                        className="button button--small"
+                        disabled={!canAct}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void openEditor(item);
+                        }}
+                      >
+                        <Icon name="settings" size={13} />Edit
+                      </button>
+                    )}
                     {projectable && (
                       <button
                         type="button"

@@ -130,6 +130,14 @@ export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$mode
 }
 
 /**
+ * OpenMediaEditor frames one image in its own small window, which keeps the
+ * studio a production view rather than a workspace with drawers in it.
+ */
+export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.MediaEditorView> {
+    return $Call.ByID(1808648114, mediaID);
+}
+
+/**
  * PickMediaFiles opens the native picker so an operator can reach any folder
  * without learning where Zowe keeps its own copies.
  */

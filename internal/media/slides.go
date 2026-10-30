@@ -16,6 +16,9 @@ const (
 	FitContain = "contain"
 	FitCover   = "cover"
 	AspectAuto = "auto"
+	// AspectScreen has no shape of its own: the picture takes the whole output
+	// and whatever does not fit is cropped.
+	AspectScreen = "screen"
 )
 
 var (
@@ -33,6 +36,7 @@ type Aspect struct {
 
 var aspects = []Aspect{
 	{AspectAuto, "Original", 0},
+	{AspectScreen, "Fill screen", 0},
 	{"16:9", "Widescreen", 16.0 / 9.0},
 	{"4:3", "Classic projector", 4.0 / 3.0},
 	{"1:1", "Square", 1},
@@ -43,6 +47,15 @@ var aspects = []Aspect{
 
 func Aspects() []Aspect {
 	return append([]Aspect(nil), aspects...)
+}
+
+func knownAspect(value string) bool {
+	for _, aspect := range aspects {
+		if aspect.Value == value {
+			return true
+		}
+	}
+	return false
 }
 
 func ratioFor(value string) float64 {
@@ -71,10 +84,7 @@ func FullFrame() Presentation {
 // hand-edited row, and "show all of it" is the safe answer for both.
 func (p Presentation) Normalised() Presentation {
 	out := p
-	if ratioFor(out.Aspect) == 0 && out.Aspect != AspectAuto {
-		out.Aspect = AspectAuto
-	}
-	if out.Aspect == "" {
+	if !knownAspect(out.Aspect) {
 		out.Aspect = AspectAuto
 	}
 	if out.Fit != FitCover {
@@ -84,12 +94,14 @@ func (p Presentation) Normalised() Presentation {
 }
 
 // Slide is everything a viewer needs to draw an image slide. The ratio is
-// already resolved so the frontend never has to know the aspect names.
+// already resolved so the frontend never has to look an aspect name up, and the
+// name travels with it because "fill the screen" has no ratio to derive from.
 type Slide struct {
-	Title string  `json:"title"`
-	URL   string  `json:"url"`
-	Ratio float64 `json:"ratio"`
-	Fit   string  `json:"fit"`
+	Title  string  `json:"title"`
+	URL    string  `json:"url"`
+	Aspect string  `json:"aspect"`
+	Ratio  float64 `json:"ratio"`
+	Fit    string  `json:"fit"`
 }
 
 // FileURL is the address a browser would fetch the asset's own bytes from.
@@ -150,9 +162,10 @@ func (l *Library) SetPresentation(ctx context.Context, id string, presentation P
 
 func (l *Library) slideFor(asset Asset) Slide {
 	return Slide{
-		Title: asset.Title,
-		URL:   FileURL(asset.ID),
-		Ratio: ratioFor(asset.Aspect),
-		Fit:   asset.Fit,
+		Title:  asset.Title,
+		URL:    FileURL(asset.ID),
+		Aspect: asset.Aspect,
+		Ratio:  ratioFor(asset.Aspect),
+		Fit:    asset.Fit,
 	}
 }

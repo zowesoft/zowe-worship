@@ -14,6 +14,7 @@ export interface Content {
     "reference"?: string;
     "translation"?: string;
     "image"?: string;
+    "aspect"?: string;
     "fit"?: string;
     "ratio": number;
     "lines": string[] | null;

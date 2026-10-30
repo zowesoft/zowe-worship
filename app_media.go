@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -115,6 +117,59 @@ func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 		return ServiceOrderView{}, err
 	}
 	return a.serviceOrderView(ctx)
+}
+
+// mediaEditorWindow names the editor so reopening it for another image moves the
+// same window instead of stacking a second one.
+const mediaEditorWindow = "media-editor"
+
+type MediaEditorView struct {
+	Open  bool   `json:"open"`
+	Title string `json:"title"`
+}
+
+// OpenMediaEditor frames one image in its own small window, which keeps the
+// studio a production view rather than a workspace with drawers in it.
+func (a *App) OpenMediaEditor(mediaID string) (MediaEditorView, error) {
+	desktop := application.Get()
+	if desktop == nil {
+		return MediaEditorView{}, errNoApplication
+	}
+	if a.media == nil {
+		return MediaEditorView{}, errStorageUnavailable
+	}
+
+	id := strings.TrimSpace(mediaID)
+	slide, err := a.media.Image(a.context(), id)
+	if err != nil {
+		return MediaEditorView{}, err
+	}
+
+	title := fmt.Sprintf("%s — Edit image", slide.Title)
+	target := fmt.Sprintf("/?view=media-editor&media=%s", id)
+
+	if existing, ok := desktop.Window.GetByName(mediaEditorWindow); ok {
+		existing.SetTitle(title)
+		existing.SetURL(target)
+		existing.Focus()
+		return MediaEditorView{Open: true, Title: slide.Title}, nil
+	}
+
+	window := desktop.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             mediaEditorWindow,
+		Title:            title,
+		Width:            720,
+		Height:           600,
+		MinWidth:         560,
+		MinHeight:        480,
+		URL:              target,
+		BackgroundColour: application.NewRGB(8, 15, 28),
+		DevToolsEnabled:  false,
+	})
+	if window == nil {
+		return MediaEditorView{}, errors.New("the editor window could not be opened")
+	}
+	return MediaEditorView{Open: true, Title: slide.Title}, nil
 }
 
 // MediaAspects is the framing menu. It comes from the backend so the chips the

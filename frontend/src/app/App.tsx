@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { BibleWorkspace } from '../features/bible/BibleWorkspace';
 import { AudienceDisplay } from '../features/display/AudienceDisplay';
+import { MediaEditorWindow } from '../features/media/MediaEditorWindow';
 import { MediaWorkspace } from '../features/media/MediaWorkspace';
 import { SongsWorkspace } from '../features/songs/SongsWorkspace';
 import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
@@ -44,15 +45,19 @@ function FeatureScaffold({ page }: { page: FeaturePage }) {
   );
 }
 
-// The audience display is the same bundle loaded by a second window. It has no
-// studio to talk to, so it skips the provider and the shell entirely.
-const isAudienceView = new URLSearchParams(window.location.search).get('view') === 'audience';
+// Secondary windows are the same bundle loaded at a different address. They have
+// no studio to talk to, so they skip the provider and the shell entirely.
+const viewParams = new URLSearchParams(window.location.search);
+const windowView = viewParams.get('view');
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>('bible');
 
-  if (isAudienceView) {
+  if (windowView === 'audience') {
     return <AudienceDisplay />;
+  }
+  if (windowView === 'media-editor') {
+    return <MediaEditorWindow mediaID={viewParams.get('media') ?? ''} />;
   }
 
   return (

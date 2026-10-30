@@ -61,6 +61,7 @@ export function AudienceDisplay() {
         <FittedImage
           src={shown.image}
           alt=""
+          aspect={shown.aspect}
           ratio={shown.ratio}
           fit={shown.fit === 'cover' ? 'cover' : 'contain'}
         />

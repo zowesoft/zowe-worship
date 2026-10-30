@@ -32,11 +32,13 @@ export interface Presentation {
 
 /**
  * Slide is everything a viewer needs to draw an image slide. The ratio is
- * already resolved so the frontend never has to know the aspect names.
+ * already resolved so the frontend never has to look an aspect name up, and the
+ * name travels with it because "fill the screen" has no ratio to derive from.
  */
 export interface Slide {
     "title": string;
     "url": string;
+    "aspect": string;
     "ratio": number;
     "fit": string;
 }

@@ -42,7 +42,6 @@ type StudioValue = {
   previewMedia: (mediaID: string) => Promise<models.PresentationView>;
   projectMedia: (mediaID: string) => Promise<models.PresentationView>;
   addMediaToService: (mediaID: string) => Promise<models.ServiceOrderView>;
-  frameMedia: (mediaID: string, aspect: string, fit: string) => Promise<void>;
   deleteMedia: (id: string) => Promise<void>;
   openDisplay: (screenID: string) => Promise<models.DisplayView>;
   closeDisplay: () => Promise<models.DisplayView>;
@@ -210,11 +209,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     previewMedia: (mediaID) => run(() => App.PreviewMedia(mediaID), setPresentationState),
     projectMedia: (mediaID) => run(() => App.ProjectMedia(mediaID), setPresentationState),
     addMediaToService: (mediaID) => run(() => App.AddMediaToService(mediaID), setOrder),
-    // Re-framing is stored, then the grid is reread so its tiles show the same
-    // shape the projector will.
-    frameMedia: async (mediaID, aspect, fit) => {
-      await run(() => mediaAction(() => App.SaveMediaPresentation(mediaID, { aspect, fit })));
-    },
     deleteMedia: async (id) => {
       await run(() => App.DeleteMedia(id), (list) => setMedia(list ?? []));
     },

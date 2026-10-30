@@ -30,6 +30,7 @@ type Content struct {
 	Reference   string   `json:"reference,omitempty"`
 	Translation string   `json:"translation,omitempty"`
 	Image       string   `json:"image,omitempty"`
+	Aspect      string   `json:"aspect,omitempty"`
 	Fit         string   `json:"fit,omitempty"`
 	Ratio       float64  `json:"ratio"`
 	Lines       []string `json:"lines"`
@@ -301,6 +302,7 @@ func (c *Controller) imageContent(ctx context.Context, itemID, mediaID string) (
 		Title:  slide.Title,
 		Label:  slide.Title,
 		Image:  slide.URL,
+		Aspect: slide.Aspect,
 		Fit:    slide.Fit,
 		Ratio:  slide.Ratio,
 		Lines:  []string{},
