@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { BackendStatus } from '../components/BackendStatus';
+import { FittedImage } from '../components/FittedImage';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { useStudio } from '../stores/StudioProvider';
@@ -361,9 +362,12 @@ function SlideContent({ content }: { content: Content }) {
     // An image is the whole slide, so it gets no caption of its own; the studio
     // panes already name it below the frame.
     return (
-      <div className="slide-content slide-content--image">
-        <img src={content.image} alt={content.label} />
-      </div>
+      <FittedImage
+        src={content.image}
+        alt={content.label}
+        ratio={content.ratio}
+        fit={content.fit === 'cover' ? 'cover' : 'contain'}
+      />
     );
   }
 

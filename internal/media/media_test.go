@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"context"
+	"errors"
 	"encoding/binary"
 	"image"
 	"image/color"
@@ -286,4 +287,84 @@ func buildTestWAV(sampleRate uint32, channels, bits uint16, dataBytes int) []byt
 
 	out = append(out, header...)
 	return append(out, make([]byte, dataBytes)...)
+}
+
+func TestPresentationRoundTripAndDefaults(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	source := t.TempDir()
+
+	imported, _, err := library.Import(ctx, []string{writeTestImage(t, source, "frame.jpg", 800, 600)})
+	if err != nil || len(imported) != 1 {
+		t.Fatalf("import: %+v %v", imported, err)
+	}
+	asset := imported[0]
+	if asset.Aspect != AspectAuto || asset.Fit != FitContain {
+		t.Fatalf("a new asset should show all of itself: %+v", asset.Presentation)
+	}
+
+	saved, err := library.SetPresentation(ctx, asset.ID, Presentation{Aspect: "16:9", Fit: FitCover})
+	if err != nil {
+		t.Fatalf("save presentation: %v", err)
+	}
+	if saved.Ratio == 0 || saved.Fit != FitCover {
+		t.Fatalf("reply should carry the resolved ratio: %+v", saved)
+	}
+
+	stored, err := library.Image(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("read slide: %v", err)
+	}
+	if stored.Ratio != saved.Ratio || stored.Fit != saved.Fit {
+		t.Fatalf("persisted %+v, saved %+v", stored, saved)
+	}
+
+	// An aspect or fit nobody recognises shows the whole picture rather than
+	// failing the save or drawing something distorted.
+	garbage, err := library.SetPresentation(ctx, asset.ID, Presentation{Aspect: "7:banana", Fit: "stretchy"})
+	if err != nil {
+		t.Fatalf("unknown values should not fail: %v", err)
+	}
+	if garbage.Ratio != 0 || garbage.Fit != FitContain {
+		t.Fatalf("fallback = %+v", garbage)
+	}
+}
+
+func TestPresentationRefusesNonImages(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	source := t.TempDir()
+
+	path := filepath.Join(source, "clip.mp4")
+	if err := os.WriteFile(path, []byte("not really a video"), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	imported, _, err := library.Import(ctx, []string{path})
+	if err != nil || len(imported) != 1 {
+		t.Fatalf("import: %+v %v", imported, err)
+	}
+
+	if _, err := library.SetPresentation(ctx, imported[0].ID, FullFrame()); !errors.Is(err, ErrNotImage) {
+		t.Fatalf("err = %v, want ErrNotImage", err)
+	}
+	if _, err := library.Image(ctx, imported[0].ID); !errors.Is(err, ErrNotImage) {
+		t.Fatalf("slide err = %v, want ErrNotImage", err)
+	}
+}
+
+func TestAspectListIsUsable(t *testing.T) {
+	seen := map[string]bool{}
+	for _, aspect := range Aspects() {
+		if aspect.Value == "" || aspect.Label == "" {
+			t.Fatalf("incomplete aspect: %+v", aspect)
+		}
+		if seen[aspect.Value] {
+			t.Fatalf("duplicate aspect %s", aspect.Value)
+		}
+		seen[aspect.Value] = true
+		if aspect.Value != AspectAuto && aspect.Ratio <= 0 {
+			t.Fatalf("aspect %s has no ratio", aspect.Value)
+		}
+	}
+	if !seen["16:9"] || !seen["1:1"] {
+		t.Fatalf("expected the common shapes to be offered: %v", seen)
+	}
 }

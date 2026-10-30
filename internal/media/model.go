@@ -68,6 +68,7 @@ type Asset struct {
 	Height       int
 	HasThumbnail bool
 	CreatedAt    time.Time
+	Presentation
 }
 
 // ImportProblem explains one file the library did not take. Duplicates are

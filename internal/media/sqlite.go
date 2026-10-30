@@ -9,7 +9,7 @@ import (
 )
 
 const assetColumns = `id, kind, title, filename, source_path, checksum, size_bytes,
-	duration_ms, width, height, has_thumbnail, created_at`
+	duration_ms, width, height, has_thumbnail, created_at, aspect, fit`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -47,13 +47,33 @@ func (r *SQLiteRepository) Add(ctx context.Context, asset Asset) error {
 	if _, err := r.db.ExecContext(ctx, `
 		INSERT INTO media_assets
 			(id, kind, title, filename, source_path, checksum, size_bytes,
-			 duration_ms, width, height, has_thumbnail, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 duration_ms, width, height, has_thumbnail, created_at, aspect, fit)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		asset.ID, string(asset.Kind), asset.Title, asset.Filename, asset.SourcePath,
 		asset.Checksum, asset.SizeBytes, asset.DurationMS, asset.Width, asset.Height,
 		boolToInt(asset.HasThumbnail), asset.CreatedAt.Format(time.RFC3339),
+		asset.Aspect, asset.Fit,
 	); err != nil {
 		return fmt.Errorf("add media asset: %w", err)
+	}
+	return nil
+}
+
+// SavePresentation stores the framing for one asset.
+func (r *SQLiteRepository) SavePresentation(ctx context.Context, id string, presentation Presentation) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE media_assets SET aspect = ?, fit = ? WHERE id = ?`,
+		presentation.Aspect, presentation.Fit, id,
+	)
+	if err != nil {
+		return fmt.Errorf("save media presentation: %w", err)
+	}
+	saved, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("save media presentation: %w", err)
+	}
+	if saved == 0 {
+		return ErrAssetNotFound
 	}
 	return nil
 }
@@ -105,6 +125,7 @@ func scanAsset(row interface{ Scan(...any) error }) (Asset, error) {
 	if err := row.Scan(
 		&asset.ID, &kind, &asset.Title, &asset.Filename, &asset.SourcePath, &asset.Checksum,
 		&asset.SizeBytes, &asset.DurationMS, &asset.Width, &asset.Height, &hasThumbnail, &createdAt,
+		&asset.Aspect, &asset.Fit,
 	); err != nil {
 		return Asset{}, err
 	}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"zowe-worship/internal/bible"
+	"zowe-worship/internal/media"
 	"zowe-worship/internal/serviceorder"
 	"zowe-worship/internal/songs"
 )
@@ -40,8 +41,11 @@ type fakeMedia struct {
 	err   error
 }
 
-func (f *fakeMedia) Image(context.Context, string) (string, string, error) {
-	return f.title, f.url, f.err
+func (f *fakeMedia) Image(context.Context, string) (media.Slide, error) {
+	if f.err != nil {
+		return media.Slide{}, f.err
+	}
+	return media.Slide{Title: f.title, URL: f.url, Fit: media.FitContain}, nil
 }
 
 type fakeSchedule struct {

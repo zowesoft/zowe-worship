@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
+import { FittedImage } from '../../components/FittedImage';
 import { App } from '../../../bindings/zowe-worship';
 import type { PresentationView } from '../../../bindings/zowe-worship/models';
 import type { Content } from '../../../bindings/zowe-worship/internal/presentation/models';
@@ -57,7 +58,12 @@ export function AudienceDisplay() {
   if (shown.image) {
     return (
       <main className="audience audience--image" aria-label="Audience display">
-        <img className="audience-image" src={shown.image} alt="" />
+        <FittedImage
+          src={shown.image}
+          alt=""
+          ratio={shown.ratio}
+          fit={shown.fit === 'cover' ? 'cover' : 'contain'}
+        />
       </main>
     );
   }

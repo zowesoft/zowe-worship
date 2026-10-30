@@ -10,15 +10,7 @@
   overflow: hidden;
 }
 .audience--blank { background: #000; }
-.audience--image { position: relative; padding: 0; overflow: hidden; }
-.audience-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
+.audience--image { padding: 0; }
 .audience-lines {
   margin: 0;
   text-align: center;

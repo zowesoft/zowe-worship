@@ -7,6 +7,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as media$0 from "./internal/media/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -57,6 +61,10 @@ export function GetAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
     return $Call.ByID(733832149);
 }
 
+export function GetMediaPresentation(mediaID: string): $CancellablePromise<media$0.Presentation> {
+    return $Call.ByID(3601998157, mediaID);
+}
+
 export function GetPresentationState(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2716261496);
 }
@@ -97,6 +105,15 @@ export function ListSongs(query: string): $CancellablePromise<$models.SongsView>
 
 export function ListTranslations(): $CancellablePromise<$models.TranslationView[] | null> {
     return $Call.ByID(2485403361);
+}
+
+/**
+ * MediaAspects is the framing menu. It comes from the backend so the chips the
+ * operator sees, the values that get stored and the ratio the renderer uses are
+ * one list rather than three.
+ */
+export function MediaAspects(): $CancellablePromise<media$0.Aspect[] | null> {
+    return $Call.ByID(1442082748);
 }
 
 export function NextServiceItem(): $CancellablePromise<$models.PresentationView> {
@@ -166,6 +183,14 @@ export function RenameService(serviceID: string, name: string): $CancellableProm
  */
 export function ReorderServiceItems(itemIDs: string[] | null): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(1487992245, itemIDs);
+}
+
+/**
+ * SaveMediaPresentation stores the framing and reports what the slide now looks
+ * like, so a live image updates from the same reply the editor shows.
+ */
+export function SaveMediaPresentation(mediaID: string, presentation: media$0.Presentation): $CancellablePromise<media$0.Slide> {
+    return $Call.ByID(2615786972, mediaID, presentation);
 }
 
 export function SearchBible(request: $models.BibleSearchRequest): $CancellablePromise<$models.BibleSearchResponse> {

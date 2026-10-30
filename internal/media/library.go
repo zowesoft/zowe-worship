@@ -130,6 +130,7 @@ func (l *Library) importOne(ctx context.Context, path string) (Asset, error) {
 		Checksum:   checksum,
 		SizeBytes:  info.Size(),
 		CreatedAt:  time.Now().UTC().Truncate(time.Second),
+		Presentation: FullFrame(),
 	}
 
 	switch kind {

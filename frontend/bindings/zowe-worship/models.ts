@@ -73,6 +73,8 @@ export interface MediaView {
     "width": number;
     "height": number;
     "hasThumbnail": boolean;
+    "aspect": string;
+    "fit": string;
     "missing": boolean;
     "createdAt": string;
 }

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { App } from '../../bindings/zowe-worship';
 import * as models from '../../bindings/zowe-worship/models';
+import type { Aspect } from '../../bindings/zowe-worship/internal/media/models';
 
 export type ScriptureInput = {
   translationId: string;
@@ -34,12 +35,14 @@ type StudioValue = {
   screens: models.ScreenOption[];
   songs: models.SongsView | null;
   media: models.MediaView[];
+  mediaAspects: Aspect[];
   importResult: models.MediaImportResult | null;
   refreshMedia: () => Promise<void>;
   importMedia: (paths: string[]) => Promise<models.MediaImportResult>;
   previewMedia: (mediaID: string) => Promise<models.PresentationView>;
   projectMedia: (mediaID: string) => Promise<models.PresentationView>;
   addMediaToService: (mediaID: string) => Promise<models.ServiceOrderView>;
+  frameMedia: (mediaID: string, aspect: string, fit: string) => Promise<void>;
   deleteMedia: (id: string) => Promise<void>;
   openDisplay: (screenID: string) => Promise<models.DisplayView>;
   closeDisplay: () => Promise<models.DisplayView>;
@@ -105,6 +108,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [screens, setScreens] = useState<models.ScreenOption[]>([]);
   const [songs, setSongs] = useState<models.SongsView | null>(null);
   const [media, setMedia] = useState<models.MediaView[]>([]);
+  const [mediaAspects, setMediaAspects] = useState<Aspect[]>([]);
   const [importResult, setImportResult] = useState<models.MediaImportResult | null>(null);
 
   // v3 has no `window.go` to sniff, so the bridge is whatever the first load
@@ -121,10 +125,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       App.ListScreens(),
       App.GetAudienceDisplay(),
       App.ListMedia(),
+      App.MediaAspects(),
     ])
       .then(([
         initialOrder, initialPresentation, initialSongs, initialServices,
-        initialScreens, initialDisplay, initialMedia,
+        initialScreens, initialDisplay, initialMedia, initialAspects,
       ]) => {
         if (!active) return;
         setBridgeAvailable(true);
@@ -135,6 +140,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setScreens(initialScreens ?? []);
         setDisplay(initialDisplay);
         setMedia(initialMedia ?? []);
+        setMediaAspects(initialAspects ?? []);
       })
       .catch((cause: unknown) => {
         if (!active) return;
@@ -195,6 +201,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     screens,
     songs,
     media,
+    mediaAspects,
     importResult,
     refreshMedia: async () => {
       await run(() => mediaAction(App.ListMedia));
@@ -203,6 +210,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     previewMedia: (mediaID) => run(() => App.PreviewMedia(mediaID), setPresentationState),
     projectMedia: (mediaID) => run(() => App.ProjectMedia(mediaID), setPresentationState),
     addMediaToService: (mediaID) => run(() => App.AddMediaToService(mediaID), setOrder),
+    // Re-framing is stored, then the grid is reread so its tiles show the same
+    // shape the projector will.
+    frameMedia: async (mediaID, aspect, fit) => {
+      await run(() => mediaAction(() => App.SaveMediaPresentation(mediaID, { aspect, fit })));
+    },
     deleteMedia: async (id) => {
       await run(() => App.DeleteMedia(id), (list) => setMedia(list ?? []));
     },
@@ -229,7 +241,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     clearLive: () => run(App.ClearLive, setPresentationState),
     nextItem: () => run(App.NextServiceItem, setPresentationState),
     previousItem: () => run(App.PreviousServiceItem, setPresentationState),
-  }), [bridgeAvailable, display, error, importMedia, importResult, media, mediaAction, order, orderWithList, presentationState, ready, run, screens, services, songs]);
+  }), [bridgeAvailable, display, error, importMedia, importResult, media, mediaAction, mediaAspects, order, orderWithList, presentationState, ready, run, screens, services, songs]);
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
 }

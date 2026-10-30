@@ -23,6 +23,8 @@ type MediaView struct {
 	Width        int       `json:"width"`
 	Height       int       `json:"height"`
 	HasThumbnail bool      `json:"hasThumbnail"`
+	Aspect       string    `json:"aspect"`
+	Fit          string    `json:"fit"`
 	Missing      bool      `json:"missing"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
@@ -99,7 +101,7 @@ func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 	ctx := a.context()
 	id := strings.TrimSpace(mediaID)
 
-	title, _, err := a.media.Image(ctx, id)
+	slide, err := a.media.Image(ctx, id)
 	if err != nil {
 		return ServiceOrderView{}, err
 	}
@@ -108,11 +110,34 @@ func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 		return ServiceOrderView{}, err
 	}
 	if _, err := a.order.AddMedia(ctx, service.ID, serviceorder.MediaInput{
-		Title: title, MediaID: id,
+		Title: slide.Title, MediaID: id,
 	}); err != nil {
 		return ServiceOrderView{}, err
 	}
 	return a.serviceOrderView(ctx)
+}
+
+// MediaAspects is the framing menu. It comes from the backend so the chips the
+// operator sees, the values that get stored and the ratio the renderer uses are
+// one list rather than three.
+func (a *App) MediaAspects() []media.Aspect {
+	return media.Aspects()
+}
+
+func (a *App) GetMediaPresentation(mediaID string) (media.Presentation, error) {
+	if a.media == nil {
+		return media.Presentation{}, errStorageUnavailable
+	}
+	return a.media.Presentation(a.context(), strings.TrimSpace(mediaID))
+}
+
+// SaveMediaPresentation stores the framing and reports what the slide now looks
+// like, so a live image updates from the same reply the editor shows.
+func (a *App) SaveMediaPresentation(mediaID string, presentation media.Presentation) (media.Slide, error) {
+	if a.media == nil {
+		return media.Slide{}, errStorageUnavailable
+	}
+	return a.media.SetPresentation(a.context(), strings.TrimSpace(mediaID), presentation)
 }
 
 func (a *App) PreviewMedia(mediaID string) (PresentationView, error) {
@@ -151,6 +176,8 @@ func (a *App) assetViews(assets []media.Asset) []MediaView {
 			Width:        asset.Width,
 			Height:       asset.Height,
 			HasThumbnail: asset.HasThumbnail,
+			Aspect:       asset.Aspect,
+			Fit:          asset.Fit,
 			Missing:      !a.media.Exists(asset),
 			CreatedAt:    asset.CreatedAt,
 		})

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"zowe-worship/internal/bible"
+	"zowe-worship/internal/media"
 	"zowe-worship/internal/serviceorder"
 	"zowe-worship/internal/songs"
 )
@@ -29,6 +30,8 @@ type Content struct {
 	Reference   string   `json:"reference,omitempty"`
 	Translation string   `json:"translation,omitempty"`
 	Image       string   `json:"image,omitempty"`
+	Fit         string   `json:"fit,omitempty"`
+	Ratio       float64  `json:"ratio"`
 	Lines       []string `json:"lines"`
 }
 
@@ -50,7 +53,7 @@ type SongReader interface {
 // as an error rather than a blank slide, so live output keeps what it was
 // showing.
 type MediaReader interface {
-	Image(ctx context.Context, mediaID string) (title string, url string, err error)
+	Image(ctx context.Context, mediaID string) (media.Slide, error)
 }
 
 type ScheduleReader interface {
@@ -287,7 +290,7 @@ func (c *Controller) imageContent(ctx context.Context, itemID, mediaID string) (
 	if c.media == nil {
 		return nil, errors.New("media is not available")
 	}
-	title, url, err := c.media.Image(ctx, mediaID)
+	slide, err := c.media.Image(ctx, mediaID)
 	if err != nil {
 		return nil, err
 	}
@@ -295,9 +298,11 @@ func (c *Controller) imageContent(ctx context.Context, itemID, mediaID string) (
 	return &Content{
 		ItemID: itemID,
 		Kind:   "image",
-		Title:  title,
-		Label:  title,
-		Image:  url,
+		Title:  slide.Title,
+		Label:  slide.Title,
+		Image:  slide.URL,
+		Fit:    slide.Fit,
+		Ratio:  slide.Ratio,
 		Lines:  []string{},
 	}, nil
 }

@@ -353,16 +353,7 @@ svg { flex-shrink: 0; }
   text-align: center;
 }
 .slide-verses span { display: block; }
-.slide-content--image { position: relative; padding: 0; overflow: hidden; }
-/* Absolute fill rather than max-height: a percentage against the auto-sized
-   grid row here resolves to none, which let the image overflow the pane. */
-.slide-content--image img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
+.fitted-image { display: block; }
 .slide-verses {
   display: -webkit-box;
   overflow: hidden;
