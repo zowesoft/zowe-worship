@@ -23,7 +23,7 @@ func main() {
 	})
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:             "studio",
+		Name:             studioWindow,
 		Title:            "Zowe Worship",
 		Width:            1200,
 		Height:           660,

@@ -21,6 +21,10 @@ export function ClearLive(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2483162096);
 }
 
+export function CloseAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
+    return $Call.ByID(3121378433);
+}
+
 export function CreateService(name: string): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(1173647428, name);
 }
@@ -37,12 +41,25 @@ export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
     return $Call.ByID(713661858);
 }
 
+export function GetAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
+    return $Call.ByID(733832149);
+}
+
 export function GetPresentationState(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2716261496);
 }
 
 export function GetServiceOrder(): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(2748070250);
+}
+
+/**
+ * ListScreens feeds the display picker. The screen the studio is on is left out
+ * rather than assumed to be "the primary", because which physical monitor is
+ * primary depends on how the room is wired.
+ */
+export function ListScreens(): $CancellablePromise<$models.ScreenOption[] | null> {
+    return $Call.ByID(1081669978);
 }
 
 export function ListServices(): $CancellablePromise<$models.ServiceView[] | null> {
@@ -59,6 +76,15 @@ export function ListTranslations(): $CancellablePromise<$models.TranslationView[
 
 export function NextServiceItem(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(3770077700);
+}
+
+/**
+ * OpenAudienceDisplay puts a fullscreen slide-only window on a second display.
+ * The display shows whatever is already live rather than starting blank, so an
+ * operator can open it mid-service.
+ */
+export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$models.DisplayView> {
+    return $Call.ByID(3719972303, screenID);
 }
 
 export function PreviewScripture(request: $models.ScriptureRequest): $CancellablePromise<$models.PresentationView> {

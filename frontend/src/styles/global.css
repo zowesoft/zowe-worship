@@ -113,6 +113,10 @@ svg { flex-shrink: 0; }
 }
 .service-menu-new input:focus { border-color: var(--color-blue); outline: none; }
 .service-menu-new input::placeholder { color: #6F809B; }
+.display-selector-wrap { position: relative; display: flex; }
+.display-menu { left: auto; right: 0; min-width: 260px; }
+.display-menu-close { margin-top: 4px; padding-top: 9px; border-top: 1px solid var(--color-border); border-radius: 0 0 6px 6px; }
+.display-menu-close svg { color: var(--color-error); }
 .header-meta { display: flex; align-items: center; gap: 14px; padding-left: 18px; border-left: 1px solid var(--color-border); color: var(--color-secondary); font-size: 10.5px; white-space: nowrap; }
 .connection-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid #1E4D40; border-radius: 5px; background: #0E2A24; color: #6EE7C0; font-size: 9.5px; white-space: nowrap; }
 .connection-pill .status-dot { background: var(--color-teal); }

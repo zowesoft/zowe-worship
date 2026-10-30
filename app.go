@@ -20,13 +20,15 @@ import (
 var errStorageUnavailable = errors.New("storage is not available")
 
 type App struct {
-	ctx          context.Context
-	dataRoot     string
-	core         *sql.DB
-	bible        *bible.SQLiteRepository
-	order        *serviceorder.SQLiteRepository
-	songs        *songs.SQLiteRepository
-	presentation *presentation.Controller
+	ctx           context.Context
+	dataRoot      string
+	core          *sql.DB
+	bible         *bible.SQLiteRepository
+	order         *serviceorder.SQLiteRepository
+	songs         *songs.SQLiteRepository
+	presentation  *presentation.Controller
+	display       application.Window
+	displayScreen ScreenOption
 }
 
 type AppInfo struct {
@@ -410,6 +412,16 @@ func (a *App) ReorderServiceItems(itemIDs []string) (ServiceOrderView, error) {
 	return a.serviceOrderView(ctx)
 }
 
+// applied hands a controller result to the frontend and, when it succeeded,
+// pushes the same slide to the audience display. Reading state never republish,
+// so a reopening display catches up on its own.
+func (a *App) applied(state presentation.State, err error) (PresentationView, error) {
+	if err == nil {
+		a.publishToDisplay(state)
+	}
+	return presentationView(state), err
+}
+
 func (a *App) GetPresentationState() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
@@ -425,9 +437,8 @@ func (a *App) PreviewScripture(request ScriptureRequest) (PresentationView, erro
 	if err != nil {
 		return PresentationView{}, err
 	}
-	state, err := a.presentation.PreviewScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd)
-	return presentationView(state), err
+	return a.applied(a.presentation.PreviewScripture(a.context(), normalized.TranslationID,
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd))
 }
 
 func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, error) {
@@ -438,48 +449,43 @@ func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, erro
 	if err != nil {
 		return PresentationView{}, err
 	}
-	state, err := a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd)
-	return presentationView(state), err
+	return a.applied(a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd))
 }
 
 func (a *App) PreviewServiceItem(itemID string) (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	state, err := a.presentation.PreviewItem(a.context(), strings.TrimSpace(itemID))
-	return presentationView(state), err
+	return a.applied(a.presentation.PreviewItem(a.context(), strings.TrimSpace(itemID)))
 }
 
 func (a *App) SendPreviewLive() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	state, err := a.presentation.ProjectPreview()
-	return presentationView(state), err
+	return a.applied(a.presentation.ProjectPreview())
 }
 
 func (a *App) ClearLive() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	return presentationView(a.presentation.ClearLive()), nil
+	return a.applied(a.presentation.ClearLive(), nil)
 }
 
 func (a *App) NextServiceItem() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	state, err := a.presentation.Next(a.context())
-	return presentationView(state), err
+	return a.applied(a.presentation.Next(a.context()))
 }
 
 func (a *App) PreviousServiceItem() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	state, err := a.presentation.Previous(a.context())
-	return presentationView(state), err
+	return a.applied(a.presentation.Previous(a.context()))
 }
 
 func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {
@@ -678,7 +684,7 @@ func (a *App) PreviewSongSection(request SongSectionRequest) (PresentationView, 
 		return PresentationView{}, err
 	}
 	state, err := a.presentation.PreviewSongSection(a.context(), songID, sectionID)
-	return presentationView(state), err
+	return a.applied(state, err)
 }
 
 func (a *App) ProjectSongSection(request SongSectionRequest) (PresentationView, error) {
@@ -690,7 +696,7 @@ func (a *App) ProjectSongSection(request SongSectionRequest) (PresentationView, 
 		return PresentationView{}, err
 	}
 	state, err := a.presentation.ProjectSongSection(a.context(), songID, sectionID)
-	return presentationView(state), err
+	return a.applied(state, err)
 }
 
 func (a *App) AddSongSectionToService(request SongSectionRequest) (ServiceOrderView, error) {

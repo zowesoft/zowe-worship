@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { useStudio } from '../stores/StudioProvider';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
+import * as models from '../../bindings/zowe-worship/models';
 import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
 
 export type PageId = 'bible' | 'songs' | 'media' | 'service' | 'settings';
@@ -234,6 +235,82 @@ function ServiceSwitcher() {
   );
 }
 
+function DisplaySelector() {
+  const studio = useStudio();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const display = studio.display;
+
+  useEffect(() => {
+    if (!open) return;
+
+    function dismiss(event: MouseEvent) {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+
+    document.addEventListener('mousedown', dismiss);
+    return () => document.removeEventListener('mousedown', dismiss);
+  }, [open]);
+
+  async function run(action: () => Promise<models.DisplayView>) {
+    setOpen(false);
+    try {
+      await action();
+    } catch {
+      // The studio error is shown in the sidebar.
+    }
+  }
+
+  return (
+    <div className="display-selector-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="display-selector"
+        disabled={!studio.bridgeAvailable}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((value) => !value)}
+        title={display?.open ? `Audience display on ${display.screenName}` : 'Choose a display for the audience'}
+      >
+        <Icon name="display" size={16} />
+        <span>{display?.open ? display.screenName : 'No display'}</span>
+        <Icon name="chevron" size={13} />
+      </button>
+
+      {open && (
+        <div className="service-menu display-menu" role="menu">
+          {studio.screens.map((screen) => (
+            <button
+              key={screen.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={display?.open && display.screenId === screen.id}
+              className={`service-menu-item${display?.open && display.screenId === screen.id ? ' service-menu-item--current' : ''}`}
+              onClick={() => void run(() => studio.openDisplay(screen.id))}
+            >
+              <Icon name="check" size={13} />
+              <span>{screen.name}</span>
+            </button>
+          ))}
+          {studio.screens.length === 0 && (
+            <p className="service-menu-empty">No second display detected. Connect a projector or monitor, then reopen this menu.</p>
+          )}
+          {display?.open && (
+            <button
+              type="button"
+              className="service-menu-item display-menu-close"
+              onClick={() => void run(studio.closeDisplay)}
+            >
+              <Icon name="close" size={13} />
+              <span>Close audience display</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const studio = useStudio();
   const connected = studio.bridgeAvailable;
@@ -255,11 +332,7 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
       </div>
 
       <div className="header-actions">
-        <button type="button" className="display-selector" disabled title="Display routing is not implemented.">
-          <Icon name="display" size={16} />
-          <span>No display</span>
-          <Icon name="chevron" size={13} />
-        </button>
+        <DisplaySelector />
         <button type="button" className="icon-button" onClick={() => onNavigate('settings')} aria-label="Open settings" title="Settings">
           <Icon name="settings" size={18} />
         </button>
@@ -359,7 +432,9 @@ function PresentationPanes() {
           <h2 id="live-title"><span className="live-dot" /><Icon name="display" size={15} />Live Output</h2>
           <div className="pane-heading-actions">
             <span className={`status-pill${live ? ' status-pill--on' : ''}`}>{live ? 'On air' : 'Off air'}</span>
-            <button type="button" className="button button--small pane-display-button" disabled title="Display routing is not implemented.">No display</button>
+            <span className={`status-pill${studio.display?.open ? ' status-pill--on' : ''}`}>
+              {studio.display?.open ? studio.display.screenName : 'No display'}
+            </span>
           </div>
         </div>
 

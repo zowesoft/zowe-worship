@@ -1,0 +1,28 @@
+.audience {
+  height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(24px, 5vh, 60px);
+  padding: clamp(24px, 6vh, 80px) clamp(28px, 8vw, 180px);
+  background: var(--color-app);
+  color: var(--color-text);
+  overflow: hidden;
+}
+.audience--blank { background: #000; }
+.audience-lines {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(22px, 3.4vw, 62px);
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: -.01em;
+}
+.audience-lines span { display: block; }
+.audience-label {
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: clamp(11px, 1.1vw, 22px);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}

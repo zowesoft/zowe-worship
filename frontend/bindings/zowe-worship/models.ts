@@ -37,6 +37,12 @@ export interface BibleVerse {
     "text": string;
 }
 
+export interface DisplayView {
+    "open": boolean;
+    "screenId": string;
+    "screenName": string;
+}
+
 export interface LyricHitView {
     "songId": string;
     "songTitle": string;
@@ -63,6 +69,12 @@ export interface NewSongSectionRequest {
 export interface PresentationView {
     "preview"?: presentation$0.Content | null;
     "live"?: presentation$0.Content | null;
+}
+
+export interface ScreenOption {
+    "id": string;
+    "name": string;
+    "isPrimary": boolean;
 }
 
 /**

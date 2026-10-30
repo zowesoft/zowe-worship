@@ -30,7 +30,11 @@ type StudioValue = {
   order: models.ServiceOrderView | null;
   services: models.ServiceView[];
   presentation: models.PresentationView | null;
+  display: models.DisplayView | null;
+  screens: models.ScreenOption[];
   songs: models.SongsView | null;
+  openDisplay: (screenID: string) => Promise<models.DisplayView>;
+  closeDisplay: () => Promise<models.DisplayView>;
   refreshSongs: (query?: string) => Promise<void>;
   createService: (name: string) => Promise<models.ServiceOrderView>;
   useService: (serviceID: string) => Promise<models.ServiceOrderView>;
@@ -89,6 +93,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [order, setOrder] = useState<models.ServiceOrderView | null>(null);
   const [services, setServices] = useState<models.ServiceView[]>([]);
   const [presentationState, setPresentationState] = useState<models.PresentationView | null>(null);
+  const [display, setDisplay] = useState<models.DisplayView | null>(null);
+  const [screens, setScreens] = useState<models.ScreenOption[]>([]);
   const [songs, setSongs] = useState<models.SongsView | null>(null);
 
   // v3 has no `window.go` to sniff, so the bridge is whatever the first load
@@ -97,14 +103,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    Promise.all([App.GetServiceOrder(), App.GetPresentationState(), App.ListSongs(''), App.ListServices()])
-      .then(([initialOrder, initialPresentation, initialSongs, initialServices]) => {
+    Promise.all([
+      App.GetServiceOrder(),
+      App.GetPresentationState(),
+      App.ListSongs(''),
+      App.ListServices(),
+      App.ListScreens(),
+      App.GetAudienceDisplay(),
+    ])
+      .then(([initialOrder, initialPresentation, initialSongs, initialServices, initialScreens, initialDisplay]) => {
         if (!active) return;
         setBridgeAvailable(true);
         setOrder(initialOrder);
         setPresentationState(initialPresentation);
         setSongs(initialSongs);
         setServices(initialServices ?? []);
+        setScreens(initialScreens ?? []);
+        setDisplay(initialDisplay);
       })
       .catch((cause: unknown) => {
         if (!active) return;
@@ -147,7 +162,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     order,
     services,
     presentation: presentationState,
+    display,
+    screens,
     songs,
+    openDisplay: (screenID) => run(() => App.OpenAudienceDisplay(screenID), setDisplay),
+    closeDisplay: () => run(() => App.CloseAudienceDisplay(), setDisplay),
     refreshSongs: async (query = '') => {
       await run(() => App.ListSongs(query), setSongs);
     },
@@ -169,7 +188,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     clearLive: () => run(App.ClearLive, setPresentationState),
     nextItem: () => run(App.NextServiceItem, setPresentationState),
     previousItem: () => run(App.PreviousServiceItem, setPresentationState),
-  }), [bridgeAvailable, error, order, orderWithList, presentationState, ready, run, services, songs]);
+  }), [bridgeAvailable, display, error, order, orderWithList, presentationState, ready, run, screens, services, songs]);
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { BibleWorkspace } from '../features/bible/BibleWorkspace';
+import { AudienceDisplay } from '../features/display/AudienceDisplay';
 import { SongsWorkspace } from '../features/songs/SongsWorkspace';
 import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
 import { AppShell } from '../layouts/AppShell';
@@ -49,8 +50,16 @@ function FeatureScaffold({ page }: { page: FeaturePage }) {
   );
 }
 
+// The audience display is the same bundle loaded by a second window. It has no
+// studio to talk to, so it skips the provider and the shell entirely.
+const isAudienceView = new URLSearchParams(window.location.search).get('view') === 'audience';
+
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>('bible');
+
+  if (isAudienceView) {
+    return <AudienceDisplay />;
+  }
 
   return (
     <StudioProvider>
