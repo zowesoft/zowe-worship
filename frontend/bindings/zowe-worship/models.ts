@@ -124,6 +124,7 @@ export interface ServiceItemView {
     "verseEnd": number;
     "songId": string;
     "sectionId": string;
+    "mediaId": string;
 }
 
 export interface ServiceOrderView {

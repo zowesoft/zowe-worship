@@ -9,6 +9,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * AddMediaToService puts a library image into the running order. The item keeps
+ * a reference rather than a second copy, so one image can serve two services.
+ */
+export function AddMediaToService(mediaID: string): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(1388766008, mediaID);
+}
+
 export function AddScriptureToService(request: $models.ScriptureRequest): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(3832875437, request);
 }
@@ -112,6 +120,10 @@ export function PickMediaFiles(): $CancellablePromise<string[] | null> {
     return $Call.ByID(4150223347);
 }
 
+export function PreviewMedia(mediaID: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(1538984449, mediaID);
+}
+
 export function PreviewScripture(request: $models.ScriptureRequest): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(1473915070, request);
 }
@@ -126,6 +138,10 @@ export function PreviewSongSection(request: $models.SongSectionRequest): $Cancel
 
 export function PreviousServiceItem(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(1202660132);
+}
+
+export function ProjectMedia(mediaID: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(3656485126, mediaID);
 }
 
 export function ProjectScripture(request: $models.ScriptureRequest): $CancellablePromise<$models.PresentationView> {

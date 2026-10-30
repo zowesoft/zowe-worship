@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { App } from '../../../bindings/zowe-worship';
 import type { MediaImportResult, MediaView } from '../../../bindings/zowe-worship/models';
 import { Icon } from '../../components/Icon';
@@ -17,6 +18,11 @@ type Filter = (typeof filters)[number]['value'];
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+// The tile itself is the preview gesture, so its buttons have to opt out.
+function fromActions(event: ReactMouseEvent<HTMLElement>): boolean {
+  return (event.target as HTMLElement).closest('.media-tile-actions') !== null;
 }
 
 function formatDuration(ms: number): string {
@@ -79,17 +85,30 @@ export function MediaWorkspace() {
     setStatus({ kind: 'message', text: parts.join(' · ') });
   }
 
-  async function remove(item: MediaView) {
+  const canAct = studio.bridgeAvailable && !busy;
+
+  async function act(action: () => Promise<unknown>, message: string) {
     setBusy(true);
     setStatus(null);
     try {
-      await studio.deleteMedia(item.id);
-      setStatus({ kind: 'message', text: `Removed ${item.title}.` });
+      await action();
+      setStatus({ kind: 'message', text: message });
     } catch (error: unknown) {
       setStatus({ kind: 'error', text: errorMessage(error) });
     } finally {
       setBusy(false);
     }
+  }
+
+  function sendLive(item: MediaView) {
+    return act(async () => {
+      await studio.previewMedia(item.id);
+      await studio.projectMedia(item.id);
+    }, `${item.title} is live.`);
+  }
+
+  async function remove(item: MediaView) {
+    await act(() => studio.deleteMedia(item.id), `Removed ${item.title}.`);
   }
 
   return (
@@ -148,31 +167,70 @@ export function MediaWorkspace() {
           <p className="media-none">Nothing matches this filter.</p>
         ) : (
           <ul className="media-grid">
-            {shown.map((item) => (
-              <li key={item.id} className={`media-tile${item.missing ? ' media-tile--missing' : ''}`}>
-                <div className="media-thumb">
-                  {item.hasThumbnail
-                    ? <img src={item.thumbnailUrl} alt="" loading="lazy" />
-                    : <span className="media-thumb-placeholder">{kindIcon(item.kind)}</span>}
-                  {formatDuration(item.durationMs) && <span className="media-duration">{formatDuration(item.durationMs)}</span>}
-                  {item.missing && <span className="status-pill status-pill--warn">Missing</span>}
-                </div>
-                <div className="media-meta">
-                  <strong title={item.title}>{item.title}</strong>
-                  <span>{item.kind} · {formatSize(item.sizeBytes)}</span>
-                </div>
-                <button
-                  type="button"
-                  className="icon-button icon-button--small media-remove"
-                  disabled={!studio.bridgeAvailable || busy}
-                  aria-label={`Remove ${item.title} from the library`}
-                  title="Remove from library"
-                  onClick={() => void remove(item)}
+            {shown.map((item) => {
+              const projectable = item.kind === 'image';
+              return (
+                <li
+                  key={item.id}
+                  className={[
+                    'media-tile',
+                    item.missing ? 'media-tile--missing' : '',
+                    projectable ? 'media-tile--projectable' : '',
+                  ].filter(Boolean).join(' ')}
+                  title={projectable
+                    ? `Click to preview ${item.title} · double-click to send live`
+                    : 'Video and audio playback arrive with the next slice'}
+                  onClick={(event) => {
+                    if (!projectable || fromActions(event) || !canAct) return;
+                    void act(() => studio.previewMedia(item.id), `Previewing ${item.title}.`);
+                  }}
+                  onDoubleClick={(event) => {
+                    if (!projectable || fromActions(event) || !canAct) return;
+                    void sendLive(item);
+                  }}
                 >
-                  <Icon name="close" size={14} />
-                </button>
-              </li>
-            ))}
+                  <div className="media-thumb">
+                    {item.hasThumbnail
+                      ? <img src={item.thumbnailUrl} alt="" loading="lazy" />
+                      : <span className="media-thumb-placeholder">{kindIcon(item.kind)}</span>}
+                    {formatDuration(item.durationMs) && <span className="media-duration">{formatDuration(item.durationMs)}</span>}
+                    {item.missing && <span className="status-pill status-pill--warn">Missing</span>}
+                  </div>
+                  <div className="media-meta">
+                    <strong title={item.title}>{item.title}</strong>
+                    <span>{item.kind} · {formatSize(item.sizeBytes)}</span>
+                  </div>
+                  <div className="media-tile-actions">
+                    {projectable && (
+                      <button
+                        type="button"
+                        className="button button--small media-add"
+                        disabled={!canAct}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void act(() => studio.addMediaToService(item.id), `Added ${item.title} to the service.`);
+                        }}
+                      >
+                        <Icon name="plus" size={13} />Add to Service
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="icon-button icon-button--small"
+                      disabled={!canAct}
+                      aria-label={`Remove ${item.title} from the library`}
+                      title="Remove from library"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void remove(item);
+                      }}
+                    >
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
 
@@ -182,7 +240,7 @@ export function MediaWorkspace() {
           </p>
         )}
 
-        <p className="media-note">Preview and live output for media arrives with the next slice.</p>
+        <p className="media-note">Images preview and project now. Video and audio playback arrive with the next slice.</p>
       </div>
     </section>
   );

@@ -152,3 +152,75 @@ func TestServeMediaOnlyResolvesKnownIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestImageSlidesFlowThroughScheduleAndLive(t *testing.T) {
+	app := newTestApp(t)
+	source := t.TempDir()
+
+	imported, err := app.ImportMedia([]string{writeMediaFixture(t, source, "cross.png", 800, 600)})
+	if err != nil || len(imported.Added) != 1 {
+		t.Fatalf("import: %+v %v", imported.Added, err)
+	}
+	id := imported.Added[0].ID
+
+	preview, err := app.PreviewMedia(id)
+	if err != nil {
+		t.Fatalf("preview media: %v", err)
+	}
+	if preview.Preview == nil || preview.Preview.Kind != "image" || preview.Preview.Image != "/media/file/"+id {
+		t.Fatalf("preview = %+v", preview.Preview)
+	}
+	if preview.Live != nil {
+		t.Fatal("previewing an image sent it live")
+	}
+
+	live, err := app.ProjectMedia(id)
+	if err != nil {
+		t.Fatalf("project media: %v", err)
+	}
+	if live.Live == nil || live.Live.Label != "cross" {
+		t.Fatalf("live = %+v", live.Live)
+	}
+
+	order, err := app.AddMediaToService(id)
+	if err != nil {
+		t.Fatalf("add to service: %v", err)
+	}
+	if len(order.Items) != 1 {
+		t.Fatalf("schedule = %+v", order.Items)
+	}
+	item := order.Items[0]
+	if item.Kind != "media" || item.MediaID != id || item.Title != "cross" {
+		t.Fatalf("schedule item = %+v", item)
+	}
+
+	// Advancing the schedule has to rebuild the same slide from the reference.
+	if _, err := app.ClearLive(); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	fromItem, err := app.PreviewServiceItem(item.ID)
+	if err != nil {
+		t.Fatalf("preview schedule item: %v", err)
+	}
+	if fromItem.Preview == nil || fromItem.Preview.Image != "/media/file/"+id {
+		t.Fatalf("preview from schedule = %+v", fromItem.Preview)
+	}
+
+	// Removing the asset out from under a live slide must not blank the room.
+	if _, err := app.SendPreviewLive(); err != nil {
+		t.Fatalf("send live: %v", err)
+	}
+	if _, err := app.DeleteMedia(id); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := app.ProjectMedia(id); err == nil {
+		t.Fatal("projecting a deleted asset succeeded")
+	}
+	after, err := app.GetPresentationState()
+	if err != nil {
+		t.Fatalf("state: %v", err)
+	}
+	if after.Live == nil || after.Live.Image != "/media/file/"+id {
+		t.Fatalf("live output was not preserved: %+v", after.Live)
+	}
+}

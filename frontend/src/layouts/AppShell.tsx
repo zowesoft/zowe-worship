@@ -29,6 +29,14 @@ function useClock() {
   return now;
 }
 
+// Only scripture carries a translation, so the other kinds name themselves
+// instead of leaving a blank line under the title.
+function itemSubtitle(item: models.ServiceItemView): string {
+  if (item.kind === 'media') return 'Media';
+  if (item.kind === 'song') return 'Song';
+  return item.translationId.toUpperCase();
+}
+
 function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const studio = useStudio();
   const items = studio.order?.items ?? [];
@@ -122,7 +130,7 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
                       <span className="schedule-position">{item.position}</span>
                       <span className="schedule-copy">
                         <strong>{item.title}</strong>
-                        <span>{item.translationId.toUpperCase()}</span>
+                        <span>{itemSubtitle(item)}</span>
                       </span>
                       {isLive && <span className="status-pill status-pill--on">Live</span>}
                       {!isLive && isPreview && <span className="status-pill status-pill--warn">Preview</span>}
@@ -349,6 +357,16 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
 }
 
 function SlideContent({ content }: { content: Content }) {
+  if (content.image) {
+    // An image is the whole slide, so it gets no caption of its own; the studio
+    // panes already name it below the frame.
+    return (
+      <div className="slide-content slide-content--image">
+        <img src={content.image} alt={content.label} />
+      </div>
+    );
+  }
+
   return (
     <div className="slide-content">
       <p className="slide-verses">

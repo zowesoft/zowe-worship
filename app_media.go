@@ -7,13 +7,9 @@ import (
 	"time"
 
 	"zowe-worship/internal/media"
+	"zowe-worship/internal/serviceorder"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-)
-
-const (
-	mediaFileRoute  = "/media/file/"
-	mediaThumbRoute = "/media/thumb/"
 )
 
 type MediaView struct {
@@ -94,6 +90,45 @@ func (a *App) DeleteMedia(id string) ([]MediaView, error) {
 	return a.mediaViews(ctx)
 }
 
+// AddMediaToService puts a library image into the running order. The item keeps
+// a reference rather than a second copy, so one image can serve two services.
+func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
+	if a.media == nil || a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	id := strings.TrimSpace(mediaID)
+
+	title, _, err := a.media.Image(ctx, id)
+	if err != nil {
+		return ServiceOrderView{}, err
+	}
+	service, err := a.ensureService(ctx)
+	if err != nil {
+		return ServiceOrderView{}, err
+	}
+	if _, err := a.order.AddMedia(ctx, service.ID, serviceorder.MediaInput{
+		Title: title, MediaID: id,
+	}); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
+func (a *App) PreviewMedia(mediaID string) (PresentationView, error) {
+	if a.presentation == nil {
+		return PresentationView{}, errStorageUnavailable
+	}
+	return a.applied(a.presentation.PreviewImage(a.context(), strings.TrimSpace(mediaID)))
+}
+
+func (a *App) ProjectMedia(mediaID string) (PresentationView, error) {
+	if a.presentation == nil {
+		return PresentationView{}, errStorageUnavailable
+	}
+	return a.applied(a.presentation.ProjectImage(a.context(), strings.TrimSpace(mediaID)))
+}
+
 func (a *App) mediaViews(ctx context.Context) ([]MediaView, error) {
 	assets, err := a.media.List(ctx)
 	if err != nil {
@@ -109,8 +144,8 @@ func (a *App) assetViews(assets []media.Asset) []MediaView {
 			ID:           asset.ID,
 			Kind:         string(asset.Kind),
 			Title:        asset.Title,
-			URL:          mediaFileRoute + asset.ID,
-			ThumbnailURL: mediaThumbRoute + asset.ID,
+			URL:          media.FileURL(asset.ID),
+			ThumbnailURL: media.ThumbURL(asset.ID),
 			SizeBytes:    asset.SizeBytes,
 			DurationMS:   asset.DurationMS,
 			Width:        asset.Width,
@@ -132,10 +167,10 @@ func (a *App) serveMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thumbnail := strings.HasPrefix(r.URL.Path, mediaThumbRoute)
-	prefix := mediaFileRoute
+	thumbnail := strings.HasPrefix(r.URL.Path, media.ThumbRoute)
+	prefix := media.FileRoute
 	if thumbnail {
-		prefix = mediaThumbRoute
+		prefix = media.ThumbRoute
 	}
 
 	id := strings.TrimPrefix(r.URL.Path, prefix)

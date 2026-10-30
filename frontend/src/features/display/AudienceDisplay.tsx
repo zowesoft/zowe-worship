@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import type { PresentationView } from '../../../bindings/zowe-worship/models';
+import type { Content } from '../../../bindings/zowe-worship/internal/presentation/models';
 import './audience.css';
 
 export function AudienceDisplay() {
   const [state, setState] = useState<PresentationView | null>(null);
+  const [shown, setShown] = useState<Content | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -28,18 +30,44 @@ export function AudienceDisplay() {
     };
   }, []);
 
-  const live = state?.live ?? null;
+  useEffect(() => {
+    const next = state?.live ?? null;
+    if (!next) {
+      setShown(null);
+      return;
+    }
+    if (!next.image) {
+      setShown(next);
+      return;
+    }
 
-  if (!live) {
+    // Preload the file before replacing what is already on screen, so an image
+    // deleted after it was scheduled cannot swap the room's slide for a broken
+    // one. On failure the previous slide simply stays.
+    const probe = new window.Image();
+    probe.onload = () => setShown(next);
+    probe.onerror = () => undefined;
+    probe.src = next.image;
+  }, [state]);
+
+  if (!shown) {
     return <main className="audience audience--blank" aria-label="Audience display" />;
+  }
+
+  if (shown.image) {
+    return (
+      <main className="audience audience--image" aria-label="Audience display">
+        <img className="audience-image" src={shown.image} alt="" />
+      </main>
+    );
   }
 
   return (
     <main className="audience" aria-label="Audience display">
       <p className="audience-lines">
-        {(live.lines ?? []).map((line, index) => <span key={index}>{line}</span>)}
+        {(shown.lines ?? []).map((line, index) => <span key={index}>{line}</span>)}
       </p>
-      <p className="audience-label">{live.label}</p>
+      <p className="audience-label">{shown.label}</p>
     </main>
   );
 }

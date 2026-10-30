@@ -28,6 +28,7 @@ type Content struct {
 	Label       string   `json:"label"`
 	Reference   string   `json:"reference,omitempty"`
 	Translation string   `json:"translation,omitempty"`
+	Image       string   `json:"image,omitempty"`
 	Lines       []string `json:"lines"`
 }
 
@@ -45,6 +46,13 @@ type SongReader interface {
 	Section(ctx context.Context, songID, sectionID string) (songs.Song, songs.Section, error)
 }
 
+// MediaReader resolves a library asset into a slide. It reports a missing file
+// as an error rather than a blank slide, so live output keeps what it was
+// showing.
+type MediaReader interface {
+	Image(ctx context.Context, mediaID string) (title string, url string, err error)
+}
+
 type ScheduleReader interface {
 	Current(ctx context.Context) (serviceorder.Service, []serviceorder.Item, error)
 	Item(ctx context.Context, itemID string) (serviceorder.Item, error)
@@ -57,14 +65,15 @@ type Controller struct {
 	mu        sync.Mutex
 	scripture ScriptureReader
 	song      SongReader
+	media     MediaReader
 	schedule  ScheduleReader
 
 	preview *Content
 	live    *Content
 }
 
-func New(scripture ScriptureReader, schedule ScheduleReader, song SongReader) *Controller {
-	return &Controller{scripture: scripture, schedule: schedule, song: song}
+func New(scripture ScriptureReader, schedule ScheduleReader, song SongReader, media MediaReader) *Controller {
+	return &Controller{scripture: scripture, schedule: schedule, song: song, media: media}
 }
 
 func (c *Controller) State() State {
@@ -116,6 +125,33 @@ func (c *Controller) PreviewItem(ctx context.Context, itemID string) (State, err
 		return c.stateLocked(), err
 	}
 	c.preview = content
+	return c.stateLocked(), nil
+}
+
+func (c *Controller) PreviewImage(ctx context.Context, mediaID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	content, err := c.imageContent(ctx, "", mediaID)
+	if err != nil {
+		return c.stateLocked(), err
+	}
+	c.preview = content
+	return c.stateLocked(), nil
+}
+
+// ProjectImage leaves live output untouched when the asset cannot be shown, so
+// a missing file never blanks the room.
+func (c *Controller) ProjectImage(ctx context.Context, mediaID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	content, err := c.imageContent(ctx, "", mediaID)
+	if err != nil {
+		return c.stateLocked(), err
+	}
+	c.preview = content
+	c.live = clone(content)
 	return c.stateLocked(), nil
 }
 
@@ -236,11 +272,34 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 }
 
 func (c *Controller) itemContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
-	if item.Kind == serviceorder.KindSong {
+	switch item.Kind {
+	case serviceorder.KindSong:
 		return c.songContent(ctx, item.ID, item.SongID, item.SectionID)
+	case serviceorder.KindMedia:
+		return c.imageContent(ctx, item.ID, item.MediaID)
+	default:
+		return c.scriptureContent(ctx, item.ID, item.TranslationID,
+			item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
 	}
-	return c.scriptureContent(ctx, item.ID, item.TranslationID,
-		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
+}
+
+func (c *Controller) imageContent(ctx context.Context, itemID, mediaID string) (*Content, error) {
+	if c.media == nil {
+		return nil, errors.New("media is not available")
+	}
+	title, url, err := c.media.Image(ctx, mediaID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Content{
+		ItemID: itemID,
+		Kind:   "image",
+		Title:  title,
+		Label:  title,
+		Image:  url,
+		Lines:  []string{},
+	}, nil
 }
 
 func (c *Controller) scriptureContent(

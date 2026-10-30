@@ -11,6 +11,7 @@ type Repository interface {
 	Rename(ctx context.Context, serviceID, name string) error
 	AddScripture(ctx context.Context, serviceID string, input ScriptureInput) (Item, error)
 	AddSong(ctx context.Context, serviceID string, input SongInput) (Item, error)
+	AddMedia(ctx context.Context, serviceID string, input MediaInput) (Item, error)
 	RemoveItem(ctx context.Context, itemID string) error
 	Reorder(ctx context.Context, itemIDs []string) error
 	Item(ctx context.Context, itemID string) (Item, error)

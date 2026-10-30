@@ -19,6 +19,7 @@ type ItemKind string
 const (
 	KindScripture ItemKind = "scripture"
 	KindSong      ItemKind = "song"
+	KindMedia     ItemKind = "media"
 )
 
 type Service struct {
@@ -41,6 +42,7 @@ type Item struct {
 	VerseEnd      int
 	SongID        string
 	SectionID     string
+	MediaID       string
 	CreatedAt     time.Time
 }
 
@@ -57,6 +59,11 @@ type SongInput struct {
 	Title     string
 	SongID    string
 	SectionID string
+}
+
+type MediaInput struct {
+	Title   string
+	MediaID string
 }
 
 func (s ScriptureInput) validate() error {
@@ -77,6 +84,13 @@ func (s ScriptureInput) validate() error {
 
 func (s SongInput) validate() error {
 	if strings.TrimSpace(s.Title) == "" || strings.TrimSpace(s.SongID) == "" || strings.TrimSpace(s.SectionID) == "" {
+		return ErrInvalidService
+	}
+	return nil
+}
+
+func (m MediaInput) validate() error {
+	if strings.TrimSpace(m.Title) == "" || strings.TrimSpace(m.MediaID) == "" {
 		return ErrInvalidService
 	}
 	return nil

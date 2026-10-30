@@ -12,7 +12,7 @@ import (
 )
 
 const itemColumns = `id, service_id, position, kind, title, translation_id, book_id, chapter,
-	verse_start, verse_end, song_id, section_id, created_at`
+	verse_start, verse_end, song_id, section_id, media_id, created_at`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -205,6 +205,17 @@ func (r *SQLiteRepository) AddSong(ctx context.Context, serviceID string, input 
 	})
 }
 
+func (r *SQLiteRepository) AddMedia(ctx context.Context, serviceID string, input MediaInput) (Item, error) {
+	if err := input.validate(); err != nil {
+		return Item{}, err
+	}
+	return r.addItem(ctx, serviceID, Item{
+		Kind:    KindMedia,
+		Title:   strings.TrimSpace(input.Title),
+		MediaID: input.MediaID,
+	})
+}
+
 func (r *SQLiteRepository) addItem(ctx context.Context, serviceID string, item Item) (Item, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -238,11 +249,11 @@ func (r *SQLiteRepository) addItem(ctx context.Context, serviceID string, item I
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO service_items
 			(id, service_id, position, kind, title, translation_id, book_id, chapter,
-			 verse_start, verse_end, song_id, section_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 verse_start, verse_end, song_id, section_id, media_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, serviceID, position, item.Kind, item.Title, item.TranslationID,
 		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd, item.SongID, item.SectionID,
-		now.Format(time.RFC3339),
+		item.MediaID, now.Format(time.RFC3339),
 	); err != nil {
 		_ = tx.Rollback()
 		return Item{}, fmt.Errorf("add service item: %w", err)
@@ -436,7 +447,7 @@ func scanItem(row interface{ Scan(...any) error }) (Item, error) {
 	if err := row.Scan(
 		&item.ID, &item.ServiceID, &item.Position, &kind, &item.Title, &item.TranslationID,
 		&item.BookID, &item.Chapter, &item.VerseStart, &item.VerseEnd, &item.SongID, &item.SectionID,
-		&createdAt,
+		&item.MediaID, &createdAt,
 	); err != nil {
 		return Item{}, err
 	}

@@ -34,6 +34,16 @@ func (f *fakeSongs) Section(context.Context, string, string) (songs.Song, songs.
 	return f.song, f.section, f.err
 }
 
+type fakeMedia struct {
+	title string
+	url   string
+	err   error
+}
+
+func (f *fakeMedia) Image(context.Context, string) (string, string, error) {
+	return f.title, f.url, f.err
+}
+
 type fakeSchedule struct {
 	service    serviceorder.Service
 	items      []serviceorder.Item
@@ -74,7 +84,7 @@ func newController() (*Controller, *fakeScripture) {
 		verses:      []bible.SearchResult{johnVerse()},
 		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
 	}
-	return New(scripture, &fakeSchedule{}, nil), scripture
+	return New(scripture, &fakeSchedule{}, nil, nil), scripture
 }
 
 func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
@@ -146,7 +156,7 @@ func TestSongSectionBecomesLyricSlide(t *testing.T) {
 		song:    songs.Song{ID: "song-1", Title: "Amazing Grace"},
 		section: songs.Section{ID: "section-1", SongID: "song-1", Label: "Verse 1", Text: "Amazing grace! how sweet the sound,\nThat saved a wretch like me!"},
 	}
-	controller := New(&fakeScripture{}, &fakeSchedule{}, reader)
+	controller := New(&fakeScripture{}, &fakeSchedule{}, reader, nil)
 
 	state, err := controller.PreviewSongSection(ctx, "song-1", "section-1")
 	if err != nil {
@@ -183,7 +193,7 @@ func TestScheduleNavigationMixesScriptureAndSongs(t *testing.T) {
 	}, schedule, &fakeSongs{
 		song:    songs.Song{ID: "song-1", Title: "Amazing Grace"},
 		section: songs.Section{ID: "section-1", SongID: "song-1", Label: "Verse 1", Text: "Amazing grace"},
-	})
+	}, nil)
 
 	state, err := controller.PreviewItem(ctx, "one")
 	if err != nil {
@@ -218,9 +228,67 @@ func TestNextWithoutScheduleReports(t *testing.T) {
 	controller := New(&fakeScripture{
 		verses:      []bible.SearchResult{johnVerse()},
 		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
-	}, &fakeSchedule{currentErr: serviceorder.ErrNoService}, nil)
+	}, &fakeSchedule{currentErr: serviceorder.ErrNoService}, nil, nil)
 
 	if _, err := controller.Next(ctx); !errors.Is(err, ErrNoSchedule) {
 		t.Fatalf("err = %v, want ErrNoSchedule", err)
+	}
+}
+
+func TestImageSlidesNeverBlankLiveOutput(t *testing.T) {
+	ctx := context.Background()
+	media := &fakeMedia{title: "Upper room", url: "/media/file/abc123"}
+	controller := New(&fakeScripture{}, &fakeSchedule{}, nil, media)
+
+	state, err := controller.ProjectImage(ctx, "abc123")
+	if err != nil {
+		t.Fatalf("project image: %v", err)
+	}
+	if state.Live == nil || state.Live.Kind != "image" || state.Live.Image != "/media/file/abc123" {
+		t.Fatalf("live = %+v", state.Live)
+	}
+	if state.Live.Label != "Upper room" || len(state.Live.Lines) != 0 {
+		t.Fatalf("live slide = %+v", state.Live)
+	}
+
+	media.err = errors.New("the library copy of this asset is missing")
+	if _, err := controller.ProjectImage(ctx, "gone"); err == nil {
+		t.Fatal("projecting a missing image succeeded")
+	}
+
+	after := controller.State()
+	if after.Live == nil || after.Live.Image != "/media/file/abc123" {
+		t.Fatalf("a failed projection changed live output: %+v", after.Live)
+	}
+
+	before := controller.State()
+	if _, err := controller.PreviewImage(ctx, "gone"); err == nil {
+		t.Fatal("previewing a missing image succeeded")
+	}
+	unchanged := controller.State()
+	if unchanged.Preview.Image != before.Preview.Image || unchanged.Live.Image != before.Live.Image {
+		t.Fatalf("a failed preview moved state: %+v -> %+v", before, unchanged)
+	}
+}
+
+func TestScheduleItemDispatchesToMedia(t *testing.T) {
+	ctx := context.Background()
+	schedule := &fakeSchedule{
+		service: serviceorder.Service{ID: "svc"},
+		items: []serviceorder.Item{
+			{ID: "img", ServiceID: "svc", Position: 1, Kind: serviceorder.KindMedia, Title: "Cross", MediaID: "media-9"},
+		},
+	}
+	controller := New(&fakeScripture{}, schedule, nil, &fakeMedia{title: "Cross", url: "/media/file/media-9"})
+
+	state, err := controller.PreviewItem(ctx, "img")
+	if err != nil {
+		t.Fatalf("preview media item: %v", err)
+	}
+	if state.Preview == nil || state.Preview.Kind != "image" || state.Preview.ItemID != "img" {
+		t.Fatalf("preview = %+v", state.Preview)
+	}
+	if state.Preview.Image != "/media/file/media-9" {
+		t.Fatalf("preview image = %s", state.Preview.Image)
 	}
 }

@@ -114,7 +114,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.order = serviceorder.NewSQLiteRepository(core)
 	a.songs = songs.NewSQLiteRepository(core)
 	a.media = media.NewLibrary(media.NewSQLiteRepository(core), paths.Media(), paths.MediaThumbnails())
-	a.presentation = presentation.New(a.bible, a.order, a.songs)
+	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media)
 	return nil
 }
 
@@ -276,6 +276,7 @@ type ServiceItemView struct {
 	VerseEnd      int    `json:"verseEnd"`
 	SongID        string `json:"songId"`
 	SectionID     string `json:"sectionId"`
+	MediaID       string `json:"mediaId"`
 }
 
 type ServiceOrderView struct {
@@ -514,6 +515,7 @@ func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {
 			VerseEnd:      item.VerseEnd,
 			SongID:        item.SongID,
 			SectionID:     item.SectionID,
+			MediaID:       item.MediaID,
 		})
 	}
 	return ServiceOrderView{

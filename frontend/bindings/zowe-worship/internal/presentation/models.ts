@@ -13,5 +13,6 @@ export interface Content {
     "label": string;
     "reference"?: string;
     "translation"?: string;
+    "image"?: string;
     "lines": string[] | null;
 }
