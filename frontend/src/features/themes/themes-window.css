@@ -89,9 +89,26 @@
   align-content: center;
   overflow: hidden;
 }
-.theme-sample-lines { margin: 0; }
+.theme-sample-lines {
+  margin: 0;
+  text-transform: var(--ttransform);
+  font-variant: var(--tvariant);
+}
 .theme-sample-lines span { display: block; text-shadow: var(--lift); }
-.theme-sample-ref { margin: 0; opacity: .75; font-size: calc(var(--fs) * .45); text-shadow: var(--lift); }
+/* The reference is resolved from the slide text in the component, so every
+   property here is already a concrete value and never needs a fallback chain. */
+.theme-sample-ref {
+  margin: 0;
+  font-family: var(--rff);
+  font-size: var(--rfs);
+  color: var(--rfg);
+  text-align: var(--rta);
+  text-transform: var(--rtransform);
+  font-variant: var(--rvariant);
+  font-weight: var(--rweight);
+  font-style: var(--rslant);
+  text-shadow: var(--lift);
+}
 .theme-sample-ref--top { grid-row: 1; }
 .theme-sample-ref--bottom { grid-row: 3; }
 
@@ -101,6 +118,30 @@
 
 .theme-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .theme-control-col { display: grid; gap: 11px; align-content: start; }
+
+/* The reference label is edited as a group of its own, so it reads as a second
+   element on the slide rather than more of the same slide-text controls. */
+.theme-reference {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+.theme-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  align-items: start;
+}
+.theme-link {
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--color-blue);
+  font-size: 10.5px;
+  text-decoration: underline;
+}
 
 .theme-field { display: grid; gap: 5px; }
 .theme-field-label { display: flex; justify-content: space-between; gap: 8px; color: var(--color-secondary); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; }
@@ -156,4 +197,5 @@
 @media (max-width: 900px) {
   .themes-body { grid-template-columns: 170px minmax(0, 1fr); }
   .theme-controls { grid-template-columns: 1fr; }
+  .theme-reference-grid { grid-template-columns: 1fr; }
 }

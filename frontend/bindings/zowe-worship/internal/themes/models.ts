@@ -46,6 +46,22 @@ export enum Kind {
 };
 
 /**
+ * Reference styles the passage or song label. An empty font, colour or
+ * alignment, and a size of zero, mean "same as the slide text", so wanting only
+ * a quieter colour does not force the operator to restate the whole style.
+ */
+export interface Reference {
+    "placement": string;
+    "fontFamily": string;
+    "fontSize": number;
+    "color": string;
+    "align": string;
+    "case": TextCase;
+    "bold": boolean;
+    "italic": boolean;
+}
+
+/**
  * Style is how the words on a slide look. Sizes are percentages of the output
  * height so one theme reads the same size in a preview pane and on a projector.
  */
@@ -57,9 +73,28 @@ export interface Style {
     "italic": boolean;
     "align": string;
     "color": string;
+    "case": TextCase;
     "shadow": boolean;
     "margin": number;
 }
+
+/**
+ * TextCase is how the letters of a slide element are drawn. Small caps is a
+ * typeface variant rather than a change of case, so it travels with the others
+ * instead of being a separate switch an operator would have to cross-check.
+ */
+export enum TextCase {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    CaseAsWritten = "none",
+    CaseCapitalized = "capitalize",
+    CaseUppercase = "uppercase",
+    CaseLowercase = "lowercase",
+    CaseSmallCaps = "small-caps",
+};
 
 export interface Theme {
     "id": string;
@@ -71,9 +106,9 @@ export interface Theme {
 
     /**
      * Reference places the passage or song label, which an operator may want off
-     * a full-bleed picture.
+     * a full-bleed picture, and in its own voice.
      */
-    "reference": string;
+    "reference": Reference;
     "createdAt": string;
     "updatedAt": string;
 }

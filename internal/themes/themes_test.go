@@ -136,7 +136,15 @@ func TestValidateRefusesWhatItCannotDraw(t *testing.T) {
 		{"unknown kind", func(t Theme) Theme { t.Kind = "announcement"; return t }},
 		{"free text font", func(t Theme) Theme { t.Style.FontFamily = "x; background:url(evil)"; return t }},
 		{"unknown alignment", func(t Theme) Theme { t.Style.Align = "middle"; return t }},
-		{"unknown reference placement", func(t Theme) Theme { t.Reference = "above"; return t }},
+		{"unknown reference placement", func(t Theme) Theme { t.Reference.Placement = "above"; return t }},
+		{"unknown text case", func(t Theme) Theme { t.Style.Case = "Titlecase"; return t }},
+		{"free text reference font", func(t Theme) Theme {
+			t.Reference.FontFamily = "x; background:url(evil)"
+			return t
+		}},
+		{"reference colour is not hex", func(t Theme) Theme { t.Reference.Color = "red"; return t }},
+		{"unknown reference alignment", func(t Theme) Theme { t.Reference.Align = "middle"; return t }},
+		{"unknown reference case", func(t Theme) Theme { t.Reference.Case = "caps"; return t }},
 		{"text colour is not hex", func(t Theme) Theme { t.Style.Color = "red"; return t }},
 		{"solid background without colour", func(t Theme) Theme { t.Background.Color = ""; return t }},
 		{"gradient with one colour", func(t Theme) Theme {
@@ -176,6 +184,28 @@ func TestValidateRefusesWhatItCannotDraw(t *testing.T) {
 	if err := picture.Validate(); err != nil {
 		t.Fatalf("image background refused: %v", err)
 	}
+
+	// A reference that inherits everything but its placement is the common case.
+	small := DefaultTheme(KindScripture)
+	small.Reference = Reference{Placement: ReferenceTop, Case: CaseSmallCaps}
+	if err := small.Validate(); err != nil {
+		t.Fatalf("inheriting reference refused: %v", err)
+	}
+
+	styled := DefaultTheme(KindScripture)
+	styled.Style.Case = CaseUppercase
+	styled.Reference = Reference{
+		Placement:  ReferenceBottom,
+		FontFamily: fontFamilies[2].Value,
+		FontSize:   2.4,
+		Color:      "#9FB3CE",
+		Align:      "right",
+		Case:       CaseSmallCaps,
+		Bold:       true,
+	}
+	if err := styled.Validate(); err != nil {
+		t.Fatalf("fully styled reference refused: %v", err)
+	}
 }
 
 func TestNormalisedRepairsWhatItCannotDraw(t *testing.T) {
@@ -197,7 +227,14 @@ func TestNormalisedRepairsWhatItCannotDraw(t *testing.T) {
 			Angle:   -370,
 			MediaID: "",
 		},
-		Reference: "above",
+		Reference: Reference{
+			Placement:  "above",
+			FontFamily: "Impact",
+			FontSize:   -3,
+			Color:      "crimson",
+			Align:      "middle",
+			Case:       "shout",
+		},
 	}
 
 	fixed := broken.Normalised()
@@ -219,12 +256,66 @@ func TestNormalisedRepairsWhatItCannotDraw(t *testing.T) {
 	if fixed.Background.Angle < 0 || fixed.Background.Angle >= 360 {
 		t.Fatalf("angle = %d", fixed.Background.Angle)
 	}
-	if !knownReference(fixed.Reference) {
-		t.Fatalf("reference = %q", fixed.Reference)
+	if !knownReference(fixed.Reference.Placement) {
+		t.Fatalf("reference = %+v", fixed.Reference)
+	}
+	// Each inherited property falls back to "same as the slide text", not to a
+	// guess that would silently restyle a reference nobody asked to change.
+	if fixed.Reference.FontFamily != "" || fixed.Reference.Color != "" || fixed.Reference.Align != "" {
+		t.Fatalf("reference did not fall back to inheriting: %+v", fixed.Reference)
+	}
+	if fixed.Reference.Case != CaseAsWritten || fixed.Reference.FontSize != 0 {
+		t.Fatalf("reference case or size not repaired: %+v", fixed.Reference)
+	}
+	if !knownCase(fixed.Style.Case) {
+		t.Fatalf("text case = %q", fixed.Style.Case)
 	}
 	// Repairs must land inside what Validate will accept.
 	if err := fixed.Validate(); err != nil {
 		t.Fatalf("normalised theme still invalid: %v", err)
+	}
+}
+
+func TestReferenceStyleSurvivesStorage(t *testing.T) {
+	repo, ctx := newTestRepository(t)
+
+	theme := DefaultTheme(KindScripture)
+	theme.Style.Case = CaseUppercase
+	theme.Reference = Reference{
+		Placement:  ReferenceTop,
+		FontFamily: fontFamilies[3].Value,
+		FontSize:   2.4,
+		Color:      "#9FB3CE",
+		Align:      "right",
+		Case:       CaseSmallCaps,
+		Bold:       true,
+		Italic:     true,
+	}
+
+	created, err := repo.Create(ctx, theme)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.Reference != theme.Reference {
+		t.Fatalf("reference stored as %+v, want %+v", created.Reference, theme.Reference)
+	}
+	if created.Style.Case != CaseUppercase {
+		t.Fatalf("text case stored as %q", created.Style.Case)
+	}
+
+	// Clearing the overrides has to come back as "inherit", not as the old values.
+	clear := created
+	clear.Reference = Reference{Placement: ReferenceBottom, Case: CaseAsWritten}
+	clear.Style.Case = CaseAsWritten
+	updated, err := repo.Update(ctx, clear)
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.Reference.FontFamily != "" || updated.Reference.Color != "" || updated.Reference.FontSize != 0 {
+		t.Fatalf("overrides not cleared: %+v", updated.Reference)
+	}
+	if updated.Style.Case != CaseAsWritten || updated.Reference.Case != CaseAsWritten {
+		t.Fatalf("case not cleared: %+v %+v", updated.Style.Case, updated.Reference.Case)
 	}
 }
 

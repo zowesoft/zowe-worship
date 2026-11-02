@@ -60,18 +60,40 @@ func knownFont(value string) bool {
 
 var hexColor = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
 
+// TextCase is how the letters of a slide element are drawn. Small caps is a
+// typeface variant rather than a change of case, so it travels with the others
+// instead of being a separate switch an operator would have to cross-check.
+type TextCase string
+
+const (
+	CaseAsWritten   TextCase = "none"
+	CaseCapitalized TextCase = "capitalize"
+	CaseUppercase   TextCase = "uppercase"
+	CaseLowercase   TextCase = "lowercase"
+	CaseSmallCaps   TextCase = "small-caps"
+)
+
+func knownCase(value TextCase) bool {
+	switch value {
+	case CaseAsWritten, CaseCapitalized, CaseUppercase, CaseLowercase, CaseSmallCaps:
+		return true
+	}
+	return false
+}
+
 // Style is how the words on a slide look. Sizes are percentages of the output
 // height so one theme reads the same size in a preview pane and on a projector.
 type Style struct {
-	FontFamily string  `json:"fontFamily"`
-	FontSize   float64 `json:"fontSize"`
-	LineHeight float64 `json:"lineHeight"`
-	Bold       bool    `json:"bold"`
-	Italic     bool    `json:"italic"`
-	Align      string  `json:"align"`
-	Color      string  `json:"color"`
-	Shadow     bool    `json:"shadow"`
-	Margin     float64 `json:"margin"`
+	FontFamily string   `json:"fontFamily"`
+	FontSize   float64  `json:"fontSize"`
+	LineHeight float64  `json:"lineHeight"`
+	Bold       bool     `json:"bold"`
+	Italic     bool     `json:"italic"`
+	Align      string   `json:"align"`
+	Color      string   `json:"color"`
+	Case       TextCase `json:"case"`
+	Shadow     bool     `json:"shadow"`
+	Margin     float64  `json:"margin"`
 }
 
 // Background is what sits behind the words. An image is a media library asset,
@@ -84,6 +106,20 @@ type Background struct {
 	MediaID string         `json:"mediaId"`
 }
 
+// Reference styles the passage or song label. An empty font, colour or
+// alignment, and a size of zero, mean "same as the slide text", so wanting only
+// a quieter colour does not force the operator to restate the whole style.
+type Reference struct {
+	Placement  string   `json:"placement"`
+	FontFamily string   `json:"fontFamily"`
+	FontSize   float64  `json:"fontSize"`
+	Color      string   `json:"color"`
+	Align      string   `json:"align"`
+	Case       TextCase `json:"case"`
+	Bold       bool     `json:"bold"`
+	Italic     bool     `json:"italic"`
+}
+
 type Theme struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
@@ -92,8 +128,8 @@ type Theme struct {
 	Style      Style      `json:"style"`
 	Background Background `json:"background"`
 	// Reference places the passage or song label, which an operator may want off
-	// a full-bleed picture.
-	Reference string `json:"reference"`
+	// a full-bleed picture, and in its own voice.
+	Reference Reference `json:"reference"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -126,9 +162,16 @@ func DefaultStyle() Style {
 		LineHeight: 1.45,
 		Align:      "center",
 		Color:      "#F3F6FC",
+		Case:       CaseAsWritten,
 		Shadow:     true,
 		Margin:     9,
 	}
+}
+
+// DefaultReference follows the slide text in every way but size, which is the
+// behaviour an operator expects before they have touched anything.
+func DefaultReference() Reference {
+	return Reference{Placement: ReferenceBottom, Case: CaseAsWritten}
 }
 
 func DefaultBackground() Background {
@@ -152,7 +195,7 @@ func DefaultTheme(kind Kind) Theme {
 		Kind:       kind,
 		Style:      DefaultStyle(),
 		Background: DefaultBackground(),
-		Reference:  ReferenceBottom,
+		Reference:  DefaultReference(),
 	}
 }
 
@@ -189,8 +232,25 @@ func (t Theme) Validate() error {
 	default:
 		return fmt.Errorf("%w: unknown alignment %q", ErrInvalidTheme, t.Style.Align)
 	}
-	if !knownReference(t.Reference) {
-		return fmt.Errorf("%w: unknown reference placement %q", ErrInvalidTheme, t.Reference)
+	if !knownCase(t.Style.Case) {
+		return fmt.Errorf("%w: unknown text case %q", ErrInvalidTheme, t.Style.Case)
+	}
+	if !knownReference(t.Reference.Placement) {
+		return fmt.Errorf("%w: unknown reference placement %q", ErrInvalidTheme, t.Reference.Placement)
+	}
+	if t.Reference.FontFamily != "" && !knownFont(t.Reference.FontFamily) {
+		return fmt.Errorf("%w: unknown reference font %q", ErrInvalidTheme, t.Reference.FontFamily)
+	}
+	switch t.Reference.Align {
+	case "", "left", "center", "right":
+	default:
+		return fmt.Errorf("%w: unknown reference alignment %q", ErrInvalidTheme, t.Reference.Align)
+	}
+	if !knownCase(t.Reference.Case) {
+		return fmt.Errorf("%w: unknown reference case %q", ErrInvalidTheme, t.Reference.Case)
+	}
+	if t.Reference.Color != "" && !hexColor.MatchString(t.Reference.Color) {
+		return fmt.Errorf("%w: reference colour must be a hex value", ErrInvalidTheme)
 	}
 	if !hexColor.MatchString(t.Style.Color) {
 		return fmt.Errorf("%w: text colour must be a hex value", ErrInvalidTheme)
@@ -233,8 +293,30 @@ func (t Theme) Normalised() Theme {
 	if out.Style.Align != "left" && out.Style.Align != "right" {
 		out.Style.Align = "center"
 	}
-	if !knownReference(out.Reference) {
-		out.Reference = ReferenceBottom
+	if !knownCase(out.Style.Case) {
+		out.Style.Case = CaseAsWritten
+	}
+	if !knownReference(out.Reference.Placement) {
+		out.Reference.Placement = ReferenceBottom
+	}
+	if out.Reference.FontFamily != "" && !knownFont(out.Reference.FontFamily) {
+		out.Reference.FontFamily = ""
+	}
+	switch out.Reference.Align {
+	case "left", "center", "right":
+	default:
+		out.Reference.Align = ""
+	}
+	if !knownCase(out.Reference.Case) {
+		out.Reference.Case = CaseAsWritten
+	}
+	if out.Reference.Color != "" && !hexColor.MatchString(out.Reference.Color) {
+		out.Reference.Color = ""
+	}
+	if out.Reference.FontSize < 0 {
+		out.Reference.FontSize = 0
+	} else if out.Reference.FontSize > 0 {
+		out.Reference.FontSize = clamp(out.Reference.FontSize, minFontSize, maxFontSize)
 	}
 	if !hexColor.MatchString(out.Style.Color) {
 		out.Style.Color = DefaultStyle().Color

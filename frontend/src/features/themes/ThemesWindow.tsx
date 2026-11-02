@@ -3,7 +3,7 @@ import { Window } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import type { MediaView } from '../../../bindings/zowe-worship/models';
 import type { FontFamily, Theme } from '../../../bindings/zowe-worship/internal/themes/models';
-import { BackgroundKind, Kind } from '../../../bindings/zowe-worship/internal/themes/models';
+import { BackgroundKind, Kind, TextCase } from '../../../bindings/zowe-worship/internal/themes/models';
 import { Icon } from '../../components/Icon';
 import './themes-window.css';
 
@@ -25,6 +25,33 @@ const references = [
   { value: 'top', label: 'Top' },
   { value: 'bottom', label: 'Bottom' },
 ];
+
+// The lettering options, spelled the way they will look on the screen so the
+// button previews its own result.
+const cases: { value: TextCase; label: string }[] = [
+  { value: TextCase.CaseAsWritten, label: 'As written' },
+  { value: TextCase.CaseCapitalized, label: 'Capitalize' },
+  { value: TextCase.CaseUppercase, label: 'ALL CAPS' },
+  { value: TextCase.CaseLowercase, label: 'lowercase' },
+  { value: TextCase.CaseSmallCaps, label: 'Small caps' },
+];
+
+// Small caps is a variant of the typeface rather than a change of case, so the
+// two properties are always set together.
+function caseVars(value: TextCase | undefined): { transform: string; variant: string } {
+  switch (value) {
+    case TextCase.CaseCapitalized:
+      return { transform: 'capitalize', variant: 'normal' };
+    case TextCase.CaseUppercase:
+      return { transform: 'uppercase', variant: 'normal' };
+    case TextCase.CaseLowercase:
+      return { transform: 'lowercase', variant: 'normal' };
+    case TextCase.CaseSmallCaps:
+      return { transform: 'none', variant: 'small-caps' };
+    default:
+      return { transform: 'none', variant: 'normal' };
+  }
+}
 
 // The words a theme is judged on. The long form is what the overflow warning
 // measures, because a theme that fits one verse is no use for a whole chapter.
@@ -90,20 +117,21 @@ function Chips({ label, value, options, onPick }: {
   );
 }
 
-function Slider({ label, value, min, max, step, unit, onPick }: {
+function Slider({ label, value, min, max, step, unit, display, onPick }: {
   label: string;
   value: number;
   min: number;
   max: number;
   step: number;
   unit: string;
+  display?: string;
   onPick: (value: number) => void;
 }) {
   return (
     <label className="theme-field">
       <span className="theme-field-label">
         {label}
-        <em>{value}{unit}</em>
+        <em>{display ?? `${value}${unit}`}</em>
       </span>
       <input
         type="range"
@@ -175,6 +203,9 @@ export function ThemesWindow() {
   function patchBackground(change: Partial<Theme['background']>) {
     setDraft((current) => (current ? { ...current, background: { ...current.background, ...change } } : current));
   }
+  function patchReference(change: Partial<Theme['reference']>) {
+    setDraft((current) => (current ? { ...current, reference: { ...current.reference, ...change } } : current));
+  }
 
   async function save() {
     if (!draft) return;
@@ -242,6 +273,14 @@ export function ThemesWindow() {
     items: themes.filter((theme) => theme.kind === kind.value),
   }));
 
+  const bodyCase = caseVars(draft?.style.case);
+  const refCase = caseVars(draft?.reference.case);
+  // Anything the reference does not set falls back to the slide text, so the
+  // fallbacks are resolved here rather than left empty for CSS to guess at.
+  const referenceSize = draft && draft.reference.fontSize > 0
+    ? `${draft.reference.fontSize}cqh`
+    : 'calc(var(--fs) * .45)';
+
   const stageStyle = {
     '--ff': draft?.style.fontFamily ?? 'serif',
     '--fs': `${draft?.style.fontSize ?? 4}cqh`,
@@ -249,10 +288,20 @@ export function ThemesWindow() {
     '--mg': String(draft?.style.margin ?? 8),
     '--fg': draft?.style.color ?? '#FFFFFF',
     '--ta': draft?.style.align ?? 'center',
+    '--ttransform': bodyCase.transform,
+    '--tvariant': bodyCase.variant,
     '--bg': backgroundCss(draft, images),
     '--weight': draft?.style.bold ? '700' : '400',
     '--slant': draft?.style.italic ? 'italic' : 'normal',
     '--lift': draft?.style.shadow ? '0 0.4cqh 1.2cqh rgba(0,0,0,.65)' : 'none',
+    '--rff': draft?.reference.fontFamily || draft?.style.fontFamily || 'serif',
+    '--rfs': referenceSize,
+    '--rfg': draft?.reference.color || draft?.style.color || '#FFFFFF',
+    '--rta': draft?.reference.align || draft?.style.align || 'center',
+    '--rtransform': refCase.transform,
+    '--rvariant': refCase.variant,
+    '--rweight': draft?.reference.bold ? '700' : 'inherit',
+    '--rslant': draft?.reference.italic ? 'italic' : 'inherit',
   } as React.CSSProperties;
 
   return (
@@ -315,13 +364,13 @@ export function ThemesWindow() {
             <div className="theme-preview">
               <div className="theme-stage" style={stageStyle}>
                 <div className="theme-sample">
-                  {draft.reference === 'top' && <p className="theme-sample-ref theme-sample-ref--top">{sample.reference}</p>}
+                  {draft.reference.placement === 'top' && <p className="theme-sample-ref theme-sample-ref--top">{sample.reference}</p>}
                   <div className="theme-sample-body">
                     <p ref={linesRef} className="theme-sample-lines">
                       {sample.lines.map((line, index) => <span key={index}>{line}</span>)}
                     </p>
                   </div>
-                  {draft.reference !== 'top' && draft.reference !== 'none' && (
+                  {draft.reference.placement !== 'top' && draft.reference.placement !== 'none' && (
                     <p className="theme-sample-ref theme-sample-ref--bottom">{sample.reference}</p>
                   )}
                 </div>
@@ -379,6 +428,8 @@ export function ThemesWindow() {
                     ))}
                   </div>
                 </div>
+
+                <Chips label="Letter case" value={draft.style.case} options={cases} onPick={(value) => patchStyle({ case: value as TextCase })} />
               </div>
 
               <div className="theme-control-col">
@@ -424,9 +475,93 @@ export function ThemesWindow() {
                   </div>
                 )}
 
-                <Chips label="Reference" value={draft.reference} options={references} onPick={(value) => patch({ reference: value })} />
               </div>
             </div>
+
+            <section className="theme-reference">
+              <Chips
+                label="Reference"
+                value={draft.reference.placement}
+                options={references}
+                onPick={(value) => patchReference({ placement: value })}
+              />
+
+              {draft.reference.placement !== 'none' && (
+                <div className="theme-reference-grid">
+                  <label className="theme-field">
+                    <span className="theme-field-label">Reference font</span>
+                    <select
+                      value={draft.reference.fontFamily}
+                      onChange={(event) => patchReference({ fontFamily: event.target.value })}
+                    >
+                      <option value="">Same as slide text</option>
+                      {fonts.map((family) => (
+                        <option key={family.value} value={family.value}>{family.label}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <Slider
+                    label="Reference size"
+                    value={draft.reference.fontSize}
+                    min={0}
+                    max={8}
+                    step={0.2}
+                    unit="%"
+                    display={draft.reference.fontSize === 0 ? 'same as text' : `${draft.reference.fontSize}%`}
+                    onPick={(value) => patchReference({ fontSize: value })}
+                  />
+
+                  <Chips
+                    label="Reference alignment"
+                    value={draft.reference.align}
+                    options={[{ value: '', label: 'Same as text' }, ...alignments.map((a) => ({ value: a, label: a }))]}
+                    onPick={(value) => patchReference({ align: value })}
+                  />
+
+                  <Chips
+                    label="Reference case"
+                    value={draft.reference.case}
+                    options={cases}
+                    onPick={(value) => patchReference({ case: value as TextCase })}
+                  />
+
+                  <div className="theme-field">
+                    <span className="theme-field-label">Reference emphasis</span>
+                    <div className="theme-chips">
+                      {([['bold', 'Bold'], ['italic', 'Italic']] as const).map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          className={`theme-chip${draft.reference[key] ? ' theme-chip--on' : ''}`}
+                          onClick={() => patchReference({ [key]: !draft.reference[key] })}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="theme-field theme-field--colour">
+                    <span className="theme-field-label">
+                      Reference colour
+                      <em>{draft.reference.color === '' ? 'same as text' : ''}</em>
+                    </span>
+                    <input
+                      type="color"
+                      value={draft.reference.color || draft.style.color}
+                      onChange={(event) => patchReference({ color: event.target.value })}
+                    />
+                  </div>
+
+                  {draft.reference.color !== '' && (
+                    <button type="button" className="theme-link" onClick={() => patchReference({ color: '' })}>
+                      Use the slide colour
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
 
             {problem && <p className="theme-error" role="alert">{problem}</p>}
             {notice && !problem && <p className="theme-notice">{notice}</p>}

@@ -3,12 +3,14 @@
 
 export {
     BackgroundKind,
-    Kind
+    Kind,
+    TextCase
 } from "./models.js";
 
 export type {
     Background,
     FontFamily,
+    Reference,
     Style,
     Theme
 } from "./models.js";

@@ -11,8 +11,9 @@ import (
 )
 
 const themeColumns = `id, name, kind, is_default, font_family, font_size, line_height, bold, italic,
-	align, color, shadow, margin, background_kind, background_color, background_color2,
-	background_angle, background_media, reference_placement, created_at, updated_at`
+	align, color, shadow, margin, text_case, background_kind, background_color, background_color2,
+	background_angle, background_media, reference_placement, ref_font_family, ref_font_size, ref_color,
+	ref_align, ref_case, ref_bold, ref_italic, created_at, updated_at`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -92,7 +93,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, theme Theme) (Theme, erro
 	theme.CreatedAt, theme.UpdatedAt = now, now
 
 	if _, err := r.db.ExecContext(ctx,
-		`INSERT INTO slide_templates (`+themeColumns+`) VALUES (`+placeholders(21)+`)`,
+		`INSERT INTO slide_templates (`+themeColumns+`) VALUES (`+placeholders(29)+`)`,
 		themeArgs(theme)...); err != nil {
 		return Theme{}, fmt.Errorf("create theme: %w", err)
 	}
@@ -116,15 +117,19 @@ func (r *SQLiteRepository) Update(ctx context.Context, theme Theme) (Theme, erro
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE slide_templates
 		SET name = ?, kind = ?, font_family = ?, font_size = ?, line_height = ?, bold = ?,
-		    italic = ?, align = ?, color = ?, shadow = ?, margin = ?, background_kind = ?,
-		    background_color = ?, background_color2 = ?, background_angle = ?, background_media = ?,
-		    reference_placement = ?, updated_at = ?
+		    italic = ?, align = ?, color = ?, shadow = ?, margin = ?, text_case = ?,
+		    background_kind = ?, background_color = ?, background_color2 = ?, background_angle = ?,
+		    background_media = ?, reference_placement = ?, ref_font_family = ?, ref_font_size = ?,
+		    ref_color = ?, ref_align = ?, ref_case = ?, ref_bold = ?, ref_italic = ?, updated_at = ?
 		WHERE id = ?`,
 		theme.Name, theme.Kind, theme.Style.FontFamily, theme.Style.FontSize, theme.Style.LineHeight,
 		boolToInt(theme.Style.Bold), theme.Style.Italic, theme.Style.Align, theme.Style.Color,
-		boolToInt(theme.Style.Shadow), theme.Style.Margin, theme.Background.Kind,
-		theme.Background.Color, theme.Background.Color2, theme.Background.Angle,
-		theme.Background.MediaID, theme.Reference,
+		boolToInt(theme.Style.Shadow), theme.Style.Margin, theme.Style.Case,
+		theme.Background.Kind, theme.Background.Color, theme.Background.Color2,
+		theme.Background.Angle, theme.Background.MediaID, theme.Reference.Placement,
+		theme.Reference.FontFamily, theme.Reference.FontSize, theme.Reference.Color,
+		theme.Reference.Align, theme.Reference.Case, boolToInt(theme.Reference.Bold),
+		boolToInt(theme.Reference.Italic),
 		time.Now().UTC().Truncate(time.Second).Format(time.RFC3339), theme.ID,
 	)
 	if err != nil {
@@ -198,9 +203,12 @@ func themeArgs(theme Theme) []any {
 		theme.ID, theme.Name, theme.Kind, boolToInt(theme.IsDefault),
 		theme.Style.FontFamily, theme.Style.FontSize, theme.Style.LineHeight,
 		boolToInt(theme.Style.Bold), boolToInt(theme.Style.Italic), theme.Style.Align,
-		theme.Style.Color, boolToInt(theme.Style.Shadow), theme.Style.Margin,
+		theme.Style.Color, boolToInt(theme.Style.Shadow), theme.Style.Margin, theme.Style.Case,
 		theme.Background.Kind, theme.Background.Color, theme.Background.Color2,
-		theme.Background.Angle, theme.Background.MediaID, theme.Reference,
+		theme.Background.Angle, theme.Background.MediaID, theme.Reference.Placement,
+		theme.Reference.FontFamily, theme.Reference.FontSize, theme.Reference.Color,
+		theme.Reference.Align, theme.Reference.Case, boolToInt(theme.Reference.Bold),
+		boolToInt(theme.Reference.Italic),
 		theme.CreatedAt.Format(time.RFC3339), theme.UpdatedAt.Format(time.RFC3339),
 	}
 }
@@ -212,6 +220,10 @@ func scanTheme(row interface{ Scan(...any) error }) (Theme, error) {
 		bold           int
 		italic         int
 		shadow         int
+		textCase       string
+		refCase        string
+		refBold        int
+		refItalic      int
 		createdAt      string
 		updatedAt      string
 		backgroundKind string
@@ -220,8 +232,10 @@ func scanTheme(row interface{ Scan(...any) error }) (Theme, error) {
 		&theme.ID, &theme.Name, &theme.Kind, &isDefault,
 		&theme.Style.FontFamily, &theme.Style.FontSize, &theme.Style.LineHeight,
 		&bold, &italic, &theme.Style.Align, &theme.Style.Color, &shadow, &theme.Style.Margin,
-		&backgroundKind, &theme.Background.Color, &theme.Background.Color2,
-		&theme.Background.Angle, &theme.Background.MediaID, &theme.Reference,
+		&textCase, &backgroundKind, &theme.Background.Color, &theme.Background.Color2,
+		&theme.Background.Angle, &theme.Background.MediaID, &theme.Reference.Placement,
+		&theme.Reference.FontFamily, &theme.Reference.FontSize, &theme.Reference.Color,
+		&theme.Reference.Align, &refCase, &refBold, &refItalic,
 		&createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -229,6 +243,9 @@ func scanTheme(row interface{ Scan(...any) error }) (Theme, error) {
 	}
 
 	theme.IsDefault, theme.Style.Bold, theme.Style.Italic, theme.Style.Shadow = isDefault != 0, bold != 0, italic != 0, shadow != 0
+	theme.Style.Case = TextCase(textCase)
+	theme.Reference.Case = TextCase(refCase)
+	theme.Reference.Bold, theme.Reference.Italic = refBold != 0, refItalic != 0
 	theme.Background.Kind = BackgroundKind(backgroundKind)
 	theme.CreatedAt, err = parseTime(createdAt, "creation")
 	if err != nil {
