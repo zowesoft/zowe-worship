@@ -60,12 +60,18 @@ export function BibleWorkspace() {
     if (!bridgeAvailable) return;
 
     let active = true;
-    App.ListTranslations()
-      .then((items) => {
+    Promise.all([
+      App.ListTranslations(),
+      App.GetSetting('default_translation_id').catch(() => ''),
+    ])
+      .then(([items, defaultId]) => {
         if (!active) return;
         const installed = items ?? [];
         setTranslations(installed);
-        const preferred = installed.find((item) => item.id === 'kjv') ?? installed[0];
+        const preferred =
+          (defaultId ? installed.find((item) => item.id === defaultId) : undefined) ??
+          installed.find((item) => item.id === 'kjv') ??
+          installed[0];
         setTranslationId(preferred?.id ?? '');
       })
       .catch((error: unknown) => {
@@ -390,6 +396,7 @@ export function BibleWorkspace() {
           <div className="bible-search-field">
             <Icon name="search" size={16} />
             <input
+              id="bible-search-input"
               ref={inputRef}
               type="text"
               value={query}

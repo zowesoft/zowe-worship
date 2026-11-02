@@ -34,9 +34,19 @@ export function SettingsWindow() {
     }
   }
 
+  async function setDefault(id: string) {
+    setProblem(null);
+    try {
+      setStorage(await App.SetDefaultTranslation(id));
+    } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    }
+  }
+
   const translations = storage?.translations ?? [];
   const backups = storage?.backups ?? [];
   const mediaItems = storage?.mediaItems ?? 0;
+  const defaultTranslationId = storage?.defaultTranslation || 'kjv';
 
   return (
     <main className="settings-window" aria-label="Settings">
@@ -83,15 +93,32 @@ export function SettingsWindow() {
             <p className="settings-note">No translation is installed yet.</p>
           ) : (
             <ul className="settings-list">
-              {translations.map((translation) => (
-                <li key={translation.id}>
-                  <span className="settings-list-main">
-                    <strong>{translation.abbreviation || translation.name}</strong>
-                    <span>{translation.name}</span>
-                  </span>
-                  <span className="settings-list-side">{translation.verseCount.toLocaleString()} verses</span>
-                </li>
-              ))}
+              {translations.map((translation) => {
+                const isDefault = defaultTranslationId === translation.id;
+                return (
+                  <li key={translation.id}>
+                    <span className="settings-list-main">
+                      <strong>{translation.abbreviation || translation.name}</strong>
+                      <span>{translation.name}</span>
+                    </span>
+                    <span className="settings-list-side">
+                      <span>{translation.verseCount.toLocaleString()} verses</span>
+                      {isDefault ? (
+                        <span className="status-pill status-pill--on" style={{ marginLeft: 8 }}>Default</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="button button--small"
+                          style={{ marginLeft: 8 }}
+                          onClick={() => void setDefault(translation.id)}
+                        >
+                          Make default
+                        </button>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

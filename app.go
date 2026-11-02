@@ -15,6 +15,7 @@ import (
 	"zowe-worship/internal/presentation"
 	"zowe-worship/internal/scripture"
 	"zowe-worship/internal/serviceorder"
+	"zowe-worship/internal/settings"
 	"zowe-worship/internal/songs"
 	"zowe-worship/internal/themes"
 )
@@ -33,6 +34,7 @@ type App struct {
 	songs         *songs.SQLiteRepository
 	media         *media.Library
 	themes        *themes.SQLiteRepository
+	settings      *settings.Store
 	presentation  *presentation.Controller
 	display       application.Window
 	displayScreen ScreenOption
@@ -120,6 +122,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.songs = songs.NewSQLiteRepository(core)
 	a.media = media.NewLibrary(media.NewSQLiteRepository(core), paths.Media(), paths.MediaThumbnails())
 	a.themes = themes.NewSQLiteRepository(core)
+	a.settings = settings.New(core)
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media)
 	return nil
 }

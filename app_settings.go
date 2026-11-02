@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"zowe-worship/internal/database"
+	"zowe-worship/internal/settings"
 )
 
 // settingsWindow names the settings window so opening it again moves the same
@@ -28,14 +29,15 @@ type BackupView struct {
 // StorageView answers the two questions Settings exists for: where the
 // church's data sits on this computer, and whether it is safe.
 type StorageView struct {
-	Version       string            `json:"version"`
-	DataRoot      string            `json:"dataRoot"`
-	DatabaseBytes int64             `json:"databaseBytes"`
-	MediaBytes    int64             `json:"mediaBytes"`
-	MediaItems    int               `json:"mediaItems"`
-	Translations  []TranslationView `json:"translations"`
-	Backups       []BackupView      `json:"backups"`
-	BackupCount   int               `json:"backupCount"`
+	Version            string            `json:"version"`
+	DataRoot           string            `json:"dataRoot"`
+	DatabaseBytes      int64             `json:"databaseBytes"`
+	MediaBytes         int64             `json:"mediaBytes"`
+	MediaItems         int               `json:"mediaItems"`
+	Translations       []TranslationView `json:"translations"`
+	DefaultTranslation string            `json:"defaultTranslation"`
+	Backups            []BackupView      `json:"backups"`
+	BackupCount        int               `json:"backupCount"`
 }
 
 // OpenSettings shows the storage and library summary in its own window. It
@@ -87,7 +89,39 @@ func (a *App) GetStorage() (StorageView, error) {
 		view.BackupCount = count
 	}
 
+	if a.settings != nil {
+		view.DefaultTranslation = a.settings.GetDefault(a.context(), settings.KeyDefaultTranslation, "kjv")
+	}
+
 	return view, nil
+}
+
+// GetSetting returns the value stored for key. If the key has never been set,
+// it returns an empty string without error.
+func (a *App) GetSetting(key string) (string, error) {
+	if a.settings == nil {
+		return "", errStorageUnavailable
+	}
+	return a.settings.GetDefault(a.context(), key, ""), nil
+}
+
+// SetSetting writes a key/value setting.
+func (a *App) SetSetting(key, value string) error {
+	if a.settings == nil {
+		return errStorageUnavailable
+	}
+	return a.settings.Set(a.context(), key, value)
+}
+
+// SetDefaultTranslation updates the default translation setting and returns the refreshed storage view.
+func (a *App) SetDefaultTranslation(id string) (StorageView, error) {
+	if a.settings == nil {
+		return StorageView{}, errStorageUnavailable
+	}
+	if err := a.settings.Set(a.context(), settings.KeyDefaultTranslation, id); err != nil {
+		return StorageView{}, err
+	}
+	return a.GetStorage()
 }
 
 // BackupNow writes a snapshot the operator asked for and returns the refreshed

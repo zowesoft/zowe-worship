@@ -56,3 +56,44 @@ func TestBackupNeedsStorage(t *testing.T) {
 		t.Fatalf("backup without storage err = %v", err)
 	}
 }
+
+func TestSettingsGetSetAndDefaultTranslation(t *testing.T) {
+	app := newTestApp(t)
+
+	// Fresh app reports fallback default translation "kjv"
+	storage, err := app.GetStorage()
+	if err != nil {
+		t.Fatalf("GetStorage: %v", err)
+	}
+	if storage.DefaultTranslation != "kjv" {
+		t.Fatalf("DefaultTranslation = %q, want 'kjv'", storage.DefaultTranslation)
+	}
+
+	// Get unset setting returns empty string without error
+	val, err := app.GetSetting("custom_key")
+	if err != nil {
+		t.Fatalf("GetSetting: %v", err)
+	}
+	if val != "" {
+		t.Fatalf("GetSetting = %q, want empty", val)
+	}
+
+	// Set and Get custom setting
+	if err := app.SetSetting("custom_key", "custom_val"); err != nil {
+		t.Fatalf("SetSetting: %v", err)
+	}
+	val, err = app.GetSetting("custom_key")
+	if err != nil || val != "custom_val" {
+		t.Fatalf("GetSetting after set = %q (err %v), want 'custom_val'", val, err)
+	}
+
+	// Update default translation
+	updatedStorage, err := app.SetDefaultTranslation("esv")
+	if err != nil {
+		t.Fatalf("SetDefaultTranslation: %v", err)
+	}
+	if updatedStorage.DefaultTranslation != "esv" {
+		t.Fatalf("updatedStorage.DefaultTranslation = %q, want 'esv'", updatedStorage.DefaultTranslation)
+	}
+}
+

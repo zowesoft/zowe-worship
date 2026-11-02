@@ -203,6 +203,7 @@ export interface StorageView {
     "mediaBytes": number;
     "mediaItems": number;
     "translations": TranslationView[] | null;
+    "defaultTranslation": string;
     "backups": BackupView[] | null;
     "backupCount": number;
 }

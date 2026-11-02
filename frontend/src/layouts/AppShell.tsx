@@ -10,12 +10,13 @@ import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import * as models from '../../bindings/zowe-worship/models';
 import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
 
-export type PageId = 'bible' | 'songs' | 'media' | 'service';
+export type PageId = 'home' | 'bible' | 'songs' | 'media' | 'service';
 
 export const navigation: { id: PageId; label: string; icon: IconName }[] = [
-  { id: 'bible', label: 'Bible', icon: 'bible' },
-  { id: 'songs', label: 'Songs', icon: 'music' },
-  { id: 'media', label: 'Media', icon: 'media' },
+  { id: 'home',    label: 'Home',          icon: 'home' },
+  { id: 'bible',   label: 'Bible',         icon: 'bible' },
+  { id: 'songs',   label: 'Songs',         icon: 'music' },
+  { id: 'media',   label: 'Media',         icon: 'media' },
   { id: 'service', label: 'Service Order', icon: 'order' },
 ];
 
@@ -793,6 +794,9 @@ export function AppShell({ activePage, onNavigate, children }: {
     workspaceRef.current?.scrollTo({ top: 0 });
   }, [activePage]);
 
+  // Home has its own live hero so the presentation dock is redundant there.
+  const showDock = activePage !== 'home';
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#workspace">Skip to workspace</a>
@@ -800,10 +804,17 @@ export function AppShell({ activePage, onNavigate, children }: {
       <AppHeader />
       <main id="workspace" className="workspace" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
         <div className="workspace-primary" ref={workspaceRef}>
-          <div className="presentation-dock">
-            <PresentationPanes />
-            <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
-          </div>
+          {showDock && (
+            <div className="presentation-dock">
+              <PresentationPanes />
+              <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
+            </div>
+          )}
+          {!showDock && (
+            <div className="presentation-dock presentation-dock--tabs-only">
+              <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
+            </div>
+          )}
           <section className="page-content">
             {children}
           </section>
