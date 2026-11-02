@@ -13,6 +13,12 @@ export interface AppInfo {
     "version": string;
 }
 
+export interface BackupView {
+    "name": string;
+    "sizeBytes": number;
+    "createdAt": string;
+}
+
 /**
  * BibleSearchRequest is one operator query. Mode "auto" resolves a reference
  * first and falls back to word search; "words", "phrase" and "prefix" force
@@ -184,6 +190,21 @@ export interface SongView {
 export interface SongsView {
     "songs": SongView[] | null;
     "hits": LyricHitView[] | null;
+}
+
+/**
+ * StorageView answers the two questions Settings exists for: where the
+ * church's data sits on this computer, and whether it is safe.
+ */
+export interface StorageView {
+    "version": string;
+    "dataRoot": string;
+    "databaseBytes": number;
+    "mediaBytes": number;
+    "mediaItems": number;
+    "translations": TranslationView[] | null;
+    "backups": BackupView[] | null;
+    "backupCount": number;
 }
 
 export interface TranslationView {

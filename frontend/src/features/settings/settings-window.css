@@ -1,0 +1,62 @@
+.settings-window {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 16px 16px;
+  overflow: hidden;
+}
+
+.settings-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+.settings-header h2 { font-size: 17px; font-weight: 600; margin-top: 3px; }
+
+.settings-body {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding-right: 4px;
+}
+
+.settings-card {
+  display: grid;
+  gap: 9px;
+  padding: 12px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-panel);
+}
+.settings-card h3 { font-size: 10px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--color-secondary); }
+.settings-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.settings-path {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-app);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-all;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.settings-rows { margin: 0; display: grid; gap: 5px; }
+.settings-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; font-size: 11.5px; }
+.settings-row dt { color: var(--color-secondary); }
+.settings-row dd { margin: 0; }
+
+.settings-note { color: #6F809B; font-size: 10.5px; line-height: 1.6; }
+.settings-count { color: var(--color-secondary); font-size: 10px; }
+
+.settings-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+.settings-list li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 8px; border-radius: 6px; }
+.settings-list li:hover { background: var(--color-elevated); }
+.settings-list-main { display: grid; gap: 2px; min-width: 0; }
+.settings-list-main strong { font-size: 11.5px; font-weight: 600; }
+.settings-list-main span { color: var(--color-secondary); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-list-side { flex-shrink: 0; color: var(--color-secondary); font-size: 10.5px; }
+
+.settings-error { color: var(--color-error); font-size: 11.5px; }

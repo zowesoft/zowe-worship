@@ -29,6 +29,14 @@ export function AddSongSectionToService(request: $models.SongSectionRequest): $C
     return $Call.ByID(1958429116, request);
 }
 
+/**
+ * BackupNow writes a snapshot the operator asked for and returns the refreshed
+ * view, so the new file appears in the list without a second call.
+ */
+export function BackupNow(): $CancellablePromise<$models.StorageView> {
+    return $Call.ByID(666389681);
+}
+
 export function ClearLive(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2483162096);
 }
@@ -71,6 +79,10 @@ export function GetPresentationState(): $CancellablePromise<$models.Presentation
 
 export function GetServiceOrder(): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(2748070250);
+}
+
+export function GetStorage(): $CancellablePromise<$models.StorageView> {
+    return $Call.ByID(25239652);
 }
 
 /**
@@ -135,6 +147,15 @@ export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$mode
  */
 export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(1808648114, mediaID);
+}
+
+/**
+ * OpenSettings shows the storage and library summary in its own window. It
+ * opens even when storage failed, because that is exactly when the operator
+ * needs to see where the app looked.
+ */
+export function OpenSettings(): $CancellablePromise<$models.EditorView> {
+    return $Call.ByID(2024983644);
 }
 
 /**

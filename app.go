@@ -20,6 +20,9 @@ import (
 
 var errStorageUnavailable = errors.New("storage is not available")
 
+// appVersion is shown in Settings, so it is named rather than repeated.
+const appVersion = "0.1.0"
+
 type App struct {
 	ctx           context.Context
 	dataRoot      string
@@ -140,7 +143,7 @@ func (a *App) paths() (database.Paths, error) {
 func (a *App) GetAppInfo() AppInfo {
 	return AppInfo{
 		Name:    "Zowe Worship",
-		Version: "0.1.0",
+		Version: appVersion,
 	}
 }
 

@@ -9,14 +9,13 @@ import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import * as models from '../../bindings/zowe-worship/models';
 import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
 
-export type PageId = 'bible' | 'songs' | 'media' | 'service' | 'settings';
+export type PageId = 'bible' | 'songs' | 'media' | 'service';
 
 export const navigation: { id: PageId; label: string; icon: IconName }[] = [
   { id: 'bible', label: 'Bible', icon: 'bible' },
   { id: 'songs', label: 'Songs', icon: 'music' },
   { id: 'media', label: 'Media', icon: 'media' },
   { id: 'service', label: 'Service Order', icon: 'order' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
 function useClock() {
@@ -320,7 +319,7 @@ function DisplaySelector() {
   );
 }
 
-function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+function AppHeader() {
   const studio = useStudio();
   const connected = studio.bridgeAvailable;
   const now = useClock();
@@ -342,7 +341,7 @@ function AppHeader({ onNavigate }: { onNavigate: (page: PageId) => void }) {
 
       <div className="header-actions">
         <DisplaySelector />
-        <button type="button" className="icon-button" onClick={() => onNavigate('settings')} aria-label="Open settings" title="Settings">
+        <button type="button" className="icon-button" onClick={() => void studio.openSettings()} aria-label="Open settings" title="Settings">
           <Icon name="settings" size={18} />
         </button>
         <button type="button" className="icon-button" disabled aria-label="Notifications unavailable" title="Notifications are not implemented.">
@@ -553,7 +552,7 @@ function DetectionPanel() {
   );
 }
 
-function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+function ProductionCard() {
   const studio = useStudio();
   const preview = studio.presentation?.preview ?? null;
   const live = studio.presentation?.live ?? null;
@@ -602,7 +601,7 @@ function ProductionCard({ onNavigate }: { onNavigate: (page: PageId) => void }) 
             <Icon name="chevron" size={15} />
           </button>
           <button type="button" className="button button--small" disabled={live === null} onClick={() => void run(studio.clearLive)} title="Clear the live output">Clear</button>
-          <button type="button" className="icon-button icon-button--small" onClick={() => onNavigate('settings')} aria-label="Production settings" title="Open settings">
+          <button type="button" className="icon-button icon-button--small" onClick={() => void run(studio.openSettings)} aria-label="Production settings" title="Open settings">
             <Icon name="settings" size={16} />
           </button>
         </div>
@@ -622,6 +621,8 @@ function WorkspaceTabs({ activePage, onNavigate }: {
   activePage: PageId;
   onNavigate: (page: PageId) => void;
 }) {
+  const studio = useStudio();
+
   return (
     <nav className="workspace-tabs" aria-label="Workspaces">
       {navigation.map((item) => (
@@ -636,6 +637,11 @@ function WorkspaceTabs({ activePage, onNavigate }: {
           <span>{item.label}</span>
         </button>
       ))}
+      {/* Settings is a window of its own, so this tab never becomes the active page. */}
+      <button type="button" className="workspace-tab" onClick={() => void studio.openSettings()}>
+        <Icon name="settings" size={15} />
+        <span>Settings</span>
+      </button>
     </nav>
   );
 }
@@ -656,7 +662,7 @@ export function AppShell({ activePage, onNavigate, children }: {
     <div className="app-shell">
       <a className="skip-link" href="#workspace">Skip to workspace</a>
       <ScheduleSidebar onNavigate={onNavigate} />
-      <AppHeader onNavigate={onNavigate} />
+      <AppHeader />
       <main id="workspace" className="workspace" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
         <div className="workspace-primary" ref={workspaceRef}>
           <div className="presentation-dock">
@@ -669,7 +675,7 @@ export function AppShell({ activePage, onNavigate, children }: {
         </div>
         <div className="workspace-side">
           <DetectionPanel />
-          <ProductionCard onNavigate={onNavigate} />
+          <ProductionCard />
         </div>
       </main>
     </div>

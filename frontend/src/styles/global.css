@@ -246,14 +246,6 @@ svg { flex-shrink: 0; }
 .eyebrow { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.3px; font-weight: 600; color: var(--color-secondary); }
 .icon-tile { display: inline-grid; place-items: center; width: 48px; height: 48px; border: 1px solid #30466A; background: var(--color-selected); color: #8CABFF; border-radius: 11px; flex-shrink: 0; }
 .icon-tile--violet { color: #B3A4FF; background: #24203E; border-color: #3B355C; }
-.feature-scaffold { padding: 22px; }
-.feature-intro { display: flex; align-items: flex-start; gap: 16px; }
-.feature-intro h2 { font-size: 19px; letter-spacing: -.4px; margin-top: 5px; }
-.feature-intro div > p:last-child { color: var(--color-secondary); font-size: 11.5px; margin-top: 8px; line-height: 1.7; }
-.feature-details { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; border-top: 1px solid var(--color-border); padding-top: 18px; margin-top: 22px; }
-.feature-details h3 { font-size: 11.5px; margin-bottom: 6px; }
-.feature-details p { font-size: 11.5px; line-height: 1.7; color: var(--color-secondary); }
-.feature-note { font-size: 10.5px; color: var(--color-secondary); margin-top: 22px; }
 
 @media (min-width: 1600px) {
   .workspace { grid-template-columns: minmax(0, 1fr) 352px; }
@@ -294,8 +286,6 @@ svg { flex-shrink: 0; }
   .workspace-tab { padding: 6px 9px; }
   .presentation-screen p { max-width: 180px; }
   .pane-heading { padding: 7px 10px; }
-  .feature-scaffold { padding: 18px; }
-  .feature-details { gap: 14px; }
   .detection-body { grid-template-columns: 1fr; }
 }
 

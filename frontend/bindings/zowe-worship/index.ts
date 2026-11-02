@@ -8,6 +8,7 @@ export {
 
 export type {
     AppInfo,
+    BackupView,
     BibleSearchRequest,
     BibleSearchResponse,
     BibleVerse,
@@ -30,5 +31,6 @@ export type {
     SongSectionView,
     SongView,
     SongsView,
+    StorageView,
     TranslationView
 } from "./models.js";

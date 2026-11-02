@@ -5,6 +5,7 @@ import type { MediaImportResult, MediaView } from '../../../bindings/zowe-worshi
 import type { Aspect } from '../../../bindings/zowe-worship/internal/media/models';
 import { FittedImage } from '../../components/FittedImage';
 import { Icon } from '../../components/Icon';
+import { formatBytes } from '../../lib/format';
 import { useStudio } from '../../stores/StudioProvider';
 import './media.css';
 
@@ -31,12 +32,6 @@ function formatDuration(ms: number): string {
   if (ms <= 0) return '';
   const total = Math.round(ms / 1000);
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-}
-
-function formatSize(bytes: number): string {
-  const mb = bytes / (1024 * 1024);
-  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-  return `${Math.max(1, Math.round(mb))} MB`;
 }
 
 function kindIcon(kind: string) {
@@ -231,7 +226,7 @@ export function MediaWorkspace() {
                   </div>
                   <div className="media-meta">
                     <strong title={item.title}>{item.title}</strong>
-                    <span>{item.kind} · {formatSize(item.sizeBytes)}</span>
+                    <span>{item.kind} · {formatBytes(item.sizeBytes)}</span>
                   </div>
                   <div className="media-tile-actions">
                     {projectable && (
