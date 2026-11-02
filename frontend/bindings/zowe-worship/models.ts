@@ -20,6 +20,18 @@ export interface BackupView {
 }
 
 /**
+ * BibleBookView is a lightweight description of one canonical book exposed to
+ * the frontend for filter dropdowns and the passage browser.
+ */
+export interface BibleBookView {
+    "id": number;
+    "name": string;
+    "abbreviation": string;
+    "testament": string;
+    "chapters": number;
+}
+
+/**
  * BibleSearchRequest is one operator query. Mode "auto" resolves a reference
  * first and falls back to word search; "words", "phrase" and "prefix" force
  * full-text search.
@@ -29,12 +41,20 @@ export interface BibleSearchRequest {
     "query": string;
     "mode": string;
     "limit": number;
+    "offset": number;
+
+    /**
+     * Optional filters: empty string / nil means no filter.
+     */
+    "testament": string;
+    "bookIds": number[] | null;
 }
 
 export interface BibleSearchResponse {
     "kind": string;
     "reference"?: string;
     "results": BibleVerse[] | null;
+    "total": number;
 }
 
 export interface BibleVerse {
@@ -44,6 +64,19 @@ export interface BibleVerse {
     "verse": number;
     "reference": string;
     "text": string;
+    "snippet"?: string;
+    "testament": string;
+}
+
+/**
+ * BrowsePassageRequest addresses a whole chapter or a verse range inside one.
+ */
+export interface BrowsePassageRequest {
+    "translationId": string;
+    "bookId": number;
+    "chapter": number;
+    "verseStart": number;
+    "verseEnd": number;
 }
 
 export interface DisplayView {

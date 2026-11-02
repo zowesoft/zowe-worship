@@ -40,6 +40,14 @@ export function BackupNow(): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(666389681);
 }
 
+/**
+ * BrowsePassage fetches a chapter (or verse range) from the given translation.
+ * When VerseStart is 0 the whole chapter is returned.
+ */
+export function BrowsePassage(req: $models.BrowsePassageRequest): $CancellablePromise<$models.BibleSearchResponse> {
+    return $Call.ByID(1549292557, req);
+}
+
 export function ClearLive(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2483162096);
 }
@@ -123,6 +131,14 @@ export function GetStorage(): $CancellablePromise<$models.StorageView> {
  */
 export function ImportMedia(paths: string[] | null): $CancellablePromise<$models.MediaImportResult> {
     return $Call.ByID(3099520704, paths);
+}
+
+/**
+ * ListBooks returns all 66 canonical books, ordered by canonical position.
+ * The result is static and does not depend on any installed translation.
+ */
+export function ListBooks(): $CancellablePromise<$models.BibleBookView[] | null> {
+    return $Call.ByID(635303021);
 }
 
 export function ListMedia(): $CancellablePromise<$models.MediaView[] | null> {

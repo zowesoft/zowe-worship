@@ -215,3 +215,57 @@
   .bible-result { padding-right: 4px; padding-left: 4px; }
   .bible-result-main { grid-template-columns: 72px 30px minmax(0, 1fr); padding-left: 2px; }
 }
+
+/* ── Snippet highlights ──────────────────────────────────────────────────────── */
+.bible-text mark {
+  background: transparent;
+  color: var(--color-blue, #5B88FF);
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ── Filter grow modifier ────────────────────────────────────────────────────── */
+.bible-filter--grow { flex: 1; min-width: 0; }
+
+/* ── Load more button area ───────────────────────────────────────────────────── */
+.bible-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+}
+.bible-load-more .button {
+  min-width: 160px;
+  font-size: 11px;
+}
+
+/* ── Browse tab ──────────────────────────────────────────────────────────────── */
+.bible-browse { display: grid; gap: 12px; }
+.bible-browse-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-app);
+}
+.bible-browse-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* verse-number column in Browse mode */
+.bible-results--chapter .bible-result-main {
+  grid-template-columns: 28px 36px minmax(0, 1fr);
+}
+.bible-verse-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}

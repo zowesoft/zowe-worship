@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -229,20 +230,44 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 		limit = maxSearchLimit
 	}
 
-	rows, err := packageDB.QueryContext(ctx, `
-		SELECT b.id, b.name, b.abbreviation, b.testament, v.chapter, v.verse, v.text
+	// Build optional WHERE clauses for book/testament filters.
+	where := []string{"verses_fts MATCH ?"}
+	args := []any{match}
+
+	if req.Testament != "" {
+		where = append(where, "b.testament = ?")
+		args = append(args, string(req.Testament))
+	}
+	if len(req.BookIDs) > 0 {
+		placeholders := make([]string, len(req.BookIDs))
+		for i, id := range req.BookIDs {
+			placeholders[i] = strconv.Itoa(id)
+		}
+		where = append(where, "b.id IN ("+strings.Join(placeholders, ",")+")")
+	}
+
+	offset := req.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	args = append(args, limit, offset)
+
+	q := `SELECT b.id, b.name, b.abbreviation, b.testament, v.chapter, v.verse, v.text,
+		snippet(verses_fts, 0, '<mark>', '</mark>', '…', 12)
 		FROM verses_fts
 		JOIN verses v ON v.id = verses_fts.rowid
 		JOIN books b ON b.id = v.book_id
-		WHERE verses_fts MATCH ?
+		WHERE ` + strings.Join(where, " AND ") + `
 		ORDER BY bm25(verses_fts), b.id, v.chapter, v.verse
-		LIMIT ?`, match, limit)
+		LIMIT ? OFFSET ?`
+
+	rows, err := packageDB.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search %s: %w", req.TranslationID, err)
 	}
 	defer rows.Close()
 
-	return scanSearchResults(rows)
+	return scanSearchResultsWithSnippet(rows)
 }
 
 // Passage returns a chapter, or a verse range inside it, in verse order.
@@ -323,6 +348,26 @@ func scanSearchResults(rows *sql.Rows) ([]SearchResult, error) {
 		if err := rows.Scan(
 			&result.Book.ID, &result.Book.Name, &result.Book.Abbreviation, &testament,
 			&result.Chapter, &result.Verse, &result.Text,
+		); err != nil {
+			return nil, fmt.Errorf("read verse: %w", err)
+		}
+		result.Book.Testament = Testament(testament)
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read verses: %w", err)
+	}
+	return results, nil
+}
+
+func scanSearchResultsWithSnippet(rows *sql.Rows) ([]SearchResult, error) {
+	var results []SearchResult
+	for rows.Next() {
+		var result SearchResult
+		var testament string
+		if err := rows.Scan(
+			&result.Book.ID, &result.Book.Name, &result.Book.Abbreviation, &testament,
+			&result.Chapter, &result.Verse, &result.Text, &result.Snippet,
 		); err != nil {
 			return nil, fmt.Errorf("read verse: %w", err)
 		}

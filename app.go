@@ -62,12 +62,27 @@ type BibleSearchRequest struct {
 	Query         string `json:"query"`
 	Mode          string `json:"mode"`
 	Limit         int    `json:"limit"`
+	Offset        int    `json:"offset"`
+	// Optional filters: empty string / nil means no filter.
+	Testament string `json:"testament"`
+	BookIDs   []int  `json:"bookIds"`
 }
 
 type BibleSearchResponse struct {
 	Kind      string       `json:"kind"`
 	Reference string       `json:"reference,omitempty"`
 	Results   []BibleVerse `json:"results"`
+	Total     int          `json:"total"`
+}
+
+// BibleBookView is a lightweight description of one canonical book exposed to
+// the frontend for filter dropdowns and the passage browser.
+type BibleBookView struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	Abbreviation string `json:"abbreviation"`
+	Testament    string `json:"testament"`
+	Chapters     int    `json:"chapters"`
 }
 
 type BibleVerse struct {
@@ -77,6 +92,8 @@ type BibleVerse struct {
 	Verse     int    `json:"verse"`
 	Reference string `json:"reference"`
 	Text      string `json:"text"`
+	Snippet   string `json:"snippet,omitempty"`
+	Testament string `json:"testament"`
 }
 
 func NewApp() *App {
@@ -123,7 +140,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.media = media.NewLibrary(media.NewSQLiteRepository(core), paths.Media(), paths.MediaThumbnails())
 	a.themes = themes.NewSQLiteRepository(core)
 	a.settings = settings.New(core)
-	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media)
+	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
 	return nil
 }
 
@@ -177,6 +194,54 @@ func (a *App) ListTranslations() ([]TranslationView, error) {
 	return views, nil
 }
 
+// ListBooks returns all 66 canonical books, ordered by canonical position.
+// The result is static and does not depend on any installed translation.
+func (a *App) ListBooks() []BibleBookView {
+	books := bible.CanonicalBooks
+	views := make([]BibleBookView, 0, len(books))
+	for _, b := range books {
+		views = append(views, BibleBookView{
+			ID:           b.ID,
+			Name:         b.Name,
+			Abbreviation: b.Abbreviation,
+			Testament:    string(b.Testament),
+			Chapters:     b.Chapters,
+		})
+	}
+	return views
+}
+
+// BrowsePassageRequest addresses a whole chapter or a verse range inside one.
+type BrowsePassageRequest struct {
+	TranslationID string `json:"translationId"`
+	BookID        int    `json:"bookId"`
+	Chapter       int    `json:"chapter"`
+	VerseStart    int    `json:"verseStart"`
+	VerseEnd      int    `json:"verseEnd"`
+}
+
+// BrowsePassage fetches a chapter (or verse range) from the given translation.
+// When VerseStart is 0 the whole chapter is returned.
+func (a *App) BrowsePassage(req BrowsePassageRequest) (BibleSearchResponse, error) {
+	if a.bible == nil {
+		return BibleSearchResponse{}, errStorageUnavailable
+	}
+	translationID := strings.TrimSpace(req.TranslationID)
+	if translationID == "" {
+		return BibleSearchResponse{}, errors.New("translation is required")
+	}
+	verses, err := a.bible.Passage(a.context(), translationID, req.BookID, req.Chapter, req.VerseStart, req.VerseEnd)
+	if err != nil {
+		return BibleSearchResponse{}, err
+	}
+	views := toBibleVerses(verses)
+	return BibleSearchResponse{
+		Kind:    "passage",
+		Results: views,
+		Total:   len(views),
+	}, nil
+}
+
 func (a *App) SearchBible(request BibleSearchRequest) (BibleSearchResponse, error) {
 	if a.bible == nil {
 		return BibleSearchResponse{}, errStorageUnavailable
@@ -210,10 +275,12 @@ func (a *App) SearchBible(request BibleSearchRequest) (BibleSearchResponse, erro
 			if len(verses) == 0 {
 				return BibleSearchResponse{}, fmt.Errorf("%s was not found in %s", reference.String(), translationID)
 			}
+			views := toBibleVerses(verses)
 			return BibleSearchResponse{
 				Kind:      "reference",
 				Reference: reference.String(),
-				Results:   toBibleVerses(verses),
+				Results:   views,
+				Total:     len(views),
 			}, nil
 		case errors.Is(err, scripture.ErrNotReference):
 			mode = "words"
@@ -239,11 +306,15 @@ func (a *App) SearchBible(request BibleSearchRequest) (BibleSearchResponse, erro
 		Text:          query,
 		Mode:          searchMode,
 		Limit:         request.Limit,
+		Offset:        request.Offset,
+		Testament:     bible.Testament(request.Testament),
+		BookIDs:       request.BookIDs,
 	})
 	if err != nil {
 		return BibleSearchResponse{}, err
 	}
-	return BibleSearchResponse{Kind: "text", Results: toBibleVerses(results)}, nil
+	views := toBibleVerses(results)
+	return BibleSearchResponse{Kind: "text", Results: views, Total: len(views)}, nil
 }
 
 func (a *App) context() context.Context {
@@ -263,6 +334,8 @@ func toBibleVerses(results []bible.SearchResult) []BibleVerse {
 			Verse:     result.Verse,
 			Reference: result.Reference(),
 			Text:      result.Text,
+			Snippet:   result.Snippet,
+			Testament: string(result.Book.Testament),
 		})
 	}
 	return verses

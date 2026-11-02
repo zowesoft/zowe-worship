@@ -269,6 +269,98 @@ func TestSearchBibleValidation(t *testing.T) {
 	}
 }
 
+func TestListBooks(t *testing.T) {
+	app := newTestApp(t)
+	books := app.ListBooks()
+	if len(books) != 66 {
+		t.Fatalf("books count = %d, want 66", len(books))
+	}
+	if books[0].Name != "Genesis" || books[0].Chapters != 50 || books[0].Testament != "old" {
+		t.Fatalf("first book = %+v, want Genesis", books[0])
+	}
+	if books[65].Name != "Revelation" || books[65].Chapters != 22 || books[65].Testament != "new" {
+		t.Fatalf("last book = %+v, want Revelation", books[65])
+	}
+}
+
+func TestBrowsePassage(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	// Whole chapter
+	resp, err := app.BrowsePassage(BrowsePassageRequest{
+		TranslationID: "kjv",
+		BookID:        19,
+		Chapter:       23,
+	})
+	if err != nil {
+		t.Fatalf("browse passage: %v", err)
+	}
+	if resp.Kind != "passage" || resp.Total != 2 || len(resp.Results) != 2 {
+		t.Fatalf("browse response = %+v, want 2 verses", resp)
+	}
+	if resp.Results[0].Reference != "Psalms 23:1" || resp.Results[1].Reference != "Psalms 23:2" {
+		t.Fatalf("browse results = %+v", resp.Results)
+	}
+
+	// Verse range
+	respSingle, err := app.BrowsePassage(BrowsePassageRequest{
+		TranslationID: "kjv",
+		BookID:        19,
+		Chapter:       23,
+		VerseStart:    1,
+		VerseEnd:      1,
+	})
+	if err != nil {
+		t.Fatalf("browse single verse: %v", err)
+	}
+	if len(respSingle.Results) != 1 || respSingle.Results[0].Verse != 1 {
+		t.Fatalf("browse single verse result = %+v", respSingle.Results)
+	}
+
+	// Validation
+	if _, err := app.BrowsePassage(BrowsePassageRequest{BookID: 19, Chapter: 23}); err == nil {
+		t.Fatal("browse passage without translation must fail")
+	}
+}
+
+func TestSearchBibleFiltersAndSnippets(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	// Full text search with old testament filter should find Psalm 23:1
+	resp, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv",
+		Query:         "shepherd",
+		Mode:          "words",
+		Testament:     "old",
+		BookIDs:       []int{19},
+	})
+	if err != nil {
+		t.Fatalf("search with filters: %v", err)
+	}
+	if len(resp.Results) != 1 || resp.Results[0].Reference != "Psalms 23:1" {
+		t.Fatalf("unexpected filtered search results: %+v", resp.Results)
+	}
+	if !strings.Contains(resp.Results[0].Snippet, "<mark>") {
+		t.Fatalf("expected snippet to contain <mark>, got %q", resp.Results[0].Snippet)
+	}
+
+	// Filter with new testament should yield 0 results for "shepherd"
+	respEmpty, err := app.SearchBible(BibleSearchRequest{
+		TranslationID: "kjv",
+		Query:         "shepherd",
+		Mode:          "words",
+		Testament:     "new",
+	})
+	if err != nil {
+		t.Fatalf("search new testament: %v", err)
+	}
+	if len(respEmpty.Results) != 0 {
+		t.Fatalf("expected 0 results, got %+v", respEmpty.Results)
+	}
+}
+
 func TestServiceOrderAndPresentationFlow(t *testing.T) {
 	app := newTestApp(t)
 	installTestBible(t, app)

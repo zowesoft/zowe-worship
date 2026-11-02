@@ -9,9 +9,11 @@ export {
 export type {
     AppInfo,
     BackupView,
+    BibleBookView,
     BibleSearchRequest,
     BibleSearchResponse,
     BibleVerse,
+    BrowsePassageRequest,
     DisplayView,
     EditSongRequest,
     EditorView,

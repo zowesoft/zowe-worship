@@ -54,6 +54,10 @@ type SearchRequest struct {
 	Text          string
 	Mode          SearchMode
 	Limit         int
+	Offset        int
+	// Optional filters — zero value means "no filter"
+	Testament Testament
+	BookIDs   []int
 }
 
 type SearchResult struct {
@@ -61,6 +65,9 @@ type SearchResult struct {
 	Chapter int
 	Verse   int
 	Text    string
+	// Snippet is an HTML-safe excerpt with <mark> tags around matched terms.
+	// It is populated only for full-text search results (not passage lookups).
+	Snippet string
 }
 
 func (r SearchResult) Reference() string {
