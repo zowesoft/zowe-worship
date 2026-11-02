@@ -90,6 +90,172 @@
 .service-order-status--error { color: var(--color-error); }
 .service-order-note { padding-top: 10px; border-top: 1px solid var(--color-border); color: var(--color-secondary); font-size: 10px; }
 
+.service-order-title-row { display: flex; align-items: center; gap: 8px; }
+.item-duration-tag {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(71, 120, 255, 0.12);
+  color: #8EB4FF;
+  border: 1px solid rgba(71, 120, 255, 0.25);
+}
+
+.service-order-meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.item-notes-text { color: #A0B2C6; font-size: 9.5px; font-style: italic; }
+
+.service-order-item--completed { opacity: 0.75; }
+
+.status-pill--done {
+  border-color: #204539;
+  background: #112620;
+  color: #5EEAD4;
+  gap: 4px;
+}
+.status-pill--subtle {
+  border-color: #2A3950;
+  background: #151F2E;
+  color: #7E92AB;
+}
+.pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34D399;
+  margin-right: 5px;
+  box-shadow: 0 0 6px #34D399;
+  animation: pulse-animation 1.6s infinite ease-in-out;
+}
+@keyframes pulse-animation {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.service-order-row-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+
+/* Inline metadata editor */
+.inline-meta-editor {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #16202E;
+  border: 1px solid #2B3D55;
+  display: grid;
+  gap: 6px;
+}
+.inline-meta-inputs { display: flex; gap: 6px; }
+.inline-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #354760;
+  border-radius: 5px;
+  background: #0E1622;
+  color: var(--color-text);
+  font-size: 11px;
+}
+.inline-input:focus { border-color: var(--color-blue); outline: none; }
+.inline-input--narrow { width: 75px; flex: none; }
+.inline-meta-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* Custom slide add modal */
+.custom-item-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.custom-item-modal {
+  width: 100%;
+  max-width: 480px;
+  background: #172232;
+  border: 1px solid #2C3E56;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+.custom-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.custom-modal-header h3 { font-size: 15px; margin: 0; }
+
+.custom-modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: #0F1722;
+  border-radius: 7px;
+  border: 1px solid #243449;
+}
+.custom-modal-tab {
+  flex: 1;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-secondary);
+  font-size: 11.5px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.custom-modal-tab:hover { color: var(--color-text); }
+.custom-modal-tab--active {
+  background: #23344B;
+  color: var(--color-text);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.custom-modal-fields { display: grid; gap: 10px; }
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-secondary);
+}
+.field-label span strong.required { color: #F87171; margin-left: 2px; }
+.modal-input, .modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid #33465E;
+  border-radius: 6px;
+  background: #0F1722;
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.modal-input:focus, .modal-textarea:focus {
+  border-color: var(--color-blue);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(71, 120, 255, 0.15);
+}
+.modal-textarea { resize: vertical; min-height: 80px; }
+.field-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+}
+.custom-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 @media (max-width: 959px) {
   .service-order-body { padding: 12px; }
   .service-order-item { flex-wrap: wrap; }

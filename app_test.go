@@ -510,3 +510,135 @@ func TestSchedulePersistsAcrossRestart(t *testing.T) {
 		t.Fatalf("presentation should start clear after restart: %+v", state)
 	}
 }
+
+func TestCustomItemsAndDuplicationInApp(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	order, err := app.CreateService("Sunday Morning")
+	if err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+
+	// Add scripture
+	order, err = app.AddScriptureToService(ScriptureRequest{
+		TranslationID: "kjv", BookID: 43, Chapter: 3, VerseStart: 16,
+	})
+	if err != nil {
+		t.Fatalf("add scripture: %v", err)
+	}
+
+	// Add Text slide
+	order, err = app.AddCustomItemToService(CustomItemRequest{
+		Kind:     "text",
+		Title:    "Call to Worship",
+		Content:  "Praise the Lord, all nations!\nExtol him, all peoples!",
+		Notes:    "Leader speaks from pulpit",
+		Duration: 180,
+	})
+	if err != nil {
+		t.Fatalf("add text item: %v", err)
+	}
+
+	// Add Announcement
+	order, err = app.AddCustomItemToService(CustomItemRequest{
+		Kind:     "announcement",
+		Title:    "Fellowship Lunch",
+		Content:  "Join us in the fellowship hall after service.",
+		Duration: 60,
+	})
+	if err != nil {
+		t.Fatalf("add announcement: %v", err)
+	}
+
+	// Add Blank divider
+	order, err = app.AddCustomItemToService(CustomItemRequest{
+		Kind:  "blank",
+		Title: "Silent Reflection",
+	})
+	if err != nil {
+		t.Fatalf("add blank divider: %v", err)
+	}
+
+	if len(order.Items) != 4 {
+		t.Fatalf("expected 4 items, got %d", len(order.Items))
+	}
+
+	// Verify all items start with upcoming status
+	for _, item := range order.Items {
+		if item.Status != "upcoming" {
+			t.Fatalf("item %s status = %q, want upcoming", item.Title, item.Status)
+		}
+	}
+
+	// Preview item 1 (John 3:16)
+	_, err = app.PreviewServiceItem(order.Items[0].ID)
+	if err != nil {
+		t.Fatalf("preview item 0: %v", err)
+	}
+	order, _ = app.GetServiceOrder()
+	if order.Items[0].Status != "next" {
+		t.Fatalf("previewed item status = %q, want next", order.Items[0].Status)
+	}
+
+	// Send item 1 Live
+	_, err = app.SendPreviewLive()
+	if err != nil {
+		t.Fatalf("send live: %v", err)
+	}
+
+	// Preview item 2
+	_, err = app.PreviewServiceItem(order.Items[1].ID)
+	if err != nil {
+		t.Fatalf("preview item 1: %v", err)
+	}
+
+	order, _ = app.GetServiceOrder()
+	if order.Items[0].Status != "live" {
+		t.Fatalf("item 0 status = %q, want live", order.Items[0].Status)
+	}
+	if order.Items[1].Status != "next" {
+		t.Fatalf("item 1 status = %q, want next", order.Items[1].Status)
+	}
+	if order.Items[2].Status != "upcoming" || order.Items[3].Status != "upcoming" {
+		t.Fatalf("items 2 & 3 should be upcoming")
+	}
+
+	// Send item 1 (preview) live
+	_, err = app.SendPreviewLive()
+	if err != nil {
+		t.Fatalf("send preview live: %v", err)
+	}
+
+	order, _ = app.GetServiceOrder()
+	if order.Items[0].Status != "completed" {
+		t.Fatalf("item 0 status = %q, want completed", order.Items[0].Status)
+	}
+	if order.Items[1].Status != "live" {
+		t.Fatalf("item 1 status = %q, want live", order.Items[1].Status)
+	}
+
+	// Duplicate Service
+	duplicated, err := app.DuplicateService(order.Service.ID, "Sunday Evening")
+	if err != nil {
+		t.Fatalf("duplicate service: %v", err)
+	}
+	if duplicated.Service.Name != "Sunday Evening" {
+		t.Fatalf("duplicated service name = %q", duplicated.Service.Name)
+	}
+	if len(duplicated.Items) != 4 {
+		t.Fatalf("duplicated items count = %d, want 4", len(duplicated.Items))
+	}
+	if duplicated.Items[1].Title != "Call to Worship" || duplicated.Items[1].Content == "" {
+		t.Fatalf("duplicated text item content missing: %+v", duplicated.Items[1])
+	}
+
+	// Update metadata
+	updated, err := app.UpdateServiceItemMeta(duplicated.Items[1].ID, "Pianist plays prelude", 240)
+	if err != nil {
+		t.Fatalf("update item meta: %v", err)
+	}
+	if updated.Items[1].Notes != "Pianist plays prelude" || updated.Items[1].Duration != 240 {
+		t.Fatalf("meta not updated: %+v", updated.Items[1])
+	}
+}

@@ -12,7 +12,7 @@ import (
 )
 
 const itemColumns = `id, service_id, position, kind, title, translation_id, book_id, chapter,
-	verse_start, verse_end, song_id, section_id, media_id, theme_id, created_at`
+	verse_start, verse_end, song_id, section_id, media_id, theme_id, content, notes, duration, created_at`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -178,6 +178,38 @@ func (r *SQLiteRepository) Create(ctx context.Context, name string) (Service, er
 	return Service{ID: id, Name: name, CreatedAt: now, UpdatedAt: now}, nil
 }
 
+func (r *SQLiteRepository) Duplicate(ctx context.Context, serviceID, newName string) (Service, error) {
+	source, err := r.serviceByID(ctx, serviceID)
+	if err != nil {
+		return Service{}, err
+	}
+
+	name := strings.TrimSpace(newName)
+	if name == "" {
+		name = fmt.Sprintf("%s (Copy)", source.Name)
+	}
+
+	target, err := r.Create(ctx, name)
+	if err != nil {
+		return Service{}, err
+	}
+
+	items, err := r.Items(ctx, serviceID)
+	if err != nil {
+		return target, err
+	}
+
+	for _, it := range items {
+		it.ServiceID = target.ID
+		if _, err := r.addItem(ctx, target.ID, it); err != nil {
+			return target, fmt.Errorf("duplicate item %s: %w", it.Title, err)
+		}
+	}
+
+	_ = r.setCurrent(ctx, target.ID)
+	return target, nil
+}
+
 func (r *SQLiteRepository) AddScripture(ctx context.Context, serviceID string, input ScriptureInput) (Item, error) {
 	if err := input.validate(); err != nil {
 		return Item{}, err
@@ -216,6 +248,37 @@ func (r *SQLiteRepository) AddMedia(ctx context.Context, serviceID string, input
 	})
 }
 
+func (r *SQLiteRepository) AddCustomItem(ctx context.Context, serviceID string, input CustomItemInput) (Item, error) {
+	if err := input.validate(); err != nil {
+		return Item{}, err
+	}
+	return r.addItem(ctx, serviceID, Item{
+		Kind:     input.Kind,
+		Title:    strings.TrimSpace(input.Title),
+		Content:  strings.TrimSpace(input.Content),
+		Notes:    strings.TrimSpace(input.Notes),
+		Duration: input.Duration,
+	})
+}
+
+func (r *SQLiteRepository) UpdateItemMeta(ctx context.Context, itemID, notes string, duration int) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE service_items SET notes = ?, duration = ? WHERE id = ?`,
+		strings.TrimSpace(notes), duration, strings.TrimSpace(itemID),
+	)
+	if err != nil {
+		return fmt.Errorf("update service item meta: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update service item meta: %w", err)
+	}
+	if changed == 0 {
+		return ErrItemNotFound
+	}
+	return nil
+}
+
 func (r *SQLiteRepository) addItem(ctx context.Context, serviceID string, item Item) (Item, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -249,11 +312,12 @@ func (r *SQLiteRepository) addItem(ctx context.Context, serviceID string, item I
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO service_items
 			(id, service_id, position, kind, title, translation_id, book_id, chapter,
-			 verse_start, verse_end, song_id, section_id, media_id, theme_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 verse_start, verse_end, song_id, section_id, media_id, theme_id,
+			 content, notes, duration, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, serviceID, position, item.Kind, item.Title, item.TranslationID,
 		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd, item.SongID, item.SectionID,
-		item.MediaID, item.ThemeID, now.Format(time.RFC3339),
+		item.MediaID, item.ThemeID, item.Content, item.Notes, item.Duration, now.Format(time.RFC3339),
 	); err != nil {
 		_ = tx.Rollback()
 		return Item{}, fmt.Errorf("add service item: %w", err)
@@ -466,7 +530,7 @@ func scanItem(row interface{ Scan(...any) error }) (Item, error) {
 	if err := row.Scan(
 		&item.ID, &item.ServiceID, &item.Position, &kind, &item.Title, &item.TranslationID,
 		&item.BookID, &item.Chapter, &item.VerseStart, &item.VerseEnd, &item.SongID, &item.SectionID,
-		&item.MediaID, &item.ThemeID, &createdAt,
+		&item.MediaID, &item.ThemeID, &item.Content, &item.Notes, &item.Duration, &createdAt,
 	); err != nil {
 		return Item{}, err
 	}

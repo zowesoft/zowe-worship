@@ -79,6 +79,17 @@ export interface BrowsePassageRequest {
     "verseEnd": number;
 }
 
+export interface CustomItemRequest {
+    /**
+     * "text", "announcement", "blank"
+     */
+    "kind": string;
+    "title": string;
+    "content": string;
+    "notes": string;
+    "duration": number;
+}
+
 export interface DisplayView {
     "open": boolean;
     "screenId": string;
@@ -183,6 +194,14 @@ export interface ServiceItemView {
     "sectionId": string;
     "mediaId": string;
     "themeId": string;
+    "content": string;
+    "notes": string;
+    "duration": number;
+
+    /**
+     * "completed" | "live" | "next" | "upcoming"
+     */
+    "status": string;
 }
 
 export interface ServiceOrderView {

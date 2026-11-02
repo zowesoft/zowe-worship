@@ -40,7 +40,10 @@ function useClock() {
 function itemSubtitle(item: models.ServiceItemView): string {
   if (item.kind === 'media') return 'Media';
   if (item.kind === 'song') return 'Song';
-  return item.translationId.toUpperCase();
+  if (item.kind === 'text') return 'Text Slide';
+  if (item.kind === 'announcement') return 'Announcement';
+  if (item.kind === 'blank') return 'Blank Divider';
+  return item.translationId ? `${item.translationId.toUpperCase()} · Scripture` : 'Scripture';
 }
 
 function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void }) {
@@ -138,8 +141,15 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
                         <strong>{item.title}</strong>
                         <span>{itemSubtitle(item)}</span>
                       </span>
-                      {isLive && <span className="status-pill status-pill--on">Live</span>}
-                      {!isLive && isPreview && <span className="status-pill status-pill--warn">Preview</span>}
+                      {item.status === 'live' ? (
+                        <span className="status-pill status-pill--on">Live</span>
+                      ) : item.status === 'next' ? (
+                        <span className="status-pill status-pill--warn">Next</span>
+                      ) : item.status === 'completed' ? (
+                        <span className="status-pill status-pill--muted">Done</span>
+                      ) : (
+                        <span className="status-pill status-pill--subtle">Ready</span>
+                      )}
                     </button>
                   </li>
                 );

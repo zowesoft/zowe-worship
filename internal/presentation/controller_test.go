@@ -479,3 +479,52 @@ func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
 		t.Fatalf("live output restyled itself mid-service: %+v", updated.Live.Theme)
 	}
 }
+
+func TestCustomSlideKinds(t *testing.T) {
+	ctx := context.Background()
+	schedule := &fakeSchedule{
+		service: serviceorder.Service{ID: "svc"},
+		items: []serviceorder.Item{
+			{ID: "txt", ServiceID: "svc", Position: 1, Kind: serviceorder.KindText, Title: "Welcome", Content: "Line 1\nLine 2"},
+			{ID: "ann", ServiceID: "svc", Position: 2, Kind: serviceorder.KindAnnouncement, Title: "Meeting", Content: "6 PM in the Hall"},
+			{ID: "blk", ServiceID: "svc", Position: 3, Kind: serviceorder.KindBlank, Title: "Pause"},
+		},
+	}
+	controller := New(&fakeScripture{}, schedule, nil, nil, bright())
+
+	// Text slide
+	state, err := controller.PreviewItem(ctx, "txt")
+	if err != nil {
+		t.Fatalf("preview text: %v", err)
+	}
+	if state.Preview.Kind != "text" || len(state.Preview.Lines) != 2 || state.Preview.Lines[0] != "Line 1" {
+		t.Fatalf("unexpected text slide: %+v", state.Preview)
+	}
+
+	// Announcement slide
+	state, err = controller.PreviewItem(ctx, "ann")
+	if err != nil {
+		t.Fatalf("preview announcement: %v", err)
+	}
+	if state.Preview.Kind != "announcement" || len(state.Preview.Lines) != 1 || state.Preview.Label != "Meeting" {
+		t.Fatalf("unexpected announcement slide: %+v", state.Preview)
+	}
+
+	// Blank slide
+	state, err = controller.PreviewItem(ctx, "blk")
+	if err != nil {
+		t.Fatalf("preview blank: %v", err)
+	}
+	if state.Preview.Kind != "blank" || len(state.Preview.Lines) != 0 {
+		t.Fatalf("unexpected blank slide: %+v", state.Preview)
+	}
+
+	// Send live
+	liveState, err := controller.ProjectPreview()
+	if err != nil {
+		t.Fatalf("send live blank: %v", err)
+	}
+	if liveState.Live == nil || liveState.Live.Kind != "blank" {
+		t.Fatalf("live blank failed: %+v", liveState.Live)
+	}
+}

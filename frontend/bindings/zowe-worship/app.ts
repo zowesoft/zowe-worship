@@ -16,6 +16,10 @@ import * as themes$0 from "./internal/themes/models.js";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+export function AddCustomItemToService(request: $models.CustomItemRequest): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(1942981528, request);
+}
+
 /**
  * AddMediaToService puts a library asset into the running order. The item keeps
  * a reference rather than a second copy, so one file can serve two services.
@@ -82,6 +86,10 @@ export function DeleteSong(songID: string): $CancellablePromise<$models.SongsVie
 
 export function DeleteTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
     return $Call.ByID(3148838931, id);
+}
+
+export function DuplicateService(serviceID: string, newName: string): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(472481605, serviceID, newName);
 }
 
 /**
@@ -366,6 +374,10 @@ export function SetSetting(key: string, value: string): $CancellablePromise<void
 
 export function ThemeFonts(): $CancellablePromise<themes$0.FontFamily[] | null> {
     return $Call.ByID(3681971160);
+}
+
+export function UpdateServiceItemMeta(itemID: string, notes: string, duration: number): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(229381405, itemID, notes, duration);
 }
 
 /**

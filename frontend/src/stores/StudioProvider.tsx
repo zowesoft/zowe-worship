@@ -44,9 +44,12 @@ type StudioValue = {
   mediaControl: (action: 'play' | 'pause' | 'restart') => Promise<void>;
   refreshSongs: (query?: string) => Promise<void>;
   createService: (name: string) => Promise<models.ServiceOrderView>;
+  duplicateService: (serviceID: string, newName: string) => Promise<models.ServiceOrderView>;
   useService: (serviceID: string) => Promise<models.ServiceOrderView>;
   renameService: (serviceID: string, name: string) => Promise<models.ServiceOrderView>;
   addScripture: (input: ScriptureInput) => Promise<models.ServiceOrderView>;
+  addCustomItem: (req: models.CustomItemRequest) => Promise<models.ServiceOrderView>;
+  updateItemMeta: (itemID: string, notes: string, duration: number) => Promise<models.ServiceOrderView>;
   removeItem: (itemID: string) => Promise<models.ServiceOrderView>;
   reorderItems: (itemIDs: string[]) => Promise<models.ServiceOrderView>;
   setItemTheme: (itemID: string, themeID: string) => Promise<models.ServiceOrderView>;
@@ -212,9 +215,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       await run(() => App.ListSongs(query), setSongs);
     },
     createService: (name) => run(() => orderWithList(() => App.CreateService(name)), setOrder),
+    duplicateService: (serviceID, newName) => run(() => orderWithList(() => App.DuplicateService(serviceID, newName)), setOrder),
     useService: (serviceID) => run(() => orderWithList(() => App.UseService(serviceID)), setOrder),
     renameService: (serviceID, name) => run(() => orderWithList(() => App.RenameService(serviceID, name)), setOrder),
     addScripture: (input) => run(() => App.AddScriptureToService(toRequest(input)), setOrder),
+    addCustomItem: (req) => run(() => App.AddCustomItemToService(req), setOrder),
+    updateItemMeta: (itemID, notes, duration) => run(() => App.UpdateServiceItemMeta(itemID, notes, duration), setOrder),
     removeItem: (itemID) => run(() => App.RemoveServiceItem(itemID), setOrder),
     reorderItems: (itemIDs) => run(() => App.ReorderServiceItems(itemIDs), setOrder),
     setItemTheme: (itemID, themeID) => run(() => App.SetItemTheme(itemID, themeID), setOrder),
