@@ -22,7 +22,10 @@ export type IconName =
   | 'mic'
   | 'bell'
   | 'user'
-  | 'grip';
+  | 'grip'
+  | 'play'
+  | 'pause'
+  | 'restart';
 
 const paths: Record<IconName, ReactNode> = {
   order: <><path d="M9 5h12M9 12h12M9 19h12" /><path d="M3 5h1M3 12h1M3 19h1" /></>,
@@ -47,6 +50,9 @@ const paths: Record<IconName, ReactNode> = {
   bell: <><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M10 21h4" /></>,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" /></>,
   grip: <path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" />,
+  play: <path d="M8 5v14l11-7Z" />,
+  pause: <path d="M9 5v14M15 5v14" />,
+  restart: <><path d="M20 12a8 8 0 1 1-2.6-5.9" /><path d="M20 4v5h-5" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: IconName; size?: number; className?: string }) {

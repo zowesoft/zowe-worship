@@ -18,6 +18,11 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Zowe Worship",
 		Description: "Scripture-first worship presentation",
+		Windows: application.WindowsOptions{
+			// The audience display is never clicked, so Chromium's autoplay rule
+			// would refuse to start a projected clip with sound.
+			AdditionalBrowserArgs: []string{"--autoplay-policy=no-user-gesture-required"},
+		},
 		Services: []application.Service{
 			application.NewService(studio),
 		},

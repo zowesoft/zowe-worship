@@ -9,6 +9,16 @@ import type {} from "../github.com/wailsapp/wails/v3/internal/eventdata.js";
 import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 
 /**
+ * Name of the custom event "media-control".
+ */
+export const MediaControl = "media-control";
+
+/**
+ * Name of the custom event "media-ended".
+ */
+export const MediaEnded = "media-ended";
+
+/**
  * Name of the custom event "presentation".
  */
 export const Presentation = "presentation";

@@ -39,6 +39,7 @@ type StudioValue = {
   openDisplay: (screenID: string) => Promise<models.DisplayView>;
   closeDisplay: () => Promise<models.DisplayView>;
   openSettings: () => Promise<models.EditorView>;
+  mediaControl: (action: 'play' | 'pause' | 'restart') => Promise<void>;
   refreshSongs: (query?: string) => Promise<void>;
   createService: (name: string) => Promise<models.ServiceOrderView>;
   useService: (serviceID: string) => Promise<models.ServiceOrderView>;
@@ -199,6 +200,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     openDisplay: (screenID) => run(() => App.OpenAudienceDisplay(screenID), setDisplay),
     closeDisplay: () => run(() => App.CloseAudienceDisplay(), setDisplay),
     openSettings: () => run(() => App.OpenSettings()),
+    mediaControl: (action) => run(() => App.MediaControl(action)),
     refreshSongs: async (query = '') => {
       await run(() => App.ListSongs(query), setSongs);
     },

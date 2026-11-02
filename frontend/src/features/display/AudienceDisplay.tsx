@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { SlideMedia } from '../../components/SlideMedia';
 import { App } from '../../../bindings/zowe-worship';
@@ -9,6 +9,7 @@ import './audience.css';
 export function AudienceDisplay() {
   const [state, setState] = useState<PresentationView | null>(null);
   const [shown, setShown] = useState<Content | null>(null);
+  const mediaRef = useRef<HTMLMediaElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -30,6 +31,22 @@ export function AudienceDisplay() {
       cancel();
     };
   }, []);
+
+  // The studio sends transport commands here, because this window holds the only
+  // element that is actually playing.
+  useEffect(() => Events.On('media-control', (event) => {
+    const element = mediaRef.current;
+    if (!element) return;
+
+    if (event.data === 'pause') {
+      element.pause();
+      return;
+    }
+    if (event.data === 'restart') element.currentTime = 0;
+    element.play().catch(() => {
+      // A clip that refuses to start stays put; the operator sees it on screen.
+    });
+  }), []);
 
   useEffect(() => {
     const next = state?.live ?? null;
@@ -61,7 +78,7 @@ export function AudienceDisplay() {
         : 'audience';
     return (
       <main className={frame} aria-label="Audience display">
-        <SlideMedia content={shown} player />
+        <SlideMedia content={shown} player mediaRef={mediaRef} onEnded={() => void App.MediaEnded()} />
       </main>
     );
   }

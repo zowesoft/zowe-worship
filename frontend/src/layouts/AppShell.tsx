@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+import { Events } from '@wailsio/runtime';
 import { BackendStatus } from '../components/BackendStatus';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
@@ -378,6 +379,25 @@ function PresentationPanes() {
   const preview = studio.presentation?.preview ?? null;
   const live = studio.presentation?.live ?? null;
   const scheduleCount = studio.order?.items?.length ?? 0;
+  const liveIsMedia = live?.kind === 'video' || live?.kind === 'audio';
+  const [playing, setPlaying] = useState(true);
+
+  // Sending anything new starts a clip from the beginning, so the button goes
+  // back to Pause without waiting to be told.
+  useEffect(() => {
+    setPlaying(true);
+  }, [live?.source]);
+
+  useEffect(() => Events.On('media-ended', () => setPlaying(false)), []);
+
+  async function control(action: 'play' | 'pause' | 'restart') {
+    try {
+      await studio.mediaControl(action);
+      setPlaying(action !== 'pause');
+    } catch {
+      // Reported through the studio error area.
+    }
+  }
 
   async function sendLive() {
     try {
@@ -468,6 +488,28 @@ function PresentationPanes() {
             {scheduleCount > 0 ? `${scheduleCount} ${scheduleCount === 1 ? 'item' : 'items'} in the schedule.` : 'No service order is running.'}
           </div>
           <div className="pane-buttons">
+            {liveIsMedia && (
+              <>
+                <button
+                  type="button"
+                  className="icon-button icon-button--small"
+                  onClick={() => void control(playing ? 'pause' : 'play')}
+                  aria-label={playing ? 'Pause the clip' : 'Play the clip'}
+                  title={playing ? 'Pause' : 'Play'}
+                >
+                  <Icon name={playing ? 'pause' : 'play'} size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button icon-button--small"
+                  onClick={() => void control('restart')}
+                  aria-label="Restart the clip"
+                  title="Restart from the beginning"
+                >
+                  <Icon name="restart" size={14} />
+                </button>
+              </>
+            )}
             <button type="button" className="icon-button icon-button--small icon-button--prev" disabled={scheduleCount === 0} onClick={() => void step('previous')} aria-label="Previous schedule item" title="Previous schedule item">
               <Icon name="chevron" size={14} />
             </button>

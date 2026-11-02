@@ -128,6 +128,22 @@ export function MediaAspects(): $CancellablePromise<media$0.Aspect[] | null> {
     return $Call.ByID(1442082748);
 }
 
+/**
+ * MediaControl sends play, pause or restart to the audience display. That window
+ * is the only player, so the studio's panes never drift out of step with it.
+ */
+export function MediaControl(action: string): $CancellablePromise<void> {
+    return $Call.ByID(1547765932, action);
+}
+
+/**
+ * MediaEnded is the display's own report that a clip reached its end. The studio
+ * is told because it is the window showing the transport button.
+ */
+export function MediaEnded(): $CancellablePromise<void> {
+    return $Call.ByID(2523104073);
+}
+
 export function NextServiceItem(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(3770077700);
 }

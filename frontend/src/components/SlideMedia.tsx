@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { FittedImage, frameStyle } from './FittedImage';
 import { Icon } from './Icon';
 import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
@@ -6,6 +7,9 @@ type Props = {
   content: Content;
   /** The audience window is the player; the studio only mirrors what it shows. */
   player: boolean;
+  /** The player keeps hold of the element so transport commands can reach it. */
+  mediaRef?: RefObject<HTMLMediaElement | null>;
+  onEnded?: () => void;
 };
 
 /**
@@ -13,15 +17,21 @@ type Props = {
  * the first frame of a clip and stay quiet, so the operator is never hearing the
  * same recording twice from two elements that cannot keep step.
  */
-export function SlideMedia({ content, player }: Props) {
+export function SlideMedia({ content, player, mediaRef, onEnded }: Props) {
   const fit = content.fit === 'cover' ? 'cover' : 'contain';
   const style = frameStyle(content.aspect, content.ratio, fit);
   const source = content.source ?? '';
 
+  // A callback ref, because the element is either a video or an audio and the
+  // caller only ever needs the media half of what it got.
+  const attach = (element: HTMLVideoElement | HTMLAudioElement | null) => {
+    if (mediaRef) mediaRef.current = element;
+  };
+
   if (content.kind === 'audio') {
     return (
       <div className="slide-media slide-media--audio">
-        {player && <audio className="slide-media-sound" src={source} autoPlay />}
+        {player && <audio ref={attach} className="slide-media-sound" src={source} autoPlay onEnded={onEnded} />}
         <span className="slide-media-icon"><Icon name="music" size={30} /></span>
         <p className="slide-media-title">{content.label}</p>
         {!player && <p className="slide-media-hint">Plays on the audience display</p>}
@@ -33,6 +43,7 @@ export function SlideMedia({ content, player }: Props) {
     return (
       <div className="slide-media">
         <video
+          ref={attach}
           className="fitted-image"
           src={source}
           style={style}
@@ -40,6 +51,7 @@ export function SlideMedia({ content, player }: Props) {
           playsInline
           muted={!player}
           preload={player ? 'auto' : 'metadata'}
+          onEnded={onEnded}
         />
         {!player && <p className="slide-media-hint">Plays on the audience display</p>}
       </div>
