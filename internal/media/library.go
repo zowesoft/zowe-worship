@@ -220,6 +220,59 @@ func (l *Library) Missing(ctx context.Context) ([]Asset, error) {
 	return missing, nil
 }
 
+// Relink adopts a new copy of the file behind an asset whose library copy has
+// gone. The candidate is hashed and compared with the checksum taken at import,
+// so a similarly named but different file cannot quietly take the place a
+// service was built around.
+func (l *Library) Relink(ctx context.Context, id, sourcePath string) (Asset, error) {
+	asset, err := l.repo.ByID(ctx, id)
+	if err != nil {
+		return Asset{}, err
+	}
+
+	source := strings.TrimSpace(sourcePath)
+	if source == "" {
+		return Asset{}, ErrEmptyImport
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		return Asset{}, fmt.Errorf("read file: %w", err)
+	}
+	if info.IsDir() || info.Size() == 0 {
+		return Asset{}, ErrUnsupported
+	}
+	if info.Size() > maxAssetBytes {
+		return Asset{}, ErrTooLarge
+	}
+
+	checksum, err := checksumFile(source)
+	if err != nil {
+		return Asset{}, err
+	}
+	if checksum != asset.Checksum {
+		return Asset{}, ErrNotTheSameFile
+	}
+
+	if !l.Exists(asset) {
+		if err := copyFile(source, l.Path(asset)); err != nil {
+			return Asset{}, err
+		}
+		// The thumbnail went with the file, so draw it again rather than leave a
+		// tile blank for a picture that is back on the disk.
+		if asset.Kind == KindImage {
+			if width, height, thumbnailErr := l.writeThumbnail(asset); thumbnailErr == nil {
+				asset.Width, asset.Height, asset.HasThumbnail = width, height, true
+			}
+		}
+	}
+
+	asset.SourcePath = source
+	if err := l.repo.SetRestored(ctx, asset); err != nil {
+		return Asset{}, err
+	}
+	return asset, nil
+}
+
 func (l *Library) writeThumbnail(asset Asset) (int, int, error) {
 	source, err := decodeImage(l.Path(asset))
 	if err != nil {

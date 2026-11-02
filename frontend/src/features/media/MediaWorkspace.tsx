@@ -132,6 +132,23 @@ export function MediaWorkspace() {
     await act(() => studio.deleteMedia(item.id), `Removed ${item.title}.`);
   }
 
+  // The picker and the adopt are two calls so a cancelled dialog stays silent:
+  // only a chosen file can produce the "not the same file" report.
+  async function relink(item: MediaView) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const path = await App.PickMediaFile();
+      if (path === '') return;
+      await studio.relinkMedia(item.id, path);
+      setStatus({ kind: 'message', text: `Found ${item.title} again.` });
+    } catch (error: unknown) {
+      setStatus({ kind: 'error', text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="panel media-workspace" aria-labelledby="media-title">
       <div className="panel-heading">
@@ -201,7 +218,7 @@ export function MediaWorkspace() {
                   ].filter(Boolean).join(' ')}
                   title={projectable
                     ? `Click to preview ${item.title} · double-click to send live`
-                    : 'The library copy of this file is missing'}
+                    : 'The library copy is missing. Use Find the file to point at it again.'}
                   onClick={(event) => {
                     if (!projectable || fromActions(event) || !canAct) return;
                     void act(() => studio.previewMedia(item.id), `Previewing ${item.title}.`);
@@ -254,6 +271,19 @@ export function MediaWorkspace() {
                         }}
                       >
                         <Icon name="plus" size={13} />Add to Service
+                      </button>
+                    )}
+                    {item.missing && (
+                      <button
+                        type="button"
+                        className="button button--small"
+                        disabled={!canAct}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void relink(item);
+                        }}
+                      >
+                        <Icon name="link" size={13} />Find the file
                       </button>
                     )}
                     <button

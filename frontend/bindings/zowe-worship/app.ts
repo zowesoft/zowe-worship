@@ -183,6 +183,13 @@ export function OpenSongEditor(songID: string): $CancellablePromise<$models.Edit
 }
 
 /**
+ * PickMediaFile asks for one file, which is what putting a lost copy back needs.
+ */
+export function PickMediaFile(): $CancellablePromise<string> {
+    return $Call.ByID(467196498);
+}
+
+/**
  * PickMediaFiles opens the native picker so an operator can reach any folder
  * without learning where Zowe keeps its own copies.
  */
@@ -220,6 +227,14 @@ export function ProjectScripture(request: $models.ScriptureRequest): $Cancellabl
 
 export function ProjectSongSection(request: $models.SongSectionRequest): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2112940354, request);
+}
+
+/**
+ * RelinkMedia adopts a new copy of a file the library lost, then returns the
+ * whole grid so the tile stops saying Missing.
+ */
+export function RelinkMedia(mediaID: string, path: string): $CancellablePromise<$models.MediaView[] | null> {
+    return $Call.ByID(2207098652, mediaID, path);
 }
 
 export function RemoveServiceItem(itemID: string): $CancellablePromise<$models.ServiceOrderView> {

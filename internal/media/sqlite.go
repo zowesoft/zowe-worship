@@ -78,6 +78,26 @@ func (r *SQLiteRepository) SavePresentation(ctx context.Context, id string, pres
 	return nil
 }
 
+// SetRestored records where a relinked file was found, together with the size
+// and thumbnail this package regenerated when the copy came back.
+func (r *SQLiteRepository) SetRestored(ctx context.Context, asset Asset) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE media_assets SET source_path = ?, width = ?, height = ?, has_thumbnail = ? WHERE id = ?`,
+		asset.SourcePath, asset.Width, asset.Height, asset.HasThumbnail, asset.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("record restored media: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("record restored media: %w", err)
+	}
+	if changed == 0 {
+		return ErrAssetNotFound
+	}
+	return nil
+}
+
 func (r *SQLiteRepository) Remove(ctx context.Context, id string) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM media_assets WHERE id = ?`, id)
 	if err != nil {

@@ -211,6 +211,78 @@ func TestMissingDetectsDeletedLibraryFiles(t *testing.T) {
 	}
 }
 
+func TestRelinkPutsTheLostFileBack(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	source := t.TempDir()
+
+	original := writeTestImage(t, source, "lantern.jpg", 300, 300)
+	imported, _, err := library.Import(ctx, []string{original})
+	if err != nil || len(imported) != 1 {
+		t.Fatalf("import: %+v %v", imported, err)
+	}
+	asset := imported[0]
+
+	if err := os.Remove(library.Path(asset)); err != nil {
+		t.Fatalf("remove library copy: %v", err)
+	}
+	if err := os.Remove(library.ThumbnailPath(asset.ID)); err != nil {
+		t.Fatalf("remove library thumbnail: %v", err)
+	}
+	if _, err := library.Slide(ctx, asset.ID); !errors.Is(err, ErrFileGone) {
+		t.Fatalf("slide after the loss err = %v", err)
+	}
+
+	// A different file under the same name is refused, so a service cannot be
+	// rebuilt around the wrong picture.
+	wrong := writeTestImage(t, t.TempDir(), "lantern.jpg", 120, 90)
+	if _, err := library.Relink(ctx, asset.ID, wrong); !errors.Is(err, ErrNotTheSameFile) {
+		t.Fatalf("relink err = %v, want ErrNotTheSameFile", err)
+	}
+	if _, err := library.Relink(ctx, asset.ID, "  "); !errors.Is(err, ErrEmptyImport) {
+		t.Fatalf("empty choice err = %v", err)
+	}
+
+	// Moving the file to another folder is the case relinking exists for.
+	moved := filepath.Join(t.TempDir(), "Lantern (moved).jpg")
+	data, err := os.ReadFile(original)
+	if err != nil {
+		t.Fatalf("read original: %v", err)
+	}
+	if err := os.WriteFile(moved, data, 0o600); err != nil {
+		t.Fatalf("write moved copy: %v", err)
+	}
+
+	restored, err := library.Relink(ctx, asset.ID, moved)
+	if err != nil {
+		t.Fatalf("relink: %v", err)
+	}
+	if !library.Exists(restored) {
+		t.Fatal("the library copy did not come back")
+	}
+	if !restored.HasThumbnail {
+		t.Fatal("the thumbnail was not drawn again")
+	}
+	if _, err := os.Stat(library.ThumbnailPath(asset.ID)); err != nil {
+		t.Fatalf("thumbnail on disk: %v", err)
+	}
+
+	stored, err := library.ByID(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if stored.SourcePath != moved {
+		t.Fatalf("persisted source path = %q, want %q", stored.SourcePath, moved)
+	}
+
+	slide, err := library.Slide(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("slide after relink: %v", err)
+	}
+	if slide.Kind != string(KindImage) || slide.URL == "" {
+		t.Fatalf("slide = %+v", slide)
+	}
+}
+
 func TestDurationProbes(t *testing.T) {
 	dir := t.TempDir()
 

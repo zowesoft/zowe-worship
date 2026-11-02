@@ -35,6 +35,10 @@ type MediaImportResult struct {
 	Problems []media.ImportProblem `json:"problems"`
 }
 
+// mediaFilter is what the library accepts, kept in one place so both pickers
+// offer exactly what the importer enforces.
+const mediaFilter = "*.jpg;*.jpeg;*.png;*.gif;*.webp;*.bmp;*.mp4;*.m4v;*.mov;*.webm;*.mp3;*.m4a;*.aac;*.wav;*.ogg;*.flac"
+
 // PickMediaFiles opens the native picker so an operator can reach any folder
 // without learning where Zowe keeps its own copies.
 func (a *App) PickMediaFiles() ([]string, error) {
@@ -45,13 +49,36 @@ func (a *App) PickMediaFiles() ([]string, error) {
 
 	paths, err := desktop.Dialog.OpenFile().
 		SetTitle("Choose media to add").
-		AddFilter("Media", "*.jpg;*.jpeg;*.png;*.gif;*.webp;*.bmp;*.mp4;*.m4v;*.mov;*.webm;*.mp3;*.m4a;*.aac;*.wav;*.ogg;*.flac").
+		AddFilter("Media", mediaFilter).
 		AddFilter("All files", "*.*").
 		PromptForMultipleSelection()
 	if err != nil {
 		return nil, err
 	}
 	return paths, nil
+}
+
+// PickMediaFile asks for one file, which is what putting a lost copy back needs.
+func (a *App) PickMediaFile() (string, error) {
+	desktop := application.Get()
+	if desktop == nil {
+		return "", errNoApplication
+	}
+
+	path, err := desktop.Dialog.OpenFile().
+		SetTitle("Find the file again").
+		AddFilter("Media", mediaFilter).
+		AddFilter("All files", "*.*").
+		PromptForSingleSelection()
+	if err != nil {
+		return "", err
+	}
+	// A cancelled single-choice dialog comes back as nothing to choose, which the
+	// browser cleans to ".". Only a real path is worth handing on.
+	if path == "" || path == "." {
+		return "", nil
+	}
+	return path, nil
 }
 
 func (a *App) ListMedia() ([]MediaView, error) {
@@ -88,6 +115,20 @@ func (a *App) DeleteMedia(id string) ([]MediaView, error) {
 	ctx := a.context()
 
 	if err := a.media.Delete(ctx, strings.TrimSpace(id)); err != nil {
+		return nil, err
+	}
+	return a.mediaViews(ctx)
+}
+
+// RelinkMedia adopts a new copy of a file the library lost, then returns the
+// whole grid so the tile stops saying Missing.
+func (a *App) RelinkMedia(mediaID, path string) ([]MediaView, error) {
+	if a.media == nil {
+		return nil, errStorageUnavailable
+	}
+	ctx := a.context()
+
+	if _, err := a.media.Relink(ctx, strings.TrimSpace(mediaID), path); err != nil {
 		return nil, err
 	}
 	return a.mediaViews(ctx)

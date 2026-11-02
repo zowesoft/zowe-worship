@@ -36,6 +36,7 @@ type StudioValue = {
   projectMedia: (mediaID: string) => Promise<models.PresentationView>;
   addMediaToService: (mediaID: string) => Promise<models.ServiceOrderView>;
   deleteMedia: (id: string) => Promise<void>;
+  relinkMedia: (mediaID: string, path: string) => Promise<void>;
   openDisplay: (screenID: string) => Promise<models.DisplayView>;
   closeDisplay: () => Promise<models.DisplayView>;
   openSettings: () => Promise<models.EditorView>;
@@ -196,6 +197,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     addMediaToService: (mediaID) => run(() => App.AddMediaToService(mediaID), setOrder),
     deleteMedia: async (id) => {
       await run(() => App.DeleteMedia(id), (list) => setMedia(list ?? []));
+    },
+    relinkMedia: async (mediaID, path) => {
+      await run(() => App.RelinkMedia(mediaID, path), (list) => setMedia(list ?? []));
     },
     openDisplay: (screenID) => run(() => App.OpenAudienceDisplay(screenID), setDisplay),
     closeDisplay: () => run(() => App.CloseAudienceDisplay(), setDisplay),

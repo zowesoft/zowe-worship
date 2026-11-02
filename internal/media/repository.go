@@ -11,4 +11,5 @@ type Repository interface {
 	ByID(ctx context.Context, id string) (Asset, error)
 	ByChecksum(ctx context.Context, checksum string) (Asset, bool, error)
 	SavePresentation(ctx context.Context, id string, presentation Presentation) error
+	SetRestored(ctx context.Context, asset Asset) error
 }

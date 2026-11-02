@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	ErrEmptyImport   = errors.New("no files were chosen")
-	ErrUnsupported   = errors.New("unsupported media format")
-	ErrTooLarge      = errors.New("media file is too large")
-	ErrAssetNotFound = errors.New("media asset not found")
+	ErrEmptyImport    = errors.New("no files were chosen")
+	ErrUnsupported    = errors.New("unsupported media format")
+	ErrTooLarge       = errors.New("media file is too large")
+	ErrAssetNotFound  = errors.New("media asset not found")
+	ErrNotTheSameFile = errors.New("that file is not the one the library holds a record of")
 )
 
 type Kind string
