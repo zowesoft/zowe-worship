@@ -68,39 +68,8 @@
 .song[open] > summary::before { transform: rotate(45deg); }
 .song-title { font-size: 11.5px; font-weight: 600; }
 .song-meta { color: var(--color-secondary); font-size: 10px; }
-.song > summary .icon-button { margin-left: auto; }
+.song-summary-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .song-sections { padding: 4px 8px 10px; }
-
-.song-form {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-app);
-}
-.song-form-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.song-form-fields label { display: grid; gap: 5px; }
-.song-form-fields label > span { color: var(--color-secondary); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
-.song-form input,
-.song-form textarea {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #35445C;
-  border-radius: 6px;
-  background: var(--color-panel);
-  color: var(--color-text);
-  font-size: 11.5px;
-  font-family: inherit;
-  resize: vertical;
-}
-.song-form input:focus-visible,
-.song-form textarea:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
-
-.song-section-edit { display: grid; grid-template-columns: 150px minmax(0, 1fr) 28px; gap: 8px; align-items: start; }
-.song-section-label { align-self: start; }
-.song-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.song-form-note { color: var(--color-secondary); font-size: 10px; line-height: 1.6; }
 
 @media (max-width: 1279px) {
   .song-result-main { grid-template-columns: 150px minmax(0, 1fr); }
@@ -109,8 +78,5 @@
 
 @media (max-width: 959px) {
   .songs-body { padding: 10px; }
-  .song-form-fields { grid-template-columns: 1fr; }
   .song-result-main { grid-template-columns: 120px minmax(0, 1fr); }
-  .song-section-edit { grid-template-columns: minmax(0, 1fr) 28px; }
-  .song-section-edit .song-section-label { grid-column: 1 / -1; }
 }

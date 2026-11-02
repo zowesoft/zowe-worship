@@ -680,6 +680,73 @@ func (a *App) DeleteSong(songID string) (SongsView, error) {
 	return a.listSongs(a.context())
 }
 
+type SongSectionEdit struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	Text  string `json:"text"`
+}
+
+type EditSongRequest struct {
+	ID        string            `json:"id"`
+	Title     string            `json:"title"`
+	Author    string            `json:"author"`
+	Copyright string            `json:"copyright"`
+	Sections  []SongSectionEdit `json:"sections"`
+}
+
+// songEditorWindow names the song editor so reopening it for another song moves
+// the same window rather than stacking a second one.
+const songEditorWindow = "song-editor"
+
+// OpenSongEditor edits one song in its own window, or starts a new one away from
+// the studio.
+func (a *App) OpenSongEditor(songID string) (EditorView, error) {
+	if a.songs == nil {
+		return EditorView{}, errStorageUnavailable
+	}
+
+	id := strings.TrimSpace(songID)
+	if id == "" {
+		return openUtilityWindow(songEditorWindow, "New song", "/?view=song-editor", 720, 660, 560, 520)
+	}
+
+	song, err := a.songs.Get(a.context(), id)
+	if err != nil {
+		return EditorView{}, err
+	}
+	return openUtilityWindow(songEditorWindow,
+		song.Title+" — Edit song",
+		"/?view=song-editor&song="+id,
+		720, 660, 560, 520,
+	)
+}
+
+// UpdateSong rewrites one song in the library. Sections keep their ids, so a
+// slide already scheduled from one still resolves afterwards.
+func (a *App) UpdateSong(request EditSongRequest) (SongsView, error) {
+	if a.songs == nil {
+		return SongsView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+
+	sections := make([]songs.SectionUpdate, 0, len(request.Sections))
+	for _, section := range request.Sections {
+		sections = append(sections, songs.SectionUpdate{
+			ID: section.ID, Label: section.Label, Text: section.Text,
+		})
+	}
+
+	if _, err := a.songs.Update(ctx, strings.TrimSpace(request.ID), songs.SongUpdate{
+		Title:     request.Title,
+		Author:    request.Author,
+		Copyright: request.Copyright,
+		Sections:  sections,
+	}); err != nil {
+		return SongsView{}, err
+	}
+	return a.listSongs(ctx)
+}
+
 func (a *App) PreviewSongSection(request SongSectionRequest) (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable

@@ -17,13 +17,6 @@ export type SongSectionInput = {
   sectionId: string;
 };
 
-export type NewSongInput = {
-  title: string;
-  author: string;
-  copyright: string;
-  sections: { label: string; text: string }[];
-};
-
 type StudioValue = {
   ready: boolean;
   bridgeAvailable: boolean;
@@ -55,7 +48,6 @@ type StudioValue = {
   previewItem: (itemID: string) => Promise<models.PresentationView>;
   previewScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
   projectScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
-  createSong: (input: NewSongInput) => Promise<models.SongsView>;
   deleteSong: (songID: string) => Promise<models.SongsView>;
   previewSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
   projectSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
@@ -85,15 +77,6 @@ function toRequest(input: ScriptureInput): models.ScriptureRequest {
 
 function toSectionRequest(input: SongSectionInput): models.SongSectionRequest {
   return { songId: input.songId, sectionId: input.sectionId };
-}
-
-function toSongRequest(input: NewSongInput): models.NewSongRequest {
-  return {
-    title: input.title,
-    author: input.author,
-    copyright: input.copyright,
-    sections: input.sections.map((section) => ({ label: section.label, text: section.text })),
-  };
 }
 
 export function StudioProvider({ children }: { children: ReactNode }) {
@@ -226,7 +209,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     previewItem: (itemID) => run(() => App.PreviewServiceItem(itemID), setPresentationState),
     previewScripture: (input) => run(() => App.PreviewScripture(toRequest(input)), setPresentationState),
     projectScripture: (input) => run(() => App.ProjectScripture(toRequest(input)), setPresentationState),
-    createSong: (input) => run(() => App.CreateSong(toSongRequest(input)), setSongs),
     deleteSong: (songID) => run(() => App.DeleteSong(songID), setSongs),
     previewSongSection: (input) => run(() => App.PreviewSongSection(toSectionRequest(input)), setPresentationState),
     projectSongSection: (input) => run(() => App.ProjectSongSection(toSectionRequest(input)), setPresentationState),

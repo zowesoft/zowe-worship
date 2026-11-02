@@ -221,3 +221,87 @@ func TestSongsSurviveReopen(t *testing.T) {
 		t.Fatalf("songs after reopen = %+v", list)
 	}
 }
+
+func TestUpdateKeepsSectionIdentity(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newTestRepository(t)
+
+	created, err := repo.Create(ctx, NewSong{
+		Title:  "Amazing Grace",
+		Author: "John Newton",
+		Sections: []NewSection{
+			{Label: "Verse 1", Text: "Amazing grace! how sweet the sound"},
+			{Label: "Verse 2", Text: "Twas grace that taught my heart to fear"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	first := created.Sections[0]
+	second := created.Sections[1]
+
+	updated, err := repo.Update(ctx, created.ID, SongUpdate{
+		Title:  "Amazing Grace (New Britain)",
+		Author: "John Newton",
+		Sections: []SectionUpdate{
+			// Same id, new lyrics: the slide keeps its identity.
+			{ID: first.ID, Label: "Verse 1", Text: "Amazing grace! how sweet the sound, that saved a wretch like me"},
+			// Verse 2 is dropped by simply not being sent.
+			{Label: "Chorus", Text: "Grace, grace, God's grace"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+
+	if updated.Title != "Amazing Grace (New Britain)" {
+		t.Fatalf("title = %q", updated.Title)
+	}
+	if len(updated.Sections) != 2 {
+		t.Fatalf("sections = %+v", updated.Sections)
+	}
+	if updated.Sections[0].ID != first.ID {
+		t.Fatalf("kept section changed id: %s -> %s", first.ID, updated.Sections[0].ID)
+	}
+	if updated.Sections[0].Text != "Amazing grace! how sweet the sound, that saved a wretch like me" {
+		t.Fatalf("kept section text = %q", updated.Sections[0].Text)
+	}
+	if updated.Sections[1].ID == "" || updated.Sections[1].ID == second.ID {
+		t.Fatalf("added section should be new: %+v", updated.Sections[1])
+	}
+	for _, section := range updated.Sections {
+		if section.ID == second.ID {
+			t.Fatal("a dropped section survived the update")
+		}
+	}
+
+	// The lyric index has to follow the edit in both directions.
+	if _, _, err := repo.Section(ctx, created.ID, second.ID); !errors.Is(err, ErrSectionNotFound) {
+		t.Fatalf("dropped section err = %v", err)
+	}
+	hits, err := repo.Search(ctx, "wretch", 10)
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(hits) != 1 || hits[0].Section.ID != first.ID {
+		t.Fatalf("search hits = %+v", hits)
+	}
+	removed, err := repo.Search(ctx, "taught", 10)
+	if err != nil {
+		t.Fatalf("search removed lyrics: %v", err)
+	}
+	if len(removed) != 0 {
+		t.Fatalf("removed lyrics are still searchable: %+v", removed)
+	}
+
+	if _, err := repo.Update(ctx, created.ID, SongUpdate{Title: "  "}); !errors.Is(err, ErrInvalidSong) {
+		t.Fatalf("empty title err = %v", err)
+	}
+	if _, err := repo.Update(ctx, "missing", SongUpdate{
+		Title:    "Song",
+		Sections: []SectionUpdate{{Label: "Verse", Text: "words"}},
+	}); !errors.Is(err, ErrSongNotFound) {
+		t.Fatalf("missing song err = %v", err)
+	}
+}
+

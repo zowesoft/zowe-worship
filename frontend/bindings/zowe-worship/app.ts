@@ -133,8 +133,16 @@ export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$mode
  * OpenMediaEditor frames one image in its own small window, which keeps the
  * studio a production view rather than a workspace with drawers in it.
  */
-export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.MediaEditorView> {
+export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(1808648114, mediaID);
+}
+
+/**
+ * OpenSongEditor edits one song in its own window, or starts a new one away from
+ * the studio.
+ */
+export function OpenSongEditor(songID: string): $CancellablePromise<$models.EditorView> {
+    return $Call.ByID(1743082593, songID);
 }
 
 /**
@@ -207,6 +215,14 @@ export function SearchBible(request: $models.BibleSearchRequest): $CancellablePr
 
 export function SendPreviewLive(): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(2243982563);
+}
+
+/**
+ * UpdateSong rewrites one song in the library. Sections keep their ids, so a
+ * slide already scheduled from one still resolves afterwards.
+ */
+export function UpdateSong(request: $models.EditSongRequest): $CancellablePromise<$models.SongsView> {
+    return $Call.ByID(673211229, request);
 }
 
 /**

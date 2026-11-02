@@ -46,6 +46,22 @@ export interface DisplayView {
     "screenName": string;
 }
 
+export interface EditSongRequest {
+    "id": string;
+    "title": string;
+    "author": string;
+    "copyright": string;
+    "sections": SongSectionEdit[] | null;
+}
+
+/**
+ * EditorView reports a utility window as the frontend sees it.
+ */
+export interface EditorView {
+    "open": boolean;
+    "title": string;
+}
+
 export interface LyricHitView {
     "songId": string;
     "songTitle": string;
@@ -55,11 +71,6 @@ export interface LyricHitView {
     "label": string;
     "text": string;
     "position": number;
-}
-
-export interface MediaEditorView {
-    "open": boolean;
-    "title": string;
 }
 
 export interface MediaImportResult {
@@ -142,6 +153,12 @@ export interface ServiceOrderView {
 export interface ServiceView {
     "id": string;
     "name": string;
+}
+
+export interface SongSectionEdit {
+    "id": string;
+    "label": string;
+    "text": string;
 }
 
 export interface SongSectionRequest {

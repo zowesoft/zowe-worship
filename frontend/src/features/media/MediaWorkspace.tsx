@@ -111,8 +111,7 @@ export function MediaWorkspace() {
   // The editor is a separate window, so the grid is reread whenever this tab is
   // mounted and picks up framing saved there.
   useEffect(() => {
-    void studio.refreshMedia();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (studio.bridgeAvailable) void studio.refreshMedia();
   }, []);
 
   async function openEditor(item: MediaView) {

@@ -82,6 +82,111 @@ func (r *SQLiteRepository) Create(ctx context.Context, input NewSong) (SongWithS
 	return r.Get(ctx, songID)
 }
 
+// Update rewrites a song in place. A section that keeps its id keeps its
+// identity, so a service item scheduled from it still resolves after the lyrics
+// change; sections the editor dropped are removed.
+func (r *SQLiteRepository) Update(ctx context.Context, songID string, input SongUpdate) (SongWithSections, error) {
+	update, err := input.normalised()
+	if err != nil {
+		return SongWithSections{}, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SongWithSections{}, fmt.Errorf("begin song update: %w", err)
+	}
+
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT 1 FROM songs WHERE id = ?`, songID).Scan(&exists); err != nil {
+		_ = tx.Rollback()
+		if errors.Is(err, sql.ErrNoRows) {
+			return SongWithSections{}, ErrSongNotFound
+		}
+		return SongWithSections{}, fmt.Errorf("read song: %w", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second).Format(time.RFC3339)
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE songs SET title = ?, author = ?, copyright = ?, updated_at = ? WHERE id = ?`,
+		update.Title, update.Author, update.Copyright, now, songID,
+	); err != nil {
+		_ = tx.Rollback()
+		return SongWithSections{}, fmt.Errorf("update song: %w", err)
+	}
+
+	// Positions are unique per song, and an edit can both move a kept section and
+	// add another, so the rows step aside first and are numbered afterwards.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE song_sections SET position = -position WHERE song_id = ?`, songID,
+	); err != nil {
+		_ = tx.Rollback()
+		return SongWithSections{}, fmt.Errorf("clear section positions: %w", err)
+	}
+
+	kept := make([]string, 0, len(update.Sections))
+	for index, section := range update.Sections {
+		if section.ID != "" {
+			result, err := tx.ExecContext(ctx, `
+				UPDATE song_sections SET position = ?, label = ?, text = ?
+				WHERE id = ? AND song_id = ?`,
+				index+1, section.Label, section.Text, section.ID, songID,
+			)
+			if err != nil {
+				_ = tx.Rollback()
+				return SongWithSections{}, fmt.Errorf("update song section: %w", err)
+			}
+			changed, err := result.RowsAffected()
+			if err != nil {
+				_ = tx.Rollback()
+				return SongWithSections{}, fmt.Errorf("update song section: %w", err)
+			}
+			if changed == 0 {
+				_ = tx.Rollback()
+				return SongWithSections{}, ErrSectionNotFound
+			}
+			kept = append(kept, section.ID)
+			continue
+		}
+
+		sectionID, err := database.NewID()
+		if err != nil {
+			_ = tx.Rollback()
+			return SongWithSections{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO song_sections (id, song_id, position, label, text) VALUES (?, ?, ?, ?, ?)`,
+			sectionID, songID, index+1, section.Label, section.Text,
+		); err != nil {
+			_ = tx.Rollback()
+			return SongWithSections{}, fmt.Errorf("add song section: %w", err)
+		}
+		kept = append(kept, sectionID)
+	}
+
+	args := make([]any, 0, len(kept)+1)
+	args = append(args, songID)
+	for _, id := range kept {
+		args = append(args, id)
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(kept)), ",")
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM song_sections WHERE song_id = ? AND id NOT IN (`+placeholders+`)`, args...,
+	); err != nil {
+		_ = tx.Rollback()
+		return SongWithSections{}, fmt.Errorf("remove song section: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO song_sections_fts (song_sections_fts) VALUES ('integrity-check')`); err != nil {
+		_ = tx.Rollback()
+		return SongWithSections{}, fmt.Errorf("verify lyric index: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return SongWithSections{}, fmt.Errorf("commit song update: %w", err)
+	}
+
+	return r.Get(ctx, songID)
+}
+
 func (r *SQLiteRepository) List(ctx context.Context) ([]SongWithSections, error) {
 	songs, err := r.querySongs(ctx, `SELECT `+songColumns+` FROM songs ORDER BY title COLLATE NOCASE`)
 	if err != nil {

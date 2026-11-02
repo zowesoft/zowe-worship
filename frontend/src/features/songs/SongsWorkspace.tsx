@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { App } from '../../../bindings/zowe-worship';
 import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import type { SongSectionInput } from '../../stores/StudioProvider';
 import './songs.css';
 
 const SEARCH_DEBOUNCE_MS = 250;
-
-type DraftSection = { label: string; text: string };
-
-const emptySections: DraftSection[] = [{ label: 'Verse 1', text: '' }];
 
 function fromActionArea(event: ReactMouseEvent<HTMLElement>): boolean {
   return (event.target as HTMLElement).closest('.song-actions') !== null;
@@ -28,11 +25,6 @@ export function SongsWorkspace() {
   const studio = useStudio();
   const [query, setQuery] = useState('');
   const [pending, setPending] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState('');
-  const [author, setAuthor] = useState('');
-  const [copyright, setCopyright] = useState('');
-  const [sections, setSections] = useState<DraftSection[]>(emptySections);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<{ kind: 'message' | 'error'; text: string } | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -46,6 +38,12 @@ export function SongsWorkspace() {
   const refreshRef = useRef(studio.refreshSongs);
   refreshRef.current = studio.refreshSongs;
   const lastQueryRef = useRef('');
+
+  // Songs are written in their own window, so this tab rereads the library when
+  // it is mounted and shows edits made there.
+  useEffect(() => {
+    if (studio.bridgeAvailable) void refreshRef.current();
+  }, []);
 
   useEffect(() => {
     if (!studio.bridgeAvailable || trimmedQuery === lastQueryRef.current) return;
@@ -90,34 +88,16 @@ export function SongsWorkspace() {
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy('create');
+  async function openEditor(songID: string) {
+    setBusy('editor');
     setStatus(null);
     try {
-      await studio.createSong({
-        title: title.trim(),
-        author: author.trim(),
-        copyright: copyright.trim(),
-        sections: sections.map((section) => ({ label: section.label.trim(), text: section.text.trim() })),
-      });
-      setTitle('');
-      setAuthor('');
-      setCopyright('');
-      setSections(emptySections);
-      setCreating(false);
-      setStatus({ kind: 'message', text: 'Song saved.' });
+      await App.OpenSongEditor(songID);
     } catch (error: unknown) {
       setStatus({ kind: 'error', text: errorMessage(error) });
     } finally {
       setBusy(null);
     }
-  }
-
-  function updateSection(index: number, change: Partial<DraftSection>) {
-    setSections((current) => current.map((section, position) => (
-      position === index ? { ...section, ...change } : section
-    )));
   }
 
   return (
@@ -132,13 +112,10 @@ export function SongsWorkspace() {
             type="button"
             className="button"
             disabled={!canAct}
-            onClick={() => {
-              setCreating((current) => !current);
-              setStatus(null);
-            }}
+            onClick={() => void openEditor('')}
           >
-            <Icon name={creating ? 'close' : 'plus'} size={13} />
-            {creating ? 'Cancel' : 'New song'}
+            <Icon name="plus" size={13} />
+            New song
           </button>
         </div>
       </header>
@@ -181,95 +158,6 @@ export function SongsWorkspace() {
                 : `${hits.length} ${hits.length === 1 ? 'match' : 'matches'}`}
           </span>
         </div>
-
-        {creating && (
-          <form className="song-form" onSubmit={handleSubmit}>
-            <div className="song-form-fields">
-              <label>
-                <span>Title</span>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Amazing Grace"
-                  autoComplete="off"
-                  required
-                />
-              </label>
-              <label>
-                <span>Author</span>
-                <input
-                  type="text"
-                  value={author}
-                  onChange={(event) => setAuthor(event.target.value)}
-                  placeholder="John Newton"
-                  autoComplete="off"
-                />
-              </label>
-              <label>
-                <span>Copyright</span>
-                <input
-                  type="text"
-                  value={copyright}
-                  onChange={(event) => setCopyright(event.target.value)}
-                  placeholder="Public domain"
-                  autoComplete="off"
-                />
-              </label>
-            </div>
-
-            {sections.map((section, index) => (
-              <div className="song-section-edit" key={index}>
-                <input
-                  className="song-section-label"
-                  type="text"
-                  value={section.label}
-                  onChange={(event) => updateSection(index, { label: event.target.value })}
-                  placeholder="Verse 1"
-                  aria-label={`Section ${index + 1} label`}
-                />
-                <textarea
-                  rows={4}
-                  value={section.text}
-                  onChange={(event) => updateSection(index, { text: event.target.value })}
-                  placeholder="Type the lyrics for this slide"
-                  aria-label={`Section ${index + 1} lyrics`}
-                />
-                <button
-                  type="button"
-                  className="icon-button icon-button--small"
-                  disabled={sections.length === 1}
-                  onClick={() => setSections((current) => current.filter((_, position) => position !== index))}
-                  aria-label={`Remove section ${index + 1}`}
-                  title="Remove this section"
-                >
-                  <Icon name="close" size={14} />
-                </button>
-              </div>
-            ))}
-
-            <div className="song-form-actions">
-              <button
-                type="button"
-                className="button"
-                onClick={() => setSections((current) => [...current, { label: '', text: '' }])}
-              >
-                <Icon name="plus" size={13} />Add section
-              </button>
-              <button
-                type="submit"
-                className="button button--primary"
-                disabled={busy !== null || title.trim() === ''}
-              >
-                Save song
-              </button>
-            </div>
-            <p className="song-form-note">
-              Each section becomes one slide. Lyrics are stored on this computer only, so add words you have the
-              right to use.
-            </p>
-          </form>
-        )}
 
         {trimmedQuery !== '' ? (
           hits.length === 0 ? (
@@ -364,25 +252,42 @@ export function SongsWorkspace() {
                     {song.author ? ` · ${song.author}` : ''}
                     {song.copyright ? ` · ${song.copyright}` : ''}
                   </span>
-                  <button
-                    type="button"
-                    className="icon-button icon-button--small"
-                    disabled={!canAct}
-                    aria-label={`Delete ${song.title}`}
-                    title="Delete song"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      if (!canAct) return;
-                      setBusy(`delete:${song.id}`);
-                      void studio.deleteSong(song.id)
-                        .then(() => setStatus({ kind: 'message', text: `Deleted ${song.title}.` }))
-                        .catch((error: unknown) => setStatus({ kind: 'error', text: errorMessage(error) }))
-                        .finally(() => setBusy(null));
-                    }}
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
+                  <div className="song-summary-actions">
+                    <button
+                      type="button"
+                      className="bible-action"
+                      disabled={!canAct}
+                      aria-label={`Edit ${song.title}`}
+                      title="Edit song"
+                      onClick={(event) => {
+                        // The summary owns the open/close toggle, so both have to be stopped.
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void openEditor(song.id);
+                      }}
+                    >
+                      <Icon name="more" size={13} /><span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button icon-button--small"
+                      disabled={!canAct}
+                      aria-label={`Delete ${song.title}`}
+                      title="Delete song"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!canAct) return;
+                        setBusy(`delete:${song.id}`);
+                        void studio.deleteSong(song.id)
+                          .then(() => setStatus({ kind: 'message', text: `Deleted ${song.title}.` }))
+                          .catch((error: unknown) => setStatus({ kind: 'error', text: errorMessage(error) }))
+                          .finally(() => setBusy(null));
+                      }}
+                    >
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
                 </summary>
 
                 <ul className="song-sections">

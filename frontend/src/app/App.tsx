@@ -6,6 +6,7 @@ import { AudienceDisplay } from '../features/display/AudienceDisplay';
 import { MediaEditorWindow } from '../features/media/MediaEditorWindow';
 import { MediaWorkspace } from '../features/media/MediaWorkspace';
 import { SongsWorkspace } from '../features/songs/SongsWorkspace';
+import { SongEditorWindow } from '../features/songs/SongEditorWindow';
 import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
@@ -58,6 +59,9 @@ export default function App() {
   }
   if (windowView === 'media-editor') {
     return <MediaEditorWindow mediaID={viewParams.get('media') ?? ''} />;
+  }
+  if (windowView === 'song-editor') {
+    return <SongEditorWindow songID={viewParams.get('song') ?? ''} />;
   }
 
   return (
