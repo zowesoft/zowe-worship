@@ -14,6 +14,7 @@ export type {
     BibleSearchResponse,
     BibleVerse,
     BrowsePassageRequest,
+    CustomItemRequest,
     DisplayView,
     EditSongRequest,
     EditorView,

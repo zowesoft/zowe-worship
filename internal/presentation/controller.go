@@ -301,10 +301,49 @@ func (c *Controller) itemContent(ctx context.Context, item serviceorder.Item) (*
 		return c.songContent(ctx, item.ID, item.ThemeID, item.SongID, item.SectionID)
 	case serviceorder.KindMedia:
 		return c.mediaContent(ctx, item.ID, item.MediaID)
+	case serviceorder.KindText:
+		return c.textContent(ctx, item)
+	case serviceorder.KindAnnouncement:
+		return c.announcementContent(ctx, item)
+	case serviceorder.KindBlank:
+		return c.blankContent(ctx, item)
 	default:
 		return c.scriptureContent(ctx, item.ID, item.ThemeID, item.TranslationID,
 			item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
 	}
+}
+
+func (c *Controller) textContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
+	return &Content{
+		ItemID: item.ID,
+		Kind:   "text",
+		Title:  item.Title,
+		Label:  item.Title,
+		Lines:  splitLines(item.Content),
+		Theme:  c.themeFor(ctx, item.ThemeID, themes.KindText),
+	}, nil
+}
+
+func (c *Controller) announcementContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
+	return &Content{
+		ItemID: item.ID,
+		Kind:   "announcement",
+		Title:  item.Title,
+		Label:  item.Title,
+		Lines:  splitLines(item.Content),
+		Theme:  c.themeFor(ctx, item.ThemeID, themes.KindText),
+	}, nil
+}
+
+func (c *Controller) blankContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
+	return &Content{
+		ItemID: item.ID,
+		Kind:   "blank",
+		Title:  item.Title,
+		Label:  item.Title,
+		Lines:  []string{},
+		Theme:  c.themeFor(ctx, item.ThemeID, themes.KindScripture),
+	}, nil
 }
 
 // themeFor decides which theme a slide is drawn with: the override on the item,

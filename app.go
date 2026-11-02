@@ -359,11 +359,24 @@ type ServiceItemView struct {
 	SongID        string `json:"songId"`
 	SectionID     string `json:"sectionId"`
 	MediaID       string `json:"mediaId"`
+	ThemeID       string `json:"themeId"`
+	Content       string `json:"content"`
+	Notes         string `json:"notes"`
+	Duration      int    `json:"duration"`
+	Status        string `json:"status"` // "completed" | "live" | "next" | "upcoming"
 }
 
 type ServiceOrderView struct {
 	Service *ServiceView      `json:"service"`
 	Items   []ServiceItemView `json:"items"`
+}
+
+type CustomItemRequest struct {
+	Kind     string `json:"kind"` // "text", "announcement", "blank"
+	Title    string `json:"title"`
+	Content  string `json:"content"`
+	Notes    string `json:"notes"`
+	Duration int    `json:"duration"`
 }
 
 // ScriptureRequest addresses verses already resolved by Bible search, so the
@@ -498,6 +511,75 @@ func (a *App) ReorderServiceItems(itemIDs []string) (ServiceOrderView, error) {
 	return a.serviceOrderView(ctx)
 }
 
+// SetItemTheme points one schedule item at a theme, or back at its kind default
+// with an empty id. The theme is checked before it is stored so a pick that has
+// since been deleted cannot be saved quietly, and the change only reaches the
+// room when the operator projects the item again.
+func (a *App) SetItemTheme(itemID, themeID string) (ServiceOrderView, error) {
+	if a.order == nil || a.themes == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	id := strings.TrimSpace(themeID)
+
+	if id != "" {
+		if _, err := a.themes.Get(ctx, id); err != nil {
+			if errors.Is(err, themes.ErrThemeNotFound) {
+				return ServiceOrderView{}, errors.New("that theme is no longer in the list")
+			}
+			return ServiceOrderView{}, err
+		}
+	}
+
+	if err := a.order.SetTheme(ctx, strings.TrimSpace(itemID), id); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
+func (a *App) DuplicateService(serviceID, newName string) (ServiceOrderView, error) {
+	if a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if _, err := a.order.Duplicate(ctx, strings.TrimSpace(serviceID), strings.TrimSpace(newName)); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
+func (a *App) AddCustomItemToService(request CustomItemRequest) (ServiceOrderView, error) {
+	if a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	service, err := a.ensureService(ctx)
+	if err != nil {
+		return ServiceOrderView{}, err
+	}
+	if _, err := a.order.AddCustomItem(ctx, service.ID, serviceorder.CustomItemInput{
+		Kind:     serviceorder.ItemKind(strings.TrimSpace(request.Kind)),
+		Title:    strings.TrimSpace(request.Title),
+		Content:  strings.TrimSpace(request.Content),
+		Notes:    strings.TrimSpace(request.Notes),
+		Duration: request.Duration,
+	}); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
+func (a *App) UpdateServiceItemMeta(itemID, notes string, duration int) (ServiceOrderView, error) {
+	if a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if err := a.order.UpdateItemMeta(ctx, strings.TrimSpace(itemID), notes, duration); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
 // applied hands a controller result to the frontend and, when it succeeded,
 // pushes the same slide to the audience display. Reading state never republish,
 // so a reopening display catches up on its own.
@@ -583,8 +665,39 @@ func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {
 		return ServiceOrderView{}, err
 	}
 
+	liveID := ""
+	previewID := ""
+	if a.presentation != nil {
+		state := a.presentation.State()
+		if state.Live != nil {
+			liveID = state.Live.ItemID
+		}
+		if state.Preview != nil {
+			previewID = state.Preview.ItemID
+		}
+	}
+
+	liveIdx := -1
+	for i, item := range items {
+		if liveID != "" && item.ID == liveID {
+			liveIdx = i
+			break
+		}
+	}
+
 	views := make([]ServiceItemView, 0, len(items))
-	for _, item := range items {
+	for i, item := range items {
+		var status string
+		if liveID != "" && item.ID == liveID {
+			status = "live"
+		} else if previewID != "" && item.ID == previewID {
+			status = "next"
+		} else if liveIdx >= 0 && i < liveIdx {
+			status = "completed"
+		} else {
+			status = "upcoming"
+		}
+
 		views = append(views, ServiceItemView{
 			ID:            item.ID,
 			Position:      item.Position,
@@ -598,6 +711,11 @@ func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {
 			SongID:        item.SongID,
 			SectionID:     item.SectionID,
 			MediaID:       item.MediaID,
+			ThemeID:       item.ThemeID,
+			Content:       item.Content,
+			Notes:         item.Notes,
+			Duration:      item.Duration,
+			Status:        status,
 		})
 	}
 	return ServiceOrderView{

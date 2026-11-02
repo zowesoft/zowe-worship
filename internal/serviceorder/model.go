@@ -17,9 +17,12 @@ var (
 type ItemKind string
 
 const (
-	KindScripture ItemKind = "scripture"
-	KindSong      ItemKind = "song"
-	KindMedia     ItemKind = "media"
+	KindScripture    ItemKind = "scripture"
+	KindSong         ItemKind = "song"
+	KindMedia        ItemKind = "media"
+	KindText         ItemKind = "text"
+	KindAnnouncement ItemKind = "announcement"
+	KindBlank        ItemKind = "blank"
 )
 
 type Service struct {
@@ -46,6 +49,9 @@ type Item struct {
 	// ThemeID overrides the theme for this one item. Empty means the slide takes
 	// the default theme for its kind.
 	ThemeID   string
+	Content   string
+	Notes     string
+	Duration  int
 	CreatedAt time.Time
 }
 
@@ -67,6 +73,14 @@ type SongInput struct {
 type MediaInput struct {
 	Title   string
 	MediaID string
+}
+
+type CustomItemInput struct {
+	Kind     ItemKind
+	Title    string
+	Content  string
+	Notes    string
+	Duration int
 }
 
 func (s ScriptureInput) validate() error {
@@ -97,4 +111,16 @@ func (m MediaInput) validate() error {
 		return ErrInvalidService
 	}
 	return nil
+}
+
+func (c CustomItemInput) validate() error {
+	if strings.TrimSpace(c.Title) == "" {
+		return ErrInvalidService
+	}
+	switch c.Kind {
+	case KindText, KindAnnouncement, KindBlank:
+		return nil
+	default:
+		return ErrInvalidService
+	}
 }

@@ -352,3 +352,96 @@ func TestItemThemeOverrideRoundTrip(t *testing.T) {
 		t.Fatalf("err = %v, want ErrItemNotFound", err)
 	}
 }
+
+func TestDuplicateService(t *testing.T) {
+	repo, _, _ := newTestRepository(t)
+	ctx := context.Background()
+
+	service, err := repo.Create(ctx, "Morning Service")
+	if err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+
+	_, err = repo.AddScripture(ctx, service.ID, scriptureInput("John 3:16", 43, 3, 16))
+	if err != nil {
+		t.Fatalf("add scripture: %v", err)
+	}
+	_, err = repo.AddCustomItem(ctx, service.ID, CustomItemInput{
+		Kind:     KindText,
+		Title:    "Welcome",
+		Content:  "Welcome to church!",
+		Notes:    "Play background music",
+		Duration: 120,
+	})
+	if err != nil {
+		t.Fatalf("add text item: %v", err)
+	}
+
+	copySvc, err := repo.Duplicate(ctx, service.ID, "Morning Service - Evening")
+	if err != nil {
+		t.Fatalf("duplicate service: %v", err)
+	}
+	if copySvc.Name != "Morning Service - Evening" {
+		t.Fatalf("name = %q, want Morning Service - Evening", copySvc.Name)
+	}
+
+	items, err := repo.Items(ctx, copySvc.ID)
+	if err != nil {
+		t.Fatalf("read items: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("items count = %d, want 2", len(items))
+	}
+	if items[0].Title != "John 3:16" || items[1].Title != "Welcome" {
+		t.Fatalf("unexpected items: %+v", items)
+	}
+	if items[1].Content != "Welcome to church!" || items[1].Notes != "Play background music" || items[1].Duration != 120 {
+		t.Fatalf("unexpected text item copy: %+v", items[1])
+	}
+}
+
+func TestCustomItemKindsAndMetaUpdate(t *testing.T) {
+	repo, _, _ := newTestRepository(t)
+	ctx := context.Background()
+
+	service, err := repo.Create(ctx, "Test Service")
+	if err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+
+	announcement, err := repo.AddCustomItem(ctx, service.ID, CustomItemInput{
+		Kind:     KindAnnouncement,
+		Title:    "Youth Camp",
+		Content:  "Register by Friday at the desk.",
+		Duration: 60,
+	})
+	if err != nil {
+		t.Fatalf("add announcement: %v", err)
+	}
+	if announcement.Kind != KindAnnouncement || announcement.Duration != 60 {
+		t.Fatalf("announcement = %+v", announcement)
+	}
+
+	blank, err := repo.AddCustomItem(ctx, service.ID, CustomItemInput{
+		Kind:  KindBlank,
+		Title: "Silent Prayer",
+	})
+	if err != nil {
+		t.Fatalf("add blank: %v", err)
+	}
+	if blank.Kind != KindBlank {
+		t.Fatalf("blank kind = %s", blank.Kind)
+	}
+
+	// Update metadata
+	if err := repo.UpdateItemMeta(ctx, announcement.ID, "Display slide during announcements", 90); err != nil {
+		t.Fatalf("update meta: %v", err)
+	}
+	updated, err := repo.Item(ctx, announcement.ID)
+	if err != nil {
+		t.Fatalf("read updated item: %v", err)
+	}
+	if updated.Notes != "Display slide during announcements" || updated.Duration != 90 {
+		t.Fatalf("updated item meta = %+v", updated)
+	}
+}
