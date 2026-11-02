@@ -22,6 +22,8 @@ export function SongEditorWindow({ songID }: { songID: string }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [copyright, setCopyright] = useState('');
+  const [ccliNumber, setCcliNumber] = useState('');
+  const [source, setSource] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([emptyDraft()]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -40,6 +42,8 @@ export function SongEditorWindow({ songID }: { songID: string }) {
         setTitle(song.title);
         setAuthor(song.author);
         setCopyright(song.copyright);
+        setCcliNumber(song.ccliNumber ?? '');
+        setSource(song.source ?? '');
         setDrafts((song.sections ?? []).map((section) => ({
           id: section.id, label: section.label, text: section.text,
         })));
@@ -67,10 +71,10 @@ export function SongEditorWindow({ songID }: { songID: string }) {
         label: draft.label, text: draft.text, id: draft.id,
       }));
       if (editing) {
-        await App.UpdateSong({ id: songID, title, author, copyright, sections });
+        await App.UpdateSong({ id: songID, title, author, copyright, ccliNumber, source, sections });
       } else {
         await App.CreateSong({
-          title, author, copyright,
+          title, author, copyright, ccliNumber, source,
           sections: sections.map(({ label, text }) => ({ label, text })),
         });
       }
@@ -113,6 +117,14 @@ export function SongEditorWindow({ songID }: { songID: string }) {
         <label>
           <span>Copyright</span>
           <input value={copyright} onChange={(event) => { setCopyright(event.target.value); setSaved(false); }} autoComplete="off" placeholder="Public domain" />
+        </label>
+        <label>
+          <span>CCLI #</span>
+          <input value={ccliNumber} onChange={(event) => { setCcliNumber(event.target.value); setSaved(false); }} autoComplete="off" placeholder="1234567" />
+        </label>
+        <label>
+          <span>Source</span>
+          <input value={source} onChange={(event) => { setSource(event.target.value); setSaved(false); }} autoComplete="off" placeholder="Songbook / album" />
         </label>
       </div>
 

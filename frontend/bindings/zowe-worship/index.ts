@@ -6,8 +6,10 @@ export {
     App
 };
 
-export type {
+export {
     AppInfo,
+    ArrangementItemView,
+    ArrangementView,
     BackupView,
     BibleBookView,
     BibleSearchRequest,
@@ -24,11 +26,13 @@ export type {
     NewSongRequest,
     NewSongSectionRequest,
     PresentationView,
+    SaveArrangementRequest,
     ScreenOption,
     ScriptureRequest,
     ServiceItemView,
     ServiceOrderView,
     ServiceView,
+    SongArrangementRequest,
     SongSectionEdit,
     SongSectionRequest,
     SongSectionView,

@@ -305,3 +305,97 @@ func TestUpdateKeepsSectionIdentity(t *testing.T) {
 	}
 }
 
+func TestSongArrangementsAndDuplication(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newTestRepository(t)
+
+	song, err := repo.Create(ctx, NewSong{
+		Title:      "10,000 Reasons",
+		Author:     "Matt Redman",
+		Copyright:  "2011 Thankyou Music",
+		CCLINumber: "6016351",
+		Source:     "CCLI",
+		Sections: []NewSection{
+			{Label: "Chorus", Text: "Bless the Lord, O my soul\nO my soul, worship His holy name"},
+			{Label: "Verse 1", Text: "The sun comes up, it's a new day dawning\nIt's time to sing Your song again"},
+			{Label: "Verse 2", Text: "You're rich in love, and You're slow to anger\nYour name is great, and Your heart is kind"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create song: %v", err)
+	}
+
+	if song.CCLINumber != "6016351" || song.Source != "CCLI" {
+		t.Fatalf("metadata missing: CCLI=%q, Source=%q", song.CCLINumber, song.Source)
+	}
+
+	// Should have default arrangement automatically created
+	if len(song.Arrangements) != 1 {
+		t.Fatalf("expected 1 arrangement, got %d", len(song.Arrangements))
+	}
+	defaultArr := song.Arrangements[0]
+	if defaultArr.Name != "Default" || !defaultArr.IsDefault || len(defaultArr.Items) != 3 {
+		t.Fatalf("unexpected default arrangement: %+v", defaultArr)
+	}
+
+	// Create custom arrangement: Chorus -> Verse 1 -> Chorus -> Verse 2 -> Chorus
+	chorusID := song.Sections[0].ID
+	v1ID := song.Sections[1].ID
+	v2ID := song.Sections[2].ID
+
+	customArr, err := repo.CreateArrangement(ctx, NewArrangement{
+		SongID:     song.ID,
+		Name:       "Full Service Flow",
+		IsDefault:  false,
+		SectionIDs: []string{chorusID, v1ID, chorusID, v2ID, chorusID},
+	})
+	if err != nil {
+		t.Fatalf("create custom arrangement: %v", err)
+	}
+	if len(customArr.Items) != 5 {
+		t.Fatalf("expected 5 items in arrangement, got %d", len(customArr.Items))
+	}
+	if customArr.Items[0].Label != "Chorus" || customArr.Items[1].Label != "Verse 1" || customArr.Items[2].Label != "Chorus" {
+		t.Fatalf("unexpected arrangement sequence: %+v", customArr.Items)
+	}
+
+	// Update custom arrangement
+	updatedArr, err := repo.UpdateArrangement(ctx, customArr.ID, ArrangementUpdate{
+		Name:       "Acoustic Flow",
+		IsDefault:  false,
+		SectionIDs: []string{v1ID, chorusID},
+	})
+	if err != nil {
+		t.Fatalf("update arrangement: %v", err)
+	}
+	if updatedArr.Name != "Acoustic Flow" || len(updatedArr.Items) != 2 {
+		t.Fatalf("updated arrangement = %+v", updatedArr)
+	}
+
+	// Duplicate song
+	copied, err := repo.Duplicate(ctx, song.ID, "10,000 Reasons (Reprise)")
+	if err != nil {
+		t.Fatalf("duplicate song: %v", err)
+	}
+	if copied.ID == song.ID {
+		t.Fatal("duplicated song must have a new ID")
+	}
+	if copied.Title != "10,000 Reasons (Reprise)" {
+		t.Fatalf("copied title = %q", copied.Title)
+	}
+	if copied.CCLINumber != "6016351" || copied.Source != "CCLI" {
+		t.Fatalf("copied metadata mismatch: CCLI=%q, Source=%q", copied.CCLINumber, copied.Source)
+	}
+	if len(copied.Sections) != 3 {
+		t.Fatalf("copied sections = %d, want 3", len(copied.Sections))
+	}
+	if copied.Sections[0].ID == song.Sections[0].ID {
+		t.Fatal("duplicated sections must have new IDs")
+	}
+	// Duplicated arrangements should also exist
+	if len(copied.Arrangements) != 2 {
+		t.Fatalf("expected 2 arrangements in duplicate, got %d", len(copied.Arrangements))
+	}
+}
+
+

@@ -57,9 +57,11 @@ type StudioValue = {
   previewScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
   projectScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
   deleteSong: (songID: string) => Promise<models.SongsView>;
+  duplicateSong: (songID: string) => Promise<models.SongsView>;
   previewSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
   projectSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
   addSongSectionToService: (input: SongSectionInput) => Promise<models.ServiceOrderView>;
+  addSongArrangementToService: (songID: string, arrangementID: string) => Promise<models.ServiceOrderView>;
   sendPreviewLive: () => Promise<models.PresentationView>;
   clearLive: () => Promise<models.PresentationView>;
   nextItem: () => Promise<models.PresentationView>;
@@ -228,9 +230,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     previewScripture: (input) => run(() => App.PreviewScripture(toRequest(input)), setPresentationState),
     projectScripture: (input) => run(() => App.ProjectScripture(toRequest(input)), setPresentationState),
     deleteSong: (songID) => run(() => App.DeleteSong(songID), setSongs),
+    duplicateSong: (songID) => run(() => App.DuplicateSong(songID), setSongs),
     previewSongSection: (input) => run(() => App.PreviewSongSection(toSectionRequest(input)), setPresentationState),
     projectSongSection: (input) => run(() => App.ProjectSongSection(toSectionRequest(input)), setPresentationState),
     addSongSectionToService: (input) => run(() => App.AddSongSectionToService(toSectionRequest(input)), setOrder),
+    addSongArrangementToService: (songID, arrangementID) => run(
+      () => App.AddSongArrangementToService({ songId: songID, arrangementId: arrangementID }),
+      setOrder,
+    ),
     sendPreviewLive: () => run(App.SendPreviewLive, setPresentationState),
     clearLive: () => run(App.ClearLive, setPresentationState),
     nextItem: () => run(App.NextServiceItem, setPresentationState),

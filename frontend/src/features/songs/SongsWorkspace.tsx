@@ -100,6 +100,32 @@ export function SongsWorkspace() {
     }
   }
 
+  async function duplicateSong(songID: string, title: string) {
+    setBusy(`duplicate:${songID}`);
+    setStatus(null);
+    try {
+      await studio.duplicateSong(songID);
+      setStatus({ kind: 'message', text: `Duplicated "${title}".` });
+    } catch (error: unknown) {
+      setStatus({ kind: 'error', text: errorMessage(error) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function addArrangementToService(songID: string, arrangementID: string, songTitle: string) {
+    setBusy(`arr:${arrangementID}`);
+    setStatus(null);
+    try {
+      await studio.addSongArrangementToService(songID, arrangementID);
+      setStatus({ kind: 'message', text: `Added "${songTitle}" arrangement to service.` });
+    } catch (error: unknown) {
+      setStatus({ kind: 'error', text: errorMessage(error) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <section className="panel songs-workspace" aria-labelledby="songs-workspace-title">
       <header className="songs-header">
@@ -164,7 +190,7 @@ export function SongsWorkspace() {
             <div className="bible-message" role="status">
               <Icon name="music" size={30} />
               <strong>No lyrics found</strong>
-              <p>Nothing matches “{trimmedQuery}”. Try a shorter phrase.</p>
+              <p>Nothing matches "{trimmedQuery}". Try a shorter phrase.</p>
             </div>
           ) : (
             <ul className="song-results" aria-label="Lyric matches">
@@ -243,122 +269,231 @@ export function SongsWorkspace() {
           </div>
         ) : (
           <div className="song-list">
-            {songs.map((song) => (
-              <details className="song" key={song.id}>
-                <summary>
-                  <span className="song-title">{song.title}</span>
-                  <span className="song-meta">
-                    {(song.sections ?? []).length} {(song.sections ?? []).length === 1 ? 'section' : 'sections'}
-                    {song.author ? ` · ${song.author}` : ''}
-                    {song.copyright ? ` · ${song.copyright}` : ''}
-                  </span>
-                  <div className="song-summary-actions">
-                    <button
-                      type="button"
-                      className="bible-action"
-                      disabled={!canAct}
-                      aria-label={`Edit ${song.title}`}
-                      title="Edit song"
-                      onClick={(event) => {
-                        // The summary owns the open/close toggle, so both have to be stopped.
-                        event.preventDefault();
-                        event.stopPropagation();
-                        void openEditor(song.id);
-                      }}
-                    >
-                      <Icon name="more" size={13} /><span>Edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button icon-button--small"
-                      disabled={!canAct}
-                      aria-label={`Delete ${song.title}`}
-                      title="Delete song"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (!canAct) return;
-                        setBusy(`delete:${song.id}`);
-                        void studio.deleteSong(song.id)
-                          .then(() => setStatus({ kind: 'message', text: `Deleted ${song.title}.` }))
-                          .catch((error: unknown) => setStatus({ kind: 'error', text: errorMessage(error) }))
-                          .finally(() => setBusy(null));
-                      }}
-                    >
-                      <Icon name="close" size={14} />
-                    </button>
-                  </div>
-                </summary>
+            {songs.map((song) => {
+              const defaultArr = (song.arrangements ?? []).find((a) => a.isDefault)
+                ?? (song.arrangements ?? [])[0]
+                ?? null;
+              const arrangementItems = defaultArr?.items ?? [];
 
-                <ul className="song-sections">
-                  {(song.sections ?? []).map((section) => {
-                    const label = `${song.title} · ${section.label}`;
-                    const input = { songId: song.id, sectionId: section.id };
-                    return (
-                      <li
-                        key={section.id}
-                        className="song-result"
-                        title={`Click to preview ${label} · double-click to send live`}
+              return (
+                <details className="song" key={song.id}>
+                  <summary>
+                    <span className="song-title">{song.title}</span>
+                    <span className="song-meta">
+                      {(song.sections ?? []).length} {(song.sections ?? []).length === 1 ? 'section' : 'sections'}
+                      {song.author ? ` · ${song.author}` : ''}
+                      {song.copyright ? ` · ${song.copyright}` : ''}
+                      {song.ccliNumber ? ` · CCLI #${song.ccliNumber}` : ''}
+                    </span>
+                    <div className="song-summary-actions">
+                      {defaultArr && (
+                        <button
+                          type="button"
+                          className="bible-action"
+                          disabled={!canAct}
+                          aria-label={`Add all sections of ${song.title} to service`}
+                          title="Add arrangement to service"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void addArrangementToService(song.id, defaultArr.id, song.title);
+                          }}
+                        >
+                          <Icon name="plus" size={13} /><span>Add All</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="bible-action"
+                        disabled={!canAct}
+                        aria-label={`Edit ${song.title}`}
+                        title="Edit song"
                         onClick={(event) => {
-                          if (fromActionArea(event) || !canAct) return;
-                          void perform('preview', input, label);
-                        }}
-                        onDoubleClick={(event) => {
-                          if (fromActionArea(event) || !canAct) return;
-                          void perform('live', input, label);
+                          // The summary owns the open/close toggle, so both have to be stopped.
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void openEditor(song.id);
                         }}
                       >
-                        <button type="button" className="song-result-main">
-                          <span className="song-result-reference">{section.label}</span>
-                          <span className="bible-text">{firstLine(section.text)}</span>
-                        </button>
-                        <div className="song-actions">
-                          <button
-                            type="button"
-                            className="bible-action"
-                            disabled={!canAct}
+                        <Icon name="more" size={13} /><span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="bible-action"
+                        disabled={!canAct}
+                        aria-label={`Duplicate ${song.title}`}
+                        title="Duplicate song"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void duplicateSong(song.id, song.title);
+                        }}
+                      >
+                        <Icon name="plus" size={13} /><span>Duplicate</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button icon-button--small"
+                        disabled={!canAct}
+                        aria-label={`Delete ${song.title}`}
+                        title="Delete song"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          if (!canAct) return;
+                          setBusy(`delete:${song.id}`);
+                          void studio.deleteSong(song.id)
+                            .then(() => setStatus({ kind: 'message', text: `Deleted ${song.title}.` }))
+                            .catch((error: unknown) => setStatus({ kind: 'error', text: errorMessage(error) }))
+                            .finally(() => setBusy(null));
+                        }}
+                      >
+                        <Icon name="close" size={14} />
+                      </button>
+                    </div>
+                  </summary>
+
+                  {/* Show arrangement order if available, otherwise raw sections */}
+                  {arrangementItems.length > 0 ? (
+                    <ul className="song-sections" aria-label="Arrangement">
+                      {arrangementItems.map((item) => {
+                        const label = `${song.title} · ${item.label}`;
+                        const input = { songId: song.id, sectionId: item.sectionId };
+                        return (
+                          <li
+                            key={item.id}
+                            className="song-result"
+                            title={`Click to preview ${label} · double-click to send live`}
                             onClick={(event) => {
-                              event.stopPropagation();
+                              if (fromActionArea(event) || !canAct) return;
                               void perform('preview', input, label);
                             }}
-                            aria-label={`Preview ${label}`}
-                            title={`Preview ${label}`}
-                          >
-                            <Icon name="preview" size={13} /><span>Preview</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="bible-action"
-                            disabled={!canAct}
-                            onClick={(event) => {
-                              event.stopPropagation();
+                            onDoubleClick={(event) => {
+                              if (fromActionArea(event) || !canAct) return;
                               void perform('live', input, label);
                             }}
-                            aria-label={`Send ${label} live`}
-                            title={`Send ${label} live`}
                           >
-                            <Icon name="display" size={13} /><span>Send Live</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="bible-action"
-                            disabled={!canAct}
+                            <button type="button" className="song-result-main">
+                              <span className="song-result-reference">{item.label}</span>
+                              <span className="bible-text">{firstLine(item.text)}</span>
+                            </button>
+                            <div className="song-actions">
+                              <button
+                                type="button"
+                                className="bible-action"
+                                disabled={!canAct}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void perform('preview', input, label);
+                                }}
+                                aria-label={`Preview ${label}`}
+                                title={`Preview ${label}`}
+                              >
+                                <Icon name="preview" size={13} /><span>Preview</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="bible-action"
+                                disabled={!canAct}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void perform('live', input, label);
+                                }}
+                                aria-label={`Send ${label} live`}
+                                title={`Send ${label} live`}
+                              >
+                                <Icon name="display" size={13} /><span>Send Live</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="bible-action"
+                                disabled={!canAct}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void perform('add', input, label);
+                                }}
+                                aria-label={`Add ${label} to the service`}
+                                title={`Add ${label} to the service`}
+                              >
+                                <Icon name="plus" size={13} /><span>Add to Service</span>
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <ul className="song-sections" aria-label="Sections">
+                      {(song.sections ?? []).map((section) => {
+                        const label = `${song.title} · ${section.label}`;
+                        const input = { songId: song.id, sectionId: section.id };
+                        return (
+                          <li
+                            key={section.id}
+                            className="song-result"
+                            title={`Click to preview ${label} · double-click to send live`}
                             onClick={(event) => {
-                              event.stopPropagation();
-                              void perform('add', input, label);
+                              if (fromActionArea(event) || !canAct) return;
+                              void perform('preview', input, label);
                             }}
-                            aria-label={`Add ${label} to the service`}
-                            title={`Add ${label} to the service`}
+                            onDoubleClick={(event) => {
+                              if (fromActionArea(event) || !canAct) return;
+                              void perform('live', input, label);
+                            }}
                           >
-                            <Icon name="plus" size={13} /><span>Add to Service</span>
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </details>
-            ))}
+                            <button type="button" className="song-result-main">
+                              <span className="song-result-reference">{section.label}</span>
+                              <span className="bible-text">{firstLine(section.text)}</span>
+                            </button>
+                            <div className="song-actions">
+                              <button
+                                type="button"
+                                className="bible-action"
+                                disabled={!canAct}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void perform('preview', input, label);
+                                }}
+                                aria-label={`Preview ${label}`}
+                                title={`Preview ${label}`}
+                              >
+                                <Icon name="preview" size={13} /><span>Preview</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="bible-action"
+                                disabled={!canAct}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void perform('live', input, label);
+                                }}
+                                aria-label={`Send ${label} live`}
+                                title={`Send ${label} live`}
+                              >
+                                <Icon name="display" size={13} /><span>Send Live</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="bible-action"
+                                disabled={!canAct}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void perform('add', input, label);
+                                }}
+                                aria-label={`Add ${label} to the service`}
+                                title={`Add ${label} to the service`}
+                              >
+                                <Icon name="plus" size={13} /><span>Add to Service</span>
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </details>
+              );
+            })}
           </div>
         )}
 

@@ -3,32 +3,186 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import { Create as $Create } from "@wailsio/runtime";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as media$0 from "./internal/media/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as presentation$0 from "./internal/presentation/models.js";
 
-export interface AppInfo {
+export class AppInfo {
     "name": string;
     "version": string;
+
+    /** Creates a new AppInfo instance. */
+    constructor($$source: Partial<AppInfo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AppInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AppInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AppInfo($$parsedSource as Partial<AppInfo>);
+    }
 }
 
-export interface BackupView {
+export class ArrangementItemView {
+    "id": string;
+    "sectionId": string;
+    "position": number;
+    "label": string;
+    "text": string;
+
+    /** Creates a new ArrangementItemView instance. */
+    constructor($$source: Partial<ArrangementItemView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("sectionId" in $$source)) {
+            this["sectionId"] = "";
+        }
+        if (!("position" in $$source)) {
+            this["position"] = 0;
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ArrangementItemView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ArrangementItemView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ArrangementItemView($$parsedSource as Partial<ArrangementItemView>);
+    }
+}
+
+export class ArrangementView {
+    "id": string;
+    "songId": string;
+    "name": string;
+    "isDefault": boolean;
+    "items": ArrangementItemView[];
+
+    /** Creates a new ArrangementView instance. */
+    constructor($$source: Partial<ArrangementView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("songId" in $$source)) {
+            this["songId"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("isDefault" in $$source)) {
+            this["isDefault"] = false;
+        }
+        if (!("items" in $$source)) {
+            this["items"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ArrangementView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ArrangementView {
+        const $$createField4_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField4_0($$parsedSource["items"]);
+        }
+        return new ArrangementView($$parsedSource as Partial<ArrangementView>);
+    }
+}
+
+export class BackupView {
     "name": string;
     "sizeBytes": number;
     "createdAt": string;
+
+    /** Creates a new BackupView instance. */
+    constructor($$source: Partial<BackupView> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("sizeBytes" in $$source)) {
+            this["sizeBytes"] = 0;
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BackupView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BackupView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BackupView($$parsedSource as Partial<BackupView>);
+    }
 }
 
 /**
  * BibleBookView is a lightweight description of one canonical book exposed to
  * the frontend for filter dropdowns and the passage browser.
  */
-export interface BibleBookView {
+export class BibleBookView {
     "id": number;
     "name": string;
     "abbreviation": string;
     "testament": string;
     "chapters": number;
+
+    /** Creates a new BibleBookView instance. */
+    constructor($$source: Partial<BibleBookView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("abbreviation" in $$source)) {
+            this["abbreviation"] = "";
+        }
+        if (!("testament" in $$source)) {
+            this["testament"] = "";
+        }
+        if (!("chapters" in $$source)) {
+            this["chapters"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BibleBookView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BibleBookView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BibleBookView($$parsedSource as Partial<BibleBookView>);
+    }
 }
 
 /**
@@ -36,7 +190,7 @@ export interface BibleBookView {
  * first and falls back to word search; "words", "phrase" and "prefix" force
  * full-text search.
  */
-export interface BibleSearchRequest {
+export class BibleSearchRequest {
     "translationId": string;
     "query": string;
     "mode": string;
@@ -47,17 +201,83 @@ export interface BibleSearchRequest {
      * Optional filters: empty string / nil means no filter.
      */
     "testament": string;
-    "bookIds": number[] | null;
+    "bookIds": number[];
+
+    /** Creates a new BibleSearchRequest instance. */
+    constructor($$source: Partial<BibleSearchRequest> = {}) {
+        if (!("translationId" in $$source)) {
+            this["translationId"] = "";
+        }
+        if (!("query" in $$source)) {
+            this["query"] = "";
+        }
+        if (!("mode" in $$source)) {
+            this["mode"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+        if (!("testament" in $$source)) {
+            this["testament"] = "";
+        }
+        if (!("bookIds" in $$source)) {
+            this["bookIds"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BibleSearchRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BibleSearchRequest {
+        const $$createField6_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("bookIds" in $$parsedSource) {
+            $$parsedSource["bookIds"] = $$createField6_0($$parsedSource["bookIds"]);
+        }
+        return new BibleSearchRequest($$parsedSource as Partial<BibleSearchRequest>);
+    }
 }
 
-export interface BibleSearchResponse {
+export class BibleSearchResponse {
     "kind": string;
     "reference"?: string;
-    "results": BibleVerse[] | null;
+    "results": BibleVerse[];
     "total": number;
+
+    /** Creates a new BibleSearchResponse instance. */
+    constructor($$source: Partial<BibleSearchResponse> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("results" in $$source)) {
+            this["results"] = [];
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BibleSearchResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BibleSearchResponse {
+        const $$createField2_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("results" in $$parsedSource) {
+            $$parsedSource["results"] = $$createField2_0($$parsedSource["results"]);
+        }
+        return new BibleSearchResponse($$parsedSource as Partial<BibleSearchResponse>);
+    }
 }
 
-export interface BibleVerse {
+export class BibleVerse {
     "bookId": number;
     "book": string;
     "chapter": number;
@@ -66,20 +286,84 @@ export interface BibleVerse {
     "text": string;
     "snippet"?: string;
     "testament": string;
+
+    /** Creates a new BibleVerse instance. */
+    constructor($$source: Partial<BibleVerse> = {}) {
+        if (!("bookId" in $$source)) {
+            this["bookId"] = 0;
+        }
+        if (!("book" in $$source)) {
+            this["book"] = "";
+        }
+        if (!("chapter" in $$source)) {
+            this["chapter"] = 0;
+        }
+        if (!("verse" in $$source)) {
+            this["verse"] = 0;
+        }
+        if (!("reference" in $$source)) {
+            this["reference"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("testament" in $$source)) {
+            this["testament"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BibleVerse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BibleVerse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BibleVerse($$parsedSource as Partial<BibleVerse>);
+    }
 }
 
 /**
  * BrowsePassageRequest addresses a whole chapter or a verse range inside one.
  */
-export interface BrowsePassageRequest {
+export class BrowsePassageRequest {
     "translationId": string;
     "bookId": number;
     "chapter": number;
     "verseStart": number;
     "verseEnd": number;
+
+    /** Creates a new BrowsePassageRequest instance. */
+    constructor($$source: Partial<BrowsePassageRequest> = {}) {
+        if (!("translationId" in $$source)) {
+            this["translationId"] = "";
+        }
+        if (!("bookId" in $$source)) {
+            this["bookId"] = 0;
+        }
+        if (!("chapter" in $$source)) {
+            this["chapter"] = 0;
+        }
+        if (!("verseStart" in $$source)) {
+            this["verseStart"] = 0;
+        }
+        if (!("verseEnd" in $$source)) {
+            this["verseEnd"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BrowsePassageRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BrowsePassageRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BrowsePassageRequest($$parsedSource as Partial<BrowsePassageRequest>);
+    }
 }
 
-export interface CustomItemRequest {
+export class CustomItemRequest {
     /**
      * "text", "announcement", "blank"
      */
@@ -88,47 +372,234 @@ export interface CustomItemRequest {
     "content": string;
     "notes": string;
     "duration": number;
+
+    /** Creates a new CustomItemRequest instance. */
+    constructor($$source: Partial<CustomItemRequest> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("notes" in $$source)) {
+            this["notes"] = "";
+        }
+        if (!("duration" in $$source)) {
+            this["duration"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CustomItemRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CustomItemRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CustomItemRequest($$parsedSource as Partial<CustomItemRequest>);
+    }
 }
 
-export interface DisplayView {
+export class DisplayView {
     "open": boolean;
     "screenId": string;
     "screenName": string;
+
+    /** Creates a new DisplayView instance. */
+    constructor($$source: Partial<DisplayView> = {}) {
+        if (!("open" in $$source)) {
+            this["open"] = false;
+        }
+        if (!("screenId" in $$source)) {
+            this["screenId"] = "";
+        }
+        if (!("screenName" in $$source)) {
+            this["screenName"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DisplayView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DisplayView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DisplayView($$parsedSource as Partial<DisplayView>);
+    }
 }
 
-export interface EditSongRequest {
+export class EditSongRequest {
     "id": string;
     "title": string;
     "author": string;
     "copyright": string;
-    "sections": SongSectionEdit[] | null;
+    "ccliNumber": string;
+    "source": string;
+    "sections": SongSectionEdit[];
+
+    /** Creates a new EditSongRequest instance. */
+    constructor($$source: Partial<EditSongRequest> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("copyright" in $$source)) {
+            this["copyright"] = "";
+        }
+        if (!("ccliNumber" in $$source)) {
+            this["ccliNumber"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("sections" in $$source)) {
+            this["sections"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EditSongRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EditSongRequest {
+        const $$createField6_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sections" in $$parsedSource) {
+            $$parsedSource["sections"] = $$createField6_0($$parsedSource["sections"]);
+        }
+        return new EditSongRequest($$parsedSource as Partial<EditSongRequest>);
+    }
 }
 
 /**
  * EditorView reports a utility window as the frontend sees it.
  */
-export interface EditorView {
+export class EditorView {
     "open": boolean;
     "title": string;
+
+    /** Creates a new EditorView instance. */
+    constructor($$source: Partial<EditorView> = {}) {
+        if (!("open" in $$source)) {
+            this["open"] = false;
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EditorView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EditorView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EditorView($$parsedSource as Partial<EditorView>);
+    }
 }
 
-export interface LyricHitView {
+export class LyricHitView {
     "songId": string;
     "songTitle": string;
     "author": string;
     "copyright": string;
+    "ccliNumber": string;
+    "source": string;
     "sectionId": string;
     "label": string;
     "text": string;
     "position": number;
+
+    /** Creates a new LyricHitView instance. */
+    constructor($$source: Partial<LyricHitView> = {}) {
+        if (!("songId" in $$source)) {
+            this["songId"] = "";
+        }
+        if (!("songTitle" in $$source)) {
+            this["songTitle"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("copyright" in $$source)) {
+            this["copyright"] = "";
+        }
+        if (!("ccliNumber" in $$source)) {
+            this["ccliNumber"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("sectionId" in $$source)) {
+            this["sectionId"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("position" in $$source)) {
+            this["position"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LyricHitView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LyricHitView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LyricHitView($$parsedSource as Partial<LyricHitView>);
+    }
 }
 
-export interface MediaImportResult {
-    "added": MediaView[] | null;
-    "problems": media$0.ImportProblem[] | null;
+export class MediaImportResult {
+    "added": MediaView[];
+    "problems": media$0.ImportProblem[];
+
+    /** Creates a new MediaImportResult instance. */
+    constructor($$source: Partial<MediaImportResult> = {}) {
+        if (!("added" in $$source)) {
+            this["added"] = [];
+        }
+        if (!("problems" in $$source)) {
+            this["problems"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaImportResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaImportResult {
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("added" in $$parsedSource) {
+            $$parsedSource["added"] = $$createField0_0($$parsedSource["added"]);
+        }
+        if ("problems" in $$parsedSource) {
+            $$parsedSource["problems"] = $$createField1_0($$parsedSource["problems"]);
+        }
+        return new MediaImportResult($$parsedSource as Partial<MediaImportResult>);
+    }
 }
 
-export interface MediaView {
+export class MediaView {
     "id": string;
     "kind": string;
     "title": string;
@@ -143,44 +614,273 @@ export interface MediaView {
     "fit": string;
     "missing": boolean;
     "createdAt": string;
+
+    /** Creates a new MediaView instance. */
+    constructor($$source: Partial<MediaView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("thumbnailUrl" in $$source)) {
+            this["thumbnailUrl"] = "";
+        }
+        if (!("sizeBytes" in $$source)) {
+            this["sizeBytes"] = 0;
+        }
+        if (!("durationMs" in $$source)) {
+            this["durationMs"] = 0;
+        }
+        if (!("width" in $$source)) {
+            this["width"] = 0;
+        }
+        if (!("height" in $$source)) {
+            this["height"] = 0;
+        }
+        if (!("hasThumbnail" in $$source)) {
+            this["hasThumbnail"] = false;
+        }
+        if (!("aspect" in $$source)) {
+            this["aspect"] = "";
+        }
+        if (!("fit" in $$source)) {
+            this["fit"] = "";
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = false;
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = "0001-01-01T00:00:00.000Z";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaView($$parsedSource as Partial<MediaView>);
+    }
 }
 
-export interface NewSongRequest {
+export class NewSongRequest {
     "title": string;
     "author": string;
     "copyright": string;
-    "sections": NewSongSectionRequest[] | null;
+    "ccliNumber": string;
+    "source": string;
+    "sections": NewSongSectionRequest[];
+
+    /** Creates a new NewSongRequest instance. */
+    constructor($$source: Partial<NewSongRequest> = {}) {
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("copyright" in $$source)) {
+            this["copyright"] = "";
+        }
+        if (!("ccliNumber" in $$source)) {
+            this["ccliNumber"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("sections" in $$source)) {
+            this["sections"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NewSongRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NewSongRequest {
+        const $$createField5_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sections" in $$parsedSource) {
+            $$parsedSource["sections"] = $$createField5_0($$parsedSource["sections"]);
+        }
+        return new NewSongRequest($$parsedSource as Partial<NewSongRequest>);
+    }
 }
 
-export interface NewSongSectionRequest {
+export class NewSongSectionRequest {
     "label": string;
     "text": string;
+
+    /** Creates a new NewSongSectionRequest instance. */
+    constructor($$source: Partial<NewSongSectionRequest> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NewSongSectionRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NewSongSectionRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NewSongSectionRequest($$parsedSource as Partial<NewSongSectionRequest>);
+    }
 }
 
-export interface PresentationView {
+export class PresentationView {
     "preview"?: presentation$0.Content | null;
     "live"?: presentation$0.Content | null;
+
+    /** Creates a new PresentationView instance. */
+    constructor($$source: Partial<PresentationView> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PresentationView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PresentationView {
+        const $$createField0_0 = $$createType14;
+        const $$createField1_0 = $$createType14;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("preview" in $$parsedSource) {
+            $$parsedSource["preview"] = $$createField0_0($$parsedSource["preview"]);
+        }
+        if ("live" in $$parsedSource) {
+            $$parsedSource["live"] = $$createField1_0($$parsedSource["live"]);
+        }
+        return new PresentationView($$parsedSource as Partial<PresentationView>);
+    }
 }
 
-export interface ScreenOption {
+export class SaveArrangementRequest {
+    "arrangementId": string;
+    "songId": string;
+    "name": string;
+    "isDefault": boolean;
+    "sectionIds": string[];
+
+    /** Creates a new SaveArrangementRequest instance. */
+    constructor($$source: Partial<SaveArrangementRequest> = {}) {
+        if (!("arrangementId" in $$source)) {
+            this["arrangementId"] = "";
+        }
+        if (!("songId" in $$source)) {
+            this["songId"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("isDefault" in $$source)) {
+            this["isDefault"] = false;
+        }
+        if (!("sectionIds" in $$source)) {
+            this["sectionIds"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SaveArrangementRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SaveArrangementRequest {
+        const $$createField4_0 = $$createType15;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sectionIds" in $$parsedSource) {
+            $$parsedSource["sectionIds"] = $$createField4_0($$parsedSource["sectionIds"]);
+        }
+        return new SaveArrangementRequest($$parsedSource as Partial<SaveArrangementRequest>);
+    }
+}
+
+export class ScreenOption {
     "id": string;
     "name": string;
     "isPrimary": boolean;
+
+    /** Creates a new ScreenOption instance. */
+    constructor($$source: Partial<ScreenOption> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("isPrimary" in $$source)) {
+            this["isPrimary"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ScreenOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ScreenOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ScreenOption($$parsedSource as Partial<ScreenOption>);
+    }
 }
 
 /**
  * ScriptureRequest addresses verses already resolved by Bible search, so the
  * schedule stores a reference rather than a copy of scripture text.
  */
-export interface ScriptureRequest {
+export class ScriptureRequest {
     "translationId": string;
     "bookId": number;
     "chapter": number;
     "verseStart": number;
     "verseEnd": number;
+
+    /** Creates a new ScriptureRequest instance. */
+    constructor($$source: Partial<ScriptureRequest> = {}) {
+        if (!("translationId" in $$source)) {
+            this["translationId"] = "";
+        }
+        if (!("bookId" in $$source)) {
+            this["bookId"] = 0;
+        }
+        if (!("chapter" in $$source)) {
+            this["chapter"] = 0;
+        }
+        if (!("verseStart" in $$source)) {
+            this["verseStart"] = 0;
+        }
+        if (!("verseEnd" in $$source)) {
+            this["verseEnd"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ScriptureRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ScriptureRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ScriptureRequest($$parsedSource as Partial<ScriptureRequest>);
+    }
 }
 
-export interface ServiceItemView {
+export class ServiceItemView {
     "id": string;
     "position": number;
     "kind": string;
@@ -202,70 +902,469 @@ export interface ServiceItemView {
      * "completed" | "live" | "next" | "upcoming"
      */
     "status": string;
+
+    /** Creates a new ServiceItemView instance. */
+    constructor($$source: Partial<ServiceItemView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("position" in $$source)) {
+            this["position"] = 0;
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("translationId" in $$source)) {
+            this["translationId"] = "";
+        }
+        if (!("bookId" in $$source)) {
+            this["bookId"] = 0;
+        }
+        if (!("chapter" in $$source)) {
+            this["chapter"] = 0;
+        }
+        if (!("verseStart" in $$source)) {
+            this["verseStart"] = 0;
+        }
+        if (!("verseEnd" in $$source)) {
+            this["verseEnd"] = 0;
+        }
+        if (!("songId" in $$source)) {
+            this["songId"] = "";
+        }
+        if (!("sectionId" in $$source)) {
+            this["sectionId"] = "";
+        }
+        if (!("mediaId" in $$source)) {
+            this["mediaId"] = "";
+        }
+        if (!("themeId" in $$source)) {
+            this["themeId"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("notes" in $$source)) {
+            this["notes"] = "";
+        }
+        if (!("duration" in $$source)) {
+            this["duration"] = 0;
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServiceItemView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServiceItemView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ServiceItemView($$parsedSource as Partial<ServiceItemView>);
+    }
 }
 
-export interface ServiceOrderView {
+export class ServiceOrderView {
     "service": ServiceView | null;
-    "items": ServiceItemView[] | null;
+    "items": ServiceItemView[];
+
+    /** Creates a new ServiceOrderView instance. */
+    constructor($$source: Partial<ServiceOrderView> = {}) {
+        if (!("service" in $$source)) {
+            this["service"] = null;
+        }
+        if (!("items" in $$source)) {
+            this["items"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServiceOrderView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServiceOrderView {
+        const $$createField0_0 = $$createType17;
+        const $$createField1_0 = $$createType19;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("service" in $$parsedSource) {
+            $$parsedSource["service"] = $$createField0_0($$parsedSource["service"]);
+        }
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
+        }
+        return new ServiceOrderView($$parsedSource as Partial<ServiceOrderView>);
+    }
 }
 
-export interface ServiceView {
+export class ServiceView {
     "id": string;
     "name": string;
+
+    /** Creates a new ServiceView instance. */
+    constructor($$source: Partial<ServiceView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServiceView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServiceView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ServiceView($$parsedSource as Partial<ServiceView>);
+    }
 }
 
-export interface SongSectionEdit {
+export class SongArrangementRequest {
+    "songId": string;
+    "arrangementId": string;
+
+    /** Creates a new SongArrangementRequest instance. */
+    constructor($$source: Partial<SongArrangementRequest> = {}) {
+        if (!("songId" in $$source)) {
+            this["songId"] = "";
+        }
+        if (!("arrangementId" in $$source)) {
+            this["arrangementId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SongArrangementRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SongArrangementRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SongArrangementRequest($$parsedSource as Partial<SongArrangementRequest>);
+    }
+}
+
+export class SongSectionEdit {
     "id": string;
     "label": string;
     "text": string;
+
+    /** Creates a new SongSectionEdit instance. */
+    constructor($$source: Partial<SongSectionEdit> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SongSectionEdit instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SongSectionEdit {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SongSectionEdit($$parsedSource as Partial<SongSectionEdit>);
+    }
 }
 
-export interface SongSectionRequest {
+export class SongSectionRequest {
     "songId": string;
     "sectionId": string;
+
+    /** Creates a new SongSectionRequest instance. */
+    constructor($$source: Partial<SongSectionRequest> = {}) {
+        if (!("songId" in $$source)) {
+            this["songId"] = "";
+        }
+        if (!("sectionId" in $$source)) {
+            this["sectionId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SongSectionRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SongSectionRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SongSectionRequest($$parsedSource as Partial<SongSectionRequest>);
+    }
 }
 
-export interface SongSectionView {
+export class SongSectionView {
     "id": string;
     "label": string;
     "text": string;
     "position": number;
+
+    /** Creates a new SongSectionView instance. */
+    constructor($$source: Partial<SongSectionView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("position" in $$source)) {
+            this["position"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SongSectionView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SongSectionView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SongSectionView($$parsedSource as Partial<SongSectionView>);
+    }
 }
 
-export interface SongView {
+export class SongView {
     "id": string;
     "title": string;
     "author": string;
     "copyright": string;
-    "sections": SongSectionView[] | null;
+    "ccliNumber": string;
+    "source": string;
+    "sections": SongSectionView[];
+    "arrangements": ArrangementView[];
+
+    /** Creates a new SongView instance. */
+    constructor($$source: Partial<SongView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("copyright" in $$source)) {
+            this["copyright"] = "";
+        }
+        if (!("ccliNumber" in $$source)) {
+            this["ccliNumber"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("sections" in $$source)) {
+            this["sections"] = [];
+        }
+        if (!("arrangements" in $$source)) {
+            this["arrangements"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SongView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SongView {
+        const $$createField6_0 = $$createType21;
+        const $$createField7_0 = $$createType23;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sections" in $$parsedSource) {
+            $$parsedSource["sections"] = $$createField6_0($$parsedSource["sections"]);
+        }
+        if ("arrangements" in $$parsedSource) {
+            $$parsedSource["arrangements"] = $$createField7_0($$parsedSource["arrangements"]);
+        }
+        return new SongView($$parsedSource as Partial<SongView>);
+    }
 }
 
-export interface SongsView {
-    "songs": SongView[] | null;
-    "hits": LyricHitView[] | null;
+export class SongsView {
+    "songs": SongView[];
+    "hits": LyricHitView[];
+
+    /** Creates a new SongsView instance. */
+    constructor($$source: Partial<SongsView> = {}) {
+        if (!("songs" in $$source)) {
+            this["songs"] = [];
+        }
+        if (!("hits" in $$source)) {
+            this["hits"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SongsView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SongsView {
+        const $$createField0_0 = $$createType25;
+        const $$createField1_0 = $$createType27;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("songs" in $$parsedSource) {
+            $$parsedSource["songs"] = $$createField0_0($$parsedSource["songs"]);
+        }
+        if ("hits" in $$parsedSource) {
+            $$parsedSource["hits"] = $$createField1_0($$parsedSource["hits"]);
+        }
+        return new SongsView($$parsedSource as Partial<SongsView>);
+    }
 }
 
 /**
  * StorageView answers the two questions Settings exists for: where the
  * church's data sits on this computer, and whether it is safe.
  */
-export interface StorageView {
+export class StorageView {
     "version": string;
     "dataRoot": string;
     "databaseBytes": number;
     "mediaBytes": number;
     "mediaItems": number;
-    "translations": TranslationView[] | null;
+    "translations": TranslationView[];
     "defaultTranslation": string;
-    "backups": BackupView[] | null;
+    "backups": BackupView[];
     "backupCount": number;
+
+    /** Creates a new StorageView instance. */
+    constructor($$source: Partial<StorageView> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("dataRoot" in $$source)) {
+            this["dataRoot"] = "";
+        }
+        if (!("databaseBytes" in $$source)) {
+            this["databaseBytes"] = 0;
+        }
+        if (!("mediaBytes" in $$source)) {
+            this["mediaBytes"] = 0;
+        }
+        if (!("mediaItems" in $$source)) {
+            this["mediaItems"] = 0;
+        }
+        if (!("translations" in $$source)) {
+            this["translations"] = [];
+        }
+        if (!("defaultTranslation" in $$source)) {
+            this["defaultTranslation"] = "";
+        }
+        if (!("backups" in $$source)) {
+            this["backups"] = [];
+        }
+        if (!("backupCount" in $$source)) {
+            this["backupCount"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StorageView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StorageView {
+        const $$createField5_0 = $$createType29;
+        const $$createField7_0 = $$createType31;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("translations" in $$parsedSource) {
+            $$parsedSource["translations"] = $$createField5_0($$parsedSource["translations"]);
+        }
+        if ("backups" in $$parsedSource) {
+            $$parsedSource["backups"] = $$createField7_0($$parsedSource["backups"]);
+        }
+        return new StorageView($$parsedSource as Partial<StorageView>);
+    }
 }
 
-export interface TranslationView {
+export class TranslationView {
     "id": string;
     "name": string;
     "abbreviation": string;
     "language": string;
     "version": string;
     "verseCount": number;
+
+    /** Creates a new TranslationView instance. */
+    constructor($$source: Partial<TranslationView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("abbreviation" in $$source)) {
+            this["abbreviation"] = "";
+        }
+        if (!("language" in $$source)) {
+            this["language"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("verseCount" in $$source)) {
+            this["verseCount"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TranslationView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TranslationView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TranslationView($$parsedSource as Partial<TranslationView>);
+    }
 }
+
+// Private type creation functions
+const $$createType0 = ArrangementItemView.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = BibleVerse.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = SongSectionEdit.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = MediaView.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = media$0.ImportProblem.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = NewSongSectionRequest.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = presentation$0.Content.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = $Create.Array($Create.Any);
+const $$createType16 = ServiceView.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = ServiceItemView.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = SongSectionView.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = ArrangementView.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = SongView.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = LyricHitView.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = TranslationView.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = BackupView.createFrom;
+const $$createType31 = $Create.Array($$createType30);

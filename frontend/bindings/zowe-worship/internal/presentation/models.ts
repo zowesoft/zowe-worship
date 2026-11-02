@@ -3,13 +3,17 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import { Create as $Create } from "@wailsio/runtime";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as themes$0 from "../themes/models.js";
 
 /**
  * Content is one slide. It is a frozen snapshot, so live output survives a
  * translation update or a song edit until the operator projects something else.
  */
-export interface Content {
+export class Content {
     "itemId"?: string;
     "kind": string;
     "title": string;
@@ -21,11 +25,55 @@ export interface Content {
     "aspect"?: string;
     "fit"?: string;
     "ratio": number;
-    "lines": string[] | null;
+    "lines": string[];
 
     /**
      * Theme is the look frozen with this slide. Media slides fill the screen
      * themselves, so they carry no theme and a zero value says so.
      */
     "theme": themes$0.Theme;
+
+    /** Creates a new Content instance. */
+    constructor($$source: Partial<Content> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("ratio" in $$source)) {
+            this["ratio"] = 0;
+        }
+        if (!("lines" in $$source)) {
+            this["lines"] = [];
+        }
+        if (!("theme" in $$source)) {
+            this["theme"] = (new themes$0.Theme());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Content instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Content {
+        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("lines" in $$parsedSource) {
+            $$parsedSource["lines"] = $$createField11_0($$parsedSource["lines"]);
+        }
+        if ("theme" in $$parsedSource) {
+            $$parsedSource["theme"] = $$createField12_0($$parsedSource["theme"]);
+        }
+        return new Content($$parsedSource as Partial<Content>);
+    }
 }
+
+// Private type creation functions
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = themes$0.Theme.createFrom;

@@ -448,6 +448,49 @@ func TestNoThemesStillDrawsReadableSlides(t *testing.T) {
 	}
 }
 
+// An operator who edits a theme is looking at the preview pane, not at the
+// schedule, so the preview has to rebuild itself while the slide already on the
+// wall keeps the look it went out with.
+func TestRefreshPreviewPicksUpAnEditedTheme(t *testing.T) {
+	ctx := context.Background()
+	reader := bright()
+	controller := themedController(reader, "")
+
+	if _, err := controller.PreviewItem(ctx, "one"); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	projected, err := controller.ProjectPreview()
+	if err != nil {
+		t.Fatalf("project: %v", err)
+	}
+	if projected.Live.Theme.Reference.Color != "" {
+		t.Fatalf("live started with an edited colour: %+v", projected.Live.Reference)
+	}
+
+	edited := reader.defaults[themes.KindScripture]
+	edited.Reference.Color = "#FF0000"
+	reader.defaults[themes.KindScripture] = edited
+	reader.byID[edited.ID] = edited
+
+	refreshed, err := controller.RefreshPreview(ctx)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if refreshed.Preview.Theme.Reference.Color != "#FF0000" {
+		t.Fatalf("preview kept the old reference colour: %+v", refreshed.Preview.Reference)
+	}
+	if refreshed.Live.Theme.Reference.Color != "" {
+		t.Fatalf("a theme edit restyled live output: %+v", refreshed.Live.Reference)
+	}
+}
+
+func TestRefreshPreviewWithoutAPreviewReports(t *testing.T) {
+	controller := themedController(bright(), "")
+	if _, err := controller.RefreshPreview(context.Background()); !errors.Is(err, ErrNoPreview) {
+		t.Fatalf("err = %v, want ErrNoPreview", err)
+	}
+}
+
 func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
 	ctx := context.Background()
 	reader := bright()
