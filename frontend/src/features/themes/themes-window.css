@@ -50,67 +50,17 @@
 /* Editor */
 .themes-editor { min-height: 0; overflow-y: auto; display: grid; gap: 12px; align-content: start; padding-right: 4px; }
 
+/* Only the frame lives here. The slide inside it is drawn by the shared themed
+   component, so the editor cannot show one thing and the projector another. */
 .theme-stage {
-  container-type: size;
-  position: relative;
   width: 100%;
   /* Capped so the controls sit near the picture rather than a scroll away. */
   max-height: 240px;
   aspect-ratio: 16 / 9;
   margin-inline: auto;
-  overflow: hidden;
   border: 1px solid #30445F;
   border-radius: 8px;
 }
-/* Everything is sized from the stage, not the window, so the numbers the
-   operator dials in are what the projector draws. */
-.theme-sample {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: calc(var(--fs) * .4);
-  padding: calc(var(--mg) * 1cqh) calc(var(--mg) * 1cqw);
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--ff);
-  font-size: var(--fs);
-  line-height: var(--lh);
-  font-weight: var(--weight);
-  font-style: var(--slant);
-  text-align: var(--ta);
-}
-/* The middle row is the only bounded one, so the text inside it can be measured
-   against the room the slide really has. */
-.theme-sample-body {
-  grid-row: 2;
-  min-height: 0;
-  display: grid;
-  align-content: center;
-  overflow: hidden;
-}
-.theme-sample-lines {
-  margin: 0;
-  text-transform: var(--ttransform);
-  font-variant: var(--tvariant);
-}
-.theme-sample-lines span { display: block; text-shadow: var(--lift); }
-/* The reference is resolved from the slide text in the component, so every
-   property here is already a concrete value and never needs a fallback chain. */
-.theme-sample-ref {
-  margin: 0;
-  font-family: var(--rff);
-  font-size: var(--rfs);
-  color: var(--rfg);
-  text-align: var(--rta);
-  text-transform: var(--rtransform);
-  font-variant: var(--rvariant);
-  font-weight: var(--rweight);
-  font-style: var(--rslant);
-  text-shadow: var(--lift);
-}
-.theme-sample-ref--top { grid-row: 1; }
-.theme-sample-ref--bottom { grid-row: 3; }
 
 .theme-overflow { display: flex; align-items: center; gap: 6px; color: var(--color-amber); font-size: 10.5px; }
 .theme-error { color: var(--color-error); font-size: 11.5px; }

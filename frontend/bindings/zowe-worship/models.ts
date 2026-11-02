@@ -182,6 +182,7 @@ export interface ServiceItemView {
     "songId": string;
     "sectionId": string;
     "mediaId": string;
+    "themeId": string;
 }
 
 export interface ServiceOrderView {

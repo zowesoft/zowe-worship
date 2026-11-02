@@ -5,6 +5,7 @@ import type { MediaView } from '../../../bindings/zowe-worship/models';
 import type { FontFamily, Theme } from '../../../bindings/zowe-worship/internal/themes/models';
 import { BackgroundKind, Kind, TextCase } from '../../../bindings/zowe-worship/internal/themes/models';
 import { Icon } from '../../components/Icon';
+import { ThemedSlide } from '../../components/ThemedSlide';
 import './themes-window.css';
 
 const kinds: { value: Kind; label: string }[] = [
@@ -35,23 +36,6 @@ const cases: { value: TextCase; label: string }[] = [
   { value: TextCase.CaseLowercase, label: 'lowercase' },
   { value: TextCase.CaseSmallCaps, label: 'Small caps' },
 ];
-
-// Small caps is a variant of the typeface rather than a change of case, so the
-// two properties are always set together.
-function caseVars(value: TextCase | undefined): { transform: string; variant: string } {
-  switch (value) {
-    case TextCase.CaseCapitalized:
-      return { transform: 'capitalize', variant: 'normal' };
-    case TextCase.CaseUppercase:
-      return { transform: 'uppercase', variant: 'normal' };
-    case TextCase.CaseLowercase:
-      return { transform: 'lowercase', variant: 'normal' };
-    case TextCase.CaseSmallCaps:
-      return { transform: 'none', variant: 'small-caps' };
-    default:
-      return { transform: 'none', variant: 'normal' };
-  }
-}
 
 // The words a theme is judged on. The long form is what the overflow warning
 // measures, because a theme that fits one verse is no use for a whole chapter.
@@ -273,36 +257,9 @@ export function ThemesWindow() {
     items: themes.filter((theme) => theme.kind === kind.value),
   }));
 
-  const bodyCase = caseVars(draft?.style.case);
-  const refCase = caseVars(draft?.reference.case);
-  // Anything the reference does not set falls back to the slide text, so the
-  // fallbacks are resolved here rather than left empty for CSS to guess at.
-  const referenceSize = draft && draft.reference.fontSize > 0
-    ? `${draft.reference.fontSize}cqh`
-    : 'calc(var(--fs) * .45)';
-
-  const stageStyle = {
-    '--ff': draft?.style.fontFamily ?? 'serif',
-    '--fs': `${draft?.style.fontSize ?? 4}cqh`,
-    '--lh': String(draft?.style.lineHeight ?? 1.4),
-    '--mg': String(draft?.style.margin ?? 8),
-    '--fg': draft?.style.color ?? '#FFFFFF',
-    '--ta': draft?.style.align ?? 'center',
-    '--ttransform': bodyCase.transform,
-    '--tvariant': bodyCase.variant,
-    '--bg': backgroundCss(draft, images),
-    '--weight': draft?.style.bold ? '700' : '400',
-    '--slant': draft?.style.italic ? 'italic' : 'normal',
-    '--lift': draft?.style.shadow ? '0 0.4cqh 1.2cqh rgba(0,0,0,.65)' : 'none',
-    '--rff': draft?.reference.fontFamily || draft?.style.fontFamily || 'serif',
-    '--rfs': referenceSize,
-    '--rfg': draft?.reference.color || draft?.style.color || '#FFFFFF',
-    '--rta': draft?.reference.align || draft?.style.align || 'center',
-    '--rtransform': refCase.transform,
-    '--rvariant': refCase.variant,
-    '--rweight': draft?.reference.bold ? '700' : 'inherit',
-    '--rslant': draft?.reference.italic ? 'italic' : 'inherit',
-  } as React.CSSProperties;
+  // The preview draws through the same component the studio and the projector
+  // use, so a theme cannot look right in the editor and wrong on the wall.
+  const pictureURL = (mediaID: string) => images.find((image) => image.id === mediaID)?.url ?? '';
 
   return (
     <main className="themes-window" aria-label="Themes">
@@ -362,19 +319,14 @@ export function ThemesWindow() {
         ) : (
           <section className="themes-editor">
             <div className="theme-preview">
-              <div className="theme-stage" style={stageStyle}>
-                <div className="theme-sample">
-                  {draft.reference.placement === 'top' && <p className="theme-sample-ref theme-sample-ref--top">{sample.reference}</p>}
-                  <div className="theme-sample-body">
-                    <p ref={linesRef} className="theme-sample-lines">
-                      {sample.lines.map((line, index) => <span key={index}>{line}</span>)}
-                    </p>
-                  </div>
-                  {draft.reference.placement !== 'top' && draft.reference.placement !== 'none' && (
-                    <p className="theme-sample-ref theme-sample-ref--bottom">{sample.reference}</p>
-                  )}
-                </div>
-              </div>
+              <ThemedSlide
+                theme={draft}
+                lines={sample.lines}
+                reference={sample.reference}
+                linesRef={linesRef}
+                urlFor={pictureURL}
+                className="theme-stage"
+              />
               {overflow && (
                 <p className="theme-overflow" role="status">
                   <Icon name="bell" size={13} />
@@ -588,17 +540,4 @@ export function ThemesWindow() {
       </div>
     </main>
   );
-}
-
-function backgroundCss(theme: Theme | null, images: MediaView[]): string {
-  if (!theme) return '#081A2E';
-  const background = theme.background;
-  if (background.kind === BackgroundKind.BackgroundGradient) {
-    return `linear-gradient(${background.angle}deg, ${background.color}, ${background.color2 || background.color})`;
-  }
-  if (background.kind === BackgroundKind.BackgroundImage && background.mediaId) {
-    const picture = images.find((image) => image.id === background.mediaId);
-    if (picture) return `url('${picture.url}') center / cover no-repeat, ${background.color || '#081A2E'}`;
-  }
-  return background.color || '#081A2E';
 }

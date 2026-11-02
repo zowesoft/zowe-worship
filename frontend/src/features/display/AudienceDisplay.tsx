@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { SlideMedia } from '../../components/SlideMedia';
+import { ThemedSlide } from '../../components/ThemedSlide';
 import { App } from '../../../bindings/zowe-worship';
 import type { PresentationView } from '../../../bindings/zowe-worship/models';
 import type { Content } from '../../../bindings/zowe-worship/internal/presentation/models';
@@ -84,11 +85,14 @@ export function AudienceDisplay() {
   }
 
   return (
-    <main className="audience" aria-label="Audience display">
-      <p className="audience-lines">
-        {(shown.lines ?? []).map((line, index) => <span key={index}>{line}</span>)}
-      </p>
-      <p className="audience-label">{shown.label}</p>
+    <main className="audience audience--slide" aria-label="Audience display">
+      <ThemedSlide
+        theme={shown.theme}
+        lines={shown.lines ?? []}
+        reference={shown.label}
+        urlFor={(mediaID) => `/media/file/${mediaID}`}
+        className="audience-slide"
+      />
     </main>
   );
 }

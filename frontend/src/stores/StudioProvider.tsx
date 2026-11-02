@@ -49,6 +49,7 @@ type StudioValue = {
   addScripture: (input: ScriptureInput) => Promise<models.ServiceOrderView>;
   removeItem: (itemID: string) => Promise<models.ServiceOrderView>;
   reorderItems: (itemIDs: string[]) => Promise<models.ServiceOrderView>;
+  setItemTheme: (itemID: string, themeID: string) => Promise<models.ServiceOrderView>;
   previewItem: (itemID: string) => Promise<models.PresentationView>;
   previewScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
   projectScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
@@ -216,6 +217,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     addScripture: (input) => run(() => App.AddScriptureToService(toRequest(input)), setOrder),
     removeItem: (itemID) => run(() => App.RemoveServiceItem(itemID), setOrder),
     reorderItems: (itemIDs) => run(() => App.ReorderServiceItems(itemIDs), setOrder),
+    setItemTheme: (itemID, themeID) => run(() => App.SetItemTheme(itemID, themeID), setOrder),
     previewItem: (itemID) => run(() => App.PreviewServiceItem(itemID), setPresentationState),
     previewScripture: (input) => run(() => App.PreviewScripture(toRequest(input)), setPresentationState),
     projectScripture: (input) => run(() => App.ProjectScripture(toRequest(input)), setPresentationState),

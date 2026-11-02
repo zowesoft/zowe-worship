@@ -348,6 +348,16 @@ export function SetDefaultTranslation(id: string): $CancellablePromise<$models.S
 }
 
 /**
+ * SetItemTheme points one schedule item at a theme, or back at its kind default
+ * with an empty id. The theme is checked before it is stored so a pick that has
+ * since been deleted cannot be saved quietly, and the change only reaches the
+ * room when the operator projects the item again.
+ */
+export function SetItemTheme(itemID: string, themeID: string): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(345195545, itemID, themeID);
+}
+
+/**
  * SetSetting writes a key/value setting.
  */
 export function SetSetting(key: string, value: string): $CancellablePromise<void> {

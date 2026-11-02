@@ -359,6 +359,7 @@ type ServiceItemView struct {
 	SongID        string `json:"songId"`
 	SectionID     string `json:"sectionId"`
 	MediaID       string `json:"mediaId"`
+	ThemeID       string `json:"themeId"`
 }
 
 type ServiceOrderView struct {
@@ -498,6 +499,32 @@ func (a *App) ReorderServiceItems(itemIDs []string) (ServiceOrderView, error) {
 	return a.serviceOrderView(ctx)
 }
 
+// SetItemTheme points one schedule item at a theme, or back at its kind default
+// with an empty id. The theme is checked before it is stored so a pick that has
+// since been deleted cannot be saved quietly, and the change only reaches the
+// room when the operator projects the item again.
+func (a *App) SetItemTheme(itemID, themeID string) (ServiceOrderView, error) {
+	if a.order == nil || a.themes == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	id := strings.TrimSpace(themeID)
+
+	if id != "" {
+		if _, err := a.themes.Get(ctx, id); err != nil {
+			if errors.Is(err, themes.ErrThemeNotFound) {
+				return ServiceOrderView{}, errors.New("that theme is no longer in the list")
+			}
+			return ServiceOrderView{}, err
+		}
+	}
+
+	if err := a.order.SetTheme(ctx, strings.TrimSpace(itemID), id); err != nil {
+		return ServiceOrderView{}, err
+	}
+	return a.serviceOrderView(ctx)
+}
+
 // applied hands a controller result to the frontend and, when it succeeded,
 // pushes the same slide to the audience display. Reading state never republish,
 // so a reopening display catches up on its own.
@@ -598,6 +625,7 @@ func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {
 			SongID:        item.SongID,
 			SectionID:     item.SectionID,
 			MediaID:       item.MediaID,
+			ThemeID:       item.ThemeID,
 		})
 	}
 	return ServiceOrderView{
