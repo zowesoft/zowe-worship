@@ -93,8 +93,8 @@ func (a *App) DeleteMedia(id string) ([]MediaView, error) {
 	return a.mediaViews(ctx)
 }
 
-// AddMediaToService puts a library image into the running order. The item keeps
-// a reference rather than a second copy, so one image can serve two services.
+// AddMediaToService puts a library asset into the running order. The item keeps
+// a reference rather than a second copy, so one file can serve two services.
 func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 	if a.media == nil || a.order == nil {
 		return ServiceOrderView{}, errStorageUnavailable
@@ -102,7 +102,7 @@ func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 	ctx := a.context()
 	id := strings.TrimSpace(mediaID)
 
-	slide, err := a.media.Image(ctx, id)
+	slide, err := a.media.Slide(ctx, id)
 	if err != nil {
 		return ServiceOrderView{}, err
 	}
@@ -130,9 +130,12 @@ func (a *App) OpenMediaEditor(mediaID string) (EditorView, error) {
 	}
 
 	id := strings.TrimSpace(mediaID)
-	slide, err := a.media.Image(a.context(), id)
+	slide, err := a.media.Slide(a.context(), id)
 	if err != nil {
 		return EditorView{}, err
+	}
+	if slide.Kind != string(media.KindImage) {
+		return EditorView{}, media.ErrNotImage
 	}
 
 	return openUtilityWindow(
@@ -170,14 +173,14 @@ func (a *App) PreviewMedia(mediaID string) (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	return a.applied(a.presentation.PreviewImage(a.context(), strings.TrimSpace(mediaID)))
+	return a.applied(a.presentation.PreviewMedia(a.context(), strings.TrimSpace(mediaID)))
 }
 
 func (a *App) ProjectMedia(mediaID string) (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	return a.applied(a.presentation.ProjectImage(a.context(), strings.TrimSpace(mediaID)))
+	return a.applied(a.presentation.ProjectMedia(a.context(), strings.TrimSpace(mediaID)))
 }
 
 func (a *App) mediaViews(ctx context.Context) ([]MediaView, error) {

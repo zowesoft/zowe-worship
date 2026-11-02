@@ -93,10 +93,11 @@ func (p Presentation) Normalised() Presentation {
 	return out
 }
 
-// Slide is everything a viewer needs to draw an image slide. The ratio is
-// already resolved so the frontend never has to look an aspect name up, and the
-// name travels with it because "fill the screen" has no ratio to derive from.
+// Slide is everything a viewer needs to draw a media slide. The ratio is already
+// resolved so the frontend never has to look an aspect name up, and the name
+// travels with it because "fill the screen" has no ratio to derive from.
 type Slide struct {
+	Kind   string  `json:"kind"`
 	Title  string  `json:"title"`
 	URL    string  `json:"url"`
 	Aspect string  `json:"aspect"`
@@ -110,16 +111,13 @@ func FileURL(id string) string { return FileRoute + id }
 // ThumbURL is the address of the generated tile for the library grid.
 func ThumbURL(id string) string { return ThumbRoute + id }
 
-// Image resolves an asset into a slide. It refuses rather than handing back a
-// broken one, so a projector keeps showing the last good image when a file has
-// gone walkabout.
-func (l *Library) Image(ctx context.Context, id string) (Slide, error) {
+// Slide resolves any playable asset into a slide. It refuses rather than handing
+// back a broken one, so a projector keeps showing the last good thing when a
+// file has gone walkabout.
+func (l *Library) Slide(ctx context.Context, id string) (Slide, error) {
 	asset, err := l.repo.ByID(ctx, id)
 	if err != nil {
 		return Slide{}, err
-	}
-	if asset.Kind != KindImage {
-		return Slide{}, ErrNotImage
 	}
 	if !l.Exists(asset) {
 		return Slide{}, ErrFileGone
@@ -162,6 +160,7 @@ func (l *Library) SetPresentation(ctx context.Context, id string, presentation P
 
 func (l *Library) slideFor(asset Asset) Slide {
 	return Slide{
+		Kind:   string(asset.Kind),
 		Title:  asset.Title,
 		URL:    FileURL(asset.ID),
 		Aspect: asset.Aspect,

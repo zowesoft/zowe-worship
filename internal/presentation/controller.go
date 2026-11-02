@@ -29,7 +29,7 @@ type Content struct {
 	Label       string   `json:"label"`
 	Reference   string   `json:"reference,omitempty"`
 	Translation string   `json:"translation,omitempty"`
-	Image       string   `json:"image,omitempty"`
+	Source      string   `json:"source,omitempty"`
 	Aspect      string   `json:"aspect,omitempty"`
 	Fit         string   `json:"fit,omitempty"`
 	Ratio       float64  `json:"ratio"`
@@ -54,7 +54,7 @@ type SongReader interface {
 // as an error rather than a blank slide, so live output keeps what it was
 // showing.
 type MediaReader interface {
-	Image(ctx context.Context, mediaID string) (media.Slide, error)
+	Slide(ctx context.Context, mediaID string) (media.Slide, error)
 }
 
 type ScheduleReader interface {
@@ -132,11 +132,11 @@ func (c *Controller) PreviewItem(ctx context.Context, itemID string) (State, err
 	return c.stateLocked(), nil
 }
 
-func (c *Controller) PreviewImage(ctx context.Context, mediaID string) (State, error) {
+func (c *Controller) PreviewMedia(ctx context.Context, mediaID string) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.imageContent(ctx, "", mediaID)
+	content, err := c.mediaContent(ctx, "", mediaID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -144,13 +144,13 @@ func (c *Controller) PreviewImage(ctx context.Context, mediaID string) (State, e
 	return c.stateLocked(), nil
 }
 
-// ProjectImage leaves live output untouched when the asset cannot be shown, so
-// a missing file never blanks the room.
-func (c *Controller) ProjectImage(ctx context.Context, mediaID string) (State, error) {
+// ProjectMedia leaves live output untouched when the asset cannot be shown, so a
+// missing file never blanks the room.
+func (c *Controller) ProjectMedia(ctx context.Context, mediaID string) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.imageContent(ctx, "", mediaID)
+	content, err := c.mediaContent(ctx, "", mediaID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -280,28 +280,28 @@ func (c *Controller) itemContent(ctx context.Context, item serviceorder.Item) (*
 	case serviceorder.KindSong:
 		return c.songContent(ctx, item.ID, item.SongID, item.SectionID)
 	case serviceorder.KindMedia:
-		return c.imageContent(ctx, item.ID, item.MediaID)
+		return c.mediaContent(ctx, item.ID, item.MediaID)
 	default:
 		return c.scriptureContent(ctx, item.ID, item.TranslationID,
 			item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
 	}
 }
 
-func (c *Controller) imageContent(ctx context.Context, itemID, mediaID string) (*Content, error) {
+func (c *Controller) mediaContent(ctx context.Context, itemID, mediaID string) (*Content, error) {
 	if c.media == nil {
 		return nil, errors.New("media is not available")
 	}
-	slide, err := c.media.Image(ctx, mediaID)
+	slide, err := c.media.Slide(ctx, mediaID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Content{
 		ItemID: itemID,
-		Kind:   "image",
+		Kind:   slide.Kind,
 		Title:  slide.Title,
 		Label:  slide.Title,
-		Image:  slide.URL,
+		Source: slide.URL,
 		Aspect: slide.Aspect,
 		Fit:    slide.Fit,
 		Ratio:  slide.Ratio,

@@ -13,7 +13,7 @@ export interface Content {
     "label": string;
     "reference"?: string;
     "translation"?: string;
-    "image"?: string;
+    "source"?: string;
     "aspect"?: string;
     "fit"?: string;
     "ratio": number;

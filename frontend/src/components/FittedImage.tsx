@@ -12,12 +12,12 @@ type Props = {
 
 /**
  * The largest box of the chosen shape that fits the frame, with the picture
- * placed inside it. The ratio goes on the image itself: a replaced element
- * honours `aspect-ratio` together with both max constraints, which is what makes
- * this letterbox correctly in a 240px studio pane and on a projector without the
- * box having to measure anything.
+ * placed inside it. The ratio goes on the replaced element itself: it honours
+ * `aspect-ratio` together with both max constraints, which is what makes this
+ * letterbox correctly in a 240px studio pane and on a projector without the box
+ * having to measure anything.
  */
-export function FittedImage({ src, alt, aspect, ratio = 0, fit = 'contain', className }: Props) {
+export function frameStyle(aspect?: string, ratio = 0, fit: 'contain' | 'cover' = 'contain'): React.CSSProperties {
   const style: React.CSSProperties = { objectFit: fit };
 
   if (aspect === 'screen') {
@@ -35,12 +35,16 @@ export function FittedImage({ src, alt, aspect, ratio = 0, fit = 'contain', clas
     style.maxHeight = '100%';
   }
 
+  return style;
+}
+
+export function FittedImage({ src, alt, aspect, ratio = 0, fit = 'contain', className }: Props) {
   return (
     <img
       className={`fitted-image${className ? ` ${className}` : ''}`}
       src={src}
       alt={alt}
-      style={style}
+      style={frameStyle(aspect, ratio, fit)}
     />
   );
 }

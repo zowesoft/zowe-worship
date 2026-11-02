@@ -310,7 +310,7 @@ func TestPresentationRoundTripAndDefaults(t *testing.T) {
 		t.Fatalf("reply should carry the resolved ratio: %+v", saved)
 	}
 
-	stored, err := library.Image(ctx, asset.ID)
+	stored, err := library.Slide(ctx, asset.ID)
 	if err != nil {
 		t.Fatalf("read slide: %v", err)
 	}
@@ -345,8 +345,14 @@ func TestPresentationRefusesNonImages(t *testing.T) {
 	if _, err := library.SetPresentation(ctx, imported[0].ID, FullFrame()); !errors.Is(err, ErrNotImage) {
 		t.Fatalf("err = %v, want ErrNotImage", err)
 	}
-	if _, err := library.Image(ctx, imported[0].ID); !errors.Is(err, ErrNotImage) {
-		t.Fatalf("slide err = %v, want ErrNotImage", err)
+	// Framing is an image idea, but a clip still has to be projectable, and the
+	// slide has to say which player the viewer needs.
+	slide, err := library.Slide(ctx, imported[0].ID)
+	if err != nil {
+		t.Fatalf("a video should still resolve to a slide: %v", err)
+	}
+	if slide.Kind != string(KindVideo) || slide.URL == "" {
+		t.Fatalf("slide = %+v", slide)
 	}
 }
 

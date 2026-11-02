@@ -189,7 +189,8 @@ export function MediaWorkspace() {
         ) : (
           <ul className="media-grid">
             {shown.map((item) => {
-              const projectable = item.kind === 'image';
+              const projectable = !item.missing;
+              const framable = projectable && item.kind === 'image';
               return (
                 <li
                   key={item.id}
@@ -200,7 +201,7 @@ export function MediaWorkspace() {
                   ].filter(Boolean).join(' ')}
                   title={projectable
                     ? `Click to preview ${item.title} · double-click to send live`
-                    : 'Video and audio playback arrive with the next slice'}
+                    : 'The library copy of this file is missing'}
                   onClick={(event) => {
                     if (!projectable || fromActions(event) || !canAct) return;
                     void act(() => studio.previewMedia(item.id), `Previewing ${item.title}.`);
@@ -229,7 +230,7 @@ export function MediaWorkspace() {
                     <span>{item.kind} · {formatBytes(item.sizeBytes)}</span>
                   </div>
                   <div className="media-tile-actions">
-                    {projectable && (
+                    {framable && (
                       <button
                         type="button"
                         className="button button--small"
@@ -281,7 +282,7 @@ export function MediaWorkspace() {
           </p>
         )}
 
-        <p className="media-note">Images preview and project now. Video and audio playback arrive with the next slice.</p>
+        <p className="media-note">Click a tile to preview it, double-click to send it live. Sound plays on the audience display.</p>
       </div>
     </section>
   );

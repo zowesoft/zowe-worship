@@ -36,16 +36,17 @@ func (f *fakeSongs) Section(context.Context, string, string) (songs.Song, songs.
 }
 
 type fakeMedia struct {
+	kind  string
 	title string
 	url   string
 	err   error
 }
 
-func (f *fakeMedia) Image(context.Context, string) (media.Slide, error) {
+func (f *fakeMedia) Slide(context.Context, string) (media.Slide, error) {
 	if f.err != nil {
 		return media.Slide{}, f.err
 	}
-	return media.Slide{Title: f.title, URL: f.url, Fit: media.FitContain}, nil
+	return media.Slide{Kind: f.kind, Title: f.title, URL: f.url, Fit: media.FitContain}, nil
 }
 
 type fakeSchedule struct {
@@ -239,16 +240,16 @@ func TestNextWithoutScheduleReports(t *testing.T) {
 	}
 }
 
-func TestImageSlidesNeverBlankLiveOutput(t *testing.T) {
+func TestMediaSlidesNeverBlankLiveOutput(t *testing.T) {
 	ctx := context.Background()
-	media := &fakeMedia{title: "Upper room", url: "/media/file/abc123"}
+	media := &fakeMedia{kind: "image", title: "Upper room", url: "/media/file/abc123"}
 	controller := New(&fakeScripture{}, &fakeSchedule{}, nil, media)
 
-	state, err := controller.ProjectImage(ctx, "abc123")
+	state, err := controller.ProjectMedia(ctx, "abc123")
 	if err != nil {
-		t.Fatalf("project image: %v", err)
+		t.Fatalf("project media: %v", err)
 	}
-	if state.Live == nil || state.Live.Kind != "image" || state.Live.Image != "/media/file/abc123" {
+	if state.Live == nil || state.Live.Kind != "image" || state.Live.Source != "/media/file/abc123" {
 		t.Fatalf("live = %+v", state.Live)
 	}
 	if state.Live.Label != "Upper room" || len(state.Live.Lines) != 0 {
@@ -256,22 +257,51 @@ func TestImageSlidesNeverBlankLiveOutput(t *testing.T) {
 	}
 
 	media.err = errors.New("the library copy of this asset is missing")
-	if _, err := controller.ProjectImage(ctx, "gone"); err == nil {
-		t.Fatal("projecting a missing image succeeded")
+	if _, err := controller.ProjectMedia(ctx, "gone"); err == nil {
+		t.Fatal("projecting a missing asset succeeded")
 	}
 
 	after := controller.State()
-	if after.Live == nil || after.Live.Image != "/media/file/abc123" {
+	if after.Live == nil || after.Live.Source != "/media/file/abc123" {
 		t.Fatalf("a failed projection changed live output: %+v", after.Live)
 	}
 
 	before := controller.State()
-	if _, err := controller.PreviewImage(ctx, "gone"); err == nil {
-		t.Fatal("previewing a missing image succeeded")
+	if _, err := controller.PreviewMedia(ctx, "gone"); err == nil {
+		t.Fatal("previewing a missing asset succeeded")
 	}
 	unchanged := controller.State()
-	if unchanged.Preview.Image != before.Preview.Image || unchanged.Live.Image != before.Live.Image {
+	if unchanged.Preview.Source != before.Preview.Source || unchanged.Live.Source != before.Live.Source {
 		t.Fatalf("a failed preview moved state: %+v -> %+v", before, unchanged)
+	}
+}
+
+// The viewer picks a player from the kind, so a clip and a song recording have
+// to arrive labelled rather than as a picture that will never load.
+func TestVideoAndAudioKeepTheirKind(t *testing.T) {
+	ctx := context.Background()
+	controller := New(&fakeScripture{}, &fakeSchedule{}, nil,
+		&fakeMedia{kind: "video", title: "Creed", url: "/media/file/clip"})
+
+	state, err := controller.ProjectMedia(ctx, "clip")
+	if err != nil {
+		t.Fatalf("project video: %v", err)
+	}
+	if state.Live == nil || state.Live.Kind != "video" || state.Live.Source != "/media/file/clip" {
+		t.Fatalf("live video = %+v", state.Live)
+	}
+
+	audio := New(&fakeScripture{}, &fakeSchedule{}, nil,
+		&fakeMedia{kind: "audio", title: "Anthem", url: "/media/file/anthem"})
+	state, err = audio.PreviewMedia(ctx, "anthem")
+	if err != nil {
+		t.Fatalf("preview audio: %v", err)
+	}
+	if state.Preview == nil || state.Preview.Kind != "audio" {
+		t.Fatalf("preview audio = %+v", state.Preview)
+	}
+	if state.Live != nil {
+		t.Fatalf("a preview went live: %+v", state.Live)
 	}
 }
 
@@ -283,7 +313,7 @@ func TestScheduleItemDispatchesToMedia(t *testing.T) {
 			{ID: "img", ServiceID: "svc", Position: 1, Kind: serviceorder.KindMedia, Title: "Cross", MediaID: "media-9"},
 		},
 	}
-	controller := New(&fakeScripture{}, schedule, nil, &fakeMedia{title: "Cross", url: "/media/file/media-9"})
+	controller := New(&fakeScripture{}, schedule, nil, &fakeMedia{kind: "image", title: "Cross", url: "/media/file/media-9"})
 
 	state, err := controller.PreviewItem(ctx, "img")
 	if err != nil {
@@ -292,7 +322,7 @@ func TestScheduleItemDispatchesToMedia(t *testing.T) {
 	if state.Preview == nil || state.Preview.Kind != "image" || state.Preview.ItemID != "img" {
 		t.Fatalf("preview = %+v", state.Preview)
 	}
-	if state.Preview.Image != "/media/file/media-9" {
-		t.Fatalf("preview image = %s", state.Preview.Image)
+	if state.Preview.Source != "/media/file/media-9" {
+		t.Fatalf("preview source = %s", state.Preview.Source)
 	}
 }

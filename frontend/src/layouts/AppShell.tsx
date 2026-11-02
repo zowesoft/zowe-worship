@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { BackendStatus } from '../components/BackendStatus';
-import { FittedImage } from '../components/FittedImage';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
+import { SlideMedia } from '../components/SlideMedia';
 import { useStudio } from '../stores/StudioProvider';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import * as models from '../../bindings/zowe-worship/models';
@@ -357,18 +357,10 @@ function AppHeader() {
 }
 
 function SlideContent({ content }: { content: Content }) {
-  if (content.image) {
-    // An image is the whole slide, so it gets no caption of its own; the studio
-    // panes already name it below the frame.
-    return (
-      <FittedImage
-        src={content.image}
-        alt={content.label}
-        aspect={content.aspect}
-        ratio={content.ratio}
-        fit={content.fit === 'cover' ? 'cover' : 'contain'}
-      />
-    );
+  if (content.kind === 'image' || content.kind === 'video' || content.kind === 'audio') {
+    // A studio pane is a monitor, never a second player: a clip shows its first
+    // frame and stays quiet while the audience display carries the sound.
+    return <SlideMedia content={content} player={false} />;
   }
 
   return (

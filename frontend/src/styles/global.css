@@ -346,6 +346,30 @@ svg { flex-shrink: 0; }
 }
 .slide-verses span { display: block; }
 .fitted-image { display: block; }
+.slide-media {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 4px 10px;
+}
+.slide-media--audio { grid-template-rows: none; align-content: center; gap: 14px; }
+.slide-media-sound { display: none; }
+.slide-media-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid #30466A;
+  border-radius: 14px;
+  background: var(--color-selected);
+  color: #8CABFF;
+}
+.slide-media-title { font-size: 15px; font-weight: 600; text-align: center; }
+.slide-media-hint { color: var(--color-secondary); font-size: 10px; }
 .slide-verses {
   display: -webkit-box;
   overflow: hidden;

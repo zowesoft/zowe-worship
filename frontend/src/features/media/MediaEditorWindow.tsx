@@ -47,7 +47,7 @@ export function MediaEditorWindow({ mediaID }: { mediaID: string }) {
       const slide = await App.SaveMediaPresentation(asset.id, next);
       // Reframing the slide the room is looking at should change the room.
       const state = await App.GetPresentationState();
-      if (state.live?.image === asset.url) await App.ProjectMedia(asset.id);
+      if (state.live?.source === asset.url) await App.ProjectMedia(asset.id);
       setAsset({ ...asset, aspect: slide.aspect, fit: slide.fit });
     } catch (error: unknown) {
       setProblem(error instanceof Error ? error.message : String(error));

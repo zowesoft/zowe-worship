@@ -11,6 +11,8 @@
 }
 .audience--blank { background: #000; }
 .audience--image { padding: 0; }
+/* A clip fills the room, so it gets the whole window and no centring. */
+.audience--media { padding: 0; align-content: stretch; }
 .audience-lines {
   margin: 0;
   text-align: center;

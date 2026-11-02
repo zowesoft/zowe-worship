@@ -14,8 +14,8 @@ import * as media$0 from "./internal/media/models.js";
 import * as $models from "./models.js";
 
 /**
- * AddMediaToService puts a library image into the running order. The item keeps
- * a reference rather than a second copy, so one image can serve two services.
+ * AddMediaToService puts a library asset into the running order. The item keeps
+ * a reference rather than a second copy, so one file can serve two services.
  */
 export function AddMediaToService(mediaID: string): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(1388766008, mediaID);

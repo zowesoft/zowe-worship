@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { FittedImage } from '../../components/FittedImage';
+import { SlideMedia } from '../../components/SlideMedia';
 import { App } from '../../../bindings/zowe-worship';
 import type { PresentationView } from '../../../bindings/zowe-worship/models';
 import type { Content } from '../../../bindings/zowe-worship/internal/presentation/models';
@@ -37,34 +37,31 @@ export function AudienceDisplay() {
       setShown(null);
       return;
     }
-    if (!next.image) {
+    // Only a picture can be proved to load before it replaces what the room is
+    // already seeing. A clip that will not decode shows its own error, and the
+    // operator sends something else.
+    if (next.kind !== 'image') {
       setShown(next);
       return;
     }
 
-    // Preload the file before replacing what is already on screen, so an image
-    // deleted after it was scheduled cannot swap the room's slide for a broken
-    // one. On failure the previous slide simply stays.
     const probe = new window.Image();
     probe.onload = () => setShown(next);
     probe.onerror = () => undefined;
-    probe.src = next.image;
+    probe.src = next.source ?? '';
   }, [state]);
 
   if (!shown) {
     return <main className="audience audience--blank" aria-label="Audience display" />;
   }
 
-  if (shown.image) {
+  if (shown.kind === 'image' || shown.kind === 'video' || shown.kind === 'audio') {
+    const frame = shown.kind === 'image' ? 'audience audience--image'
+      : shown.kind === 'video' ? 'audience audience--media'
+        : 'audience';
     return (
-      <main className="audience audience--image" aria-label="Audience display">
-        <FittedImage
-          src={shown.image}
-          alt=""
-          aspect={shown.aspect}
-          ratio={shown.ratio}
-          fit={shown.fit === 'cover' ? 'cover' : 'contain'}
-        />
+      <main className={frame} aria-label="Audience display">
+        <SlideMedia content={shown} player />
       </main>
     );
   }

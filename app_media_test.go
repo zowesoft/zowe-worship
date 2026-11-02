@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"zowe-worship/internal/media"
 )
 
 func writeMediaFixture(t *testing.T, dir, name string, width, height int) string {
@@ -153,7 +156,7 @@ func TestServeMediaOnlyResolvesKnownIDs(t *testing.T) {
 	}
 }
 
-func TestImageSlidesFlowThroughScheduleAndLive(t *testing.T) {
+func TestMediaSlidesFlowThroughScheduleAndLive(t *testing.T) {
 	app := newTestApp(t)
 	source := t.TempDir()
 
@@ -167,7 +170,7 @@ func TestImageSlidesFlowThroughScheduleAndLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview media: %v", err)
 	}
-	if preview.Preview == nil || preview.Preview.Kind != "image" || preview.Preview.Image != "/media/file/"+id {
+	if preview.Preview == nil || preview.Preview.Kind != "image" || preview.Preview.Source != "/media/file/"+id {
 		t.Fatalf("preview = %+v", preview.Preview)
 	}
 	if preview.Live != nil {
@@ -202,7 +205,7 @@ func TestImageSlidesFlowThroughScheduleAndLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview schedule item: %v", err)
 	}
-	if fromItem.Preview == nil || fromItem.Preview.Image != "/media/file/"+id {
+	if fromItem.Preview == nil || fromItem.Preview.Source != "/media/file/"+id {
 		t.Fatalf("preview from schedule = %+v", fromItem.Preview)
 	}
 
@@ -220,7 +223,55 @@ func TestImageSlidesFlowThroughScheduleAndLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("state: %v", err)
 	}
-	if after.Live == nil || after.Live.Image != "/media/file/"+id {
+	if after.Live == nil || after.Live.Source != "/media/file/"+id {
 		t.Fatalf("live output was not preserved: %+v", after.Live)
+	}
+}
+
+func TestVideoAndAudioProjectAsSlides(t *testing.T) {
+	app := newTestApp(t)
+	source := t.TempDir()
+
+	write := func(name string) string {
+		path := filepath.Join(source, name)
+		if err := os.WriteFile(path, []byte("placeholder bytes of "+name), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		return path
+	}
+
+	imported, err := app.ImportMedia([]string{write("sermon.mp4"), write("anthem.mp3")})
+	if err != nil || len(imported.Added) != 2 {
+		t.Fatalf("import: %+v %v", imported.Added, err)
+	}
+
+	ids := map[string]string{}
+	for _, asset := range imported.Added {
+		ids[asset.Kind] = asset.ID
+	}
+	videoID, audioID := ids["video"], ids["audio"]
+	if videoID == "" || audioID == "" {
+		t.Fatalf("both kinds should be imported: %+v", imported.Added)
+	}
+
+	video, err := app.ProjectMedia(videoID)
+	if err != nil {
+		t.Fatalf("project video: %v", err)
+	}
+	if video.Live == nil || video.Live.Kind != "video" || video.Live.Source != "/media/file/"+videoID {
+		t.Fatalf("live video = %+v", video.Live)
+	}
+
+	audio, err := app.PreviewMedia(audioID)
+	if err != nil {
+		t.Fatalf("preview audio: %v", err)
+	}
+	if audio.Preview == nil || audio.Preview.Kind != "audio" {
+		t.Fatalf("preview audio = %+v", audio.Preview)
+	}
+
+	// Framing is an image idea, so a clip is refused rather than opened blank.
+	if _, err := app.OpenMediaEditor(videoID); !errors.Is(err, media.ErrNotImage) {
+		t.Fatalf("editor err = %v, want ErrNotImage", err)
 	}
 }
