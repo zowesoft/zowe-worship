@@ -12,7 +12,7 @@ import (
 )
 
 const itemColumns = `id, service_id, position, kind, title, translation_id, book_id, chapter,
-	verse_start, verse_end, song_id, section_id, media_id, created_at`
+	verse_start, verse_end, song_id, section_id, media_id, theme_id, created_at`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -249,11 +249,11 @@ func (r *SQLiteRepository) addItem(ctx context.Context, serviceID string, item I
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO service_items
 			(id, service_id, position, kind, title, translation_id, book_id, chapter,
-			 verse_start, verse_end, song_id, section_id, media_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 verse_start, verse_end, song_id, section_id, media_id, theme_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, serviceID, position, item.Kind, item.Title, item.TranslationID,
 		item.BookID, item.Chapter, item.VerseStart, item.VerseEnd, item.SongID, item.SectionID,
-		item.MediaID, now.Format(time.RFC3339),
+		item.MediaID, item.ThemeID, now.Format(time.RFC3339),
 	); err != nil {
 		_ = tx.Rollback()
 		return Item{}, fmt.Errorf("add service item: %w", err)
@@ -387,6 +387,25 @@ func (r *SQLiteRepository) Reorder(ctx context.Context, itemIDs []string) error 
 	return nil
 }
 
+// SetTheme points one item at a theme, or back at its kind default when the id
+// is empty. The id is not checked here because themes live in their own package,
+// and a slide built from an unknown id falls back to the default anyway.
+func (r *SQLiteRepository) SetTheme(ctx context.Context, itemID, themeID string) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE service_items SET theme_id = ? WHERE id = ?`, strings.TrimSpace(themeID), itemID)
+	if err != nil {
+		return fmt.Errorf("set service item theme: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set service item theme: %w", err)
+	}
+	if changed == 0 {
+		return ErrItemNotFound
+	}
+	return nil
+}
+
 func (r *SQLiteRepository) Item(ctx context.Context, itemID string) (Item, error) {
 	item, err := scanItem(r.db.QueryRowContext(ctx,
 		`SELECT `+itemColumns+` FROM service_items WHERE id = ?`, itemID))
@@ -447,7 +466,7 @@ func scanItem(row interface{ Scan(...any) error }) (Item, error) {
 	if err := row.Scan(
 		&item.ID, &item.ServiceID, &item.Position, &kind, &item.Title, &item.TranslationID,
 		&item.BookID, &item.Chapter, &item.VerseStart, &item.VerseEnd, &item.SongID, &item.SectionID,
-		&item.MediaID, &createdAt,
+		&item.MediaID, &item.ThemeID, &createdAt,
 	); err != nil {
 		return Item{}, err
 	}

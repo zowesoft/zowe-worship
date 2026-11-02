@@ -9,6 +9,7 @@ import (
 	"zowe-worship/internal/media"
 	"zowe-worship/internal/serviceorder"
 	"zowe-worship/internal/songs"
+	"zowe-worship/internal/themes"
 )
 
 type fakeScripture struct {
@@ -75,6 +76,40 @@ func (f *fakeSchedule) Items(context.Context, string) ([]serviceorder.Item, erro
 	return f.items, nil
 }
 
+type fakeThemes struct {
+	defaults map[themes.Kind]themes.Theme
+	byID     map[string]themes.Theme
+}
+
+func (f *fakeThemes) Get(_ context.Context, id string) (themes.Theme, error) {
+	theme, ok := f.byID[id]
+	if !ok {
+		return themes.Theme{}, themes.ErrThemeNotFound
+	}
+	return theme, nil
+}
+
+func (f *fakeThemes) Default(_ context.Context, kind themes.Kind) (themes.Theme, error) {
+	theme, ok := f.defaults[kind]
+	if !ok {
+		return themes.Theme{}, themes.ErrThemeNotFound
+	}
+	return theme, nil
+}
+
+// bright is one distinct theme per kind, so a test can tell which theme a slide
+// actually picked up.
+func bright() *fakeThemes {
+	scripture := themes.DefaultTheme(themes.KindScripture)
+	scripture.ID, scripture.Name, scripture.Style.Color = "theme-scripture", "Bright reading", "#FFE100"
+	lyrics := themes.DefaultTheme(themes.KindLyrics)
+	lyrics.ID, lyrics.Name, lyrics.Style.Color = "theme-lyrics", "Bright lyrics", "#00FF88"
+	return &fakeThemes{
+		defaults: map[themes.Kind]themes.Theme{themes.KindScripture: scripture, themes.KindLyrics: lyrics},
+		byID:     map[string]themes.Theme{"theme-scripture": scripture, "theme-lyrics": lyrics},
+	}
+}
+
 func johnVerse() bible.SearchResult {
 	return bible.SearchResult{
 		Book:    bible.Book{ID: 43, Name: "John", Abbreviation: "John", Testament: bible.NewTestament},
@@ -89,7 +124,7 @@ func newController() (*Controller, *fakeScripture) {
 		verses:      []bible.SearchResult{johnVerse()},
 		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
 	}
-	return New(scripture, &fakeSchedule{}, nil, nil), scripture
+	return New(scripture, &fakeSchedule{}, nil, nil, nil), scripture
 }
 
 func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
@@ -161,7 +196,7 @@ func TestSongSectionBecomesLyricSlide(t *testing.T) {
 		song:    songs.Song{ID: "song-1", Title: "Amazing Grace"},
 		section: songs.Section{ID: "section-1", SongID: "song-1", Label: "Verse 1", Text: "Amazing grace! how sweet the sound,\nThat saved a wretch like me!"},
 	}
-	controller := New(&fakeScripture{}, &fakeSchedule{}, reader, nil)
+	controller := New(&fakeScripture{}, &fakeSchedule{}, reader, nil, bright())
 
 	state, err := controller.PreviewSongSection(ctx, "song-1", "section-1")
 	if err != nil {
@@ -198,7 +233,7 @@ func TestScheduleNavigationMixesScriptureAndSongs(t *testing.T) {
 	}, schedule, &fakeSongs{
 		song:    songs.Song{ID: "song-1", Title: "Amazing Grace"},
 		section: songs.Section{ID: "section-1", SongID: "song-1", Label: "Verse 1", Text: "Amazing grace"},
-	}, nil)
+	}, nil, bright())
 
 	state, err := controller.PreviewItem(ctx, "one")
 	if err != nil {
@@ -207,6 +242,11 @@ func TestScheduleNavigationMixesScriptureAndSongs(t *testing.T) {
 	if state.Preview.Kind != "scripture" || state.Preview.ItemID != "one" {
 		t.Fatalf("preview = %+v", state.Preview)
 	}
+	// Each kind picks up its own default, so navigating the schedule cannot put
+	// the lyric theme on a Bible slide.
+	if state.Preview.Theme.ID != "theme-scripture" {
+		t.Fatalf("scripture theme = %+v", state.Preview.Theme)
+	}
 
 	next, err := controller.Next(ctx)
 	if err != nil {
@@ -214,6 +254,9 @@ func TestScheduleNavigationMixesScriptureAndSongs(t *testing.T) {
 	}
 	if next.Preview.Kind != "song" || next.Preview.ItemID != "two" {
 		t.Fatalf("after next = %+v", next.Preview)
+	}
+	if next.Preview.Theme.ID != "theme-lyrics" {
+		t.Fatalf("lyric theme = %+v", next.Preview.Theme)
 	}
 	if next.Live != nil {
 		t.Fatalf("next changed live output: %+v", next.Live)
@@ -233,7 +276,7 @@ func TestNextWithoutScheduleReports(t *testing.T) {
 	controller := New(&fakeScripture{
 		verses:      []bible.SearchResult{johnVerse()},
 		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
-	}, &fakeSchedule{currentErr: serviceorder.ErrNoService}, nil, nil)
+	}, &fakeSchedule{currentErr: serviceorder.ErrNoService}, nil, nil, nil)
 
 	if _, err := controller.Next(ctx); !errors.Is(err, ErrNoSchedule) {
 		t.Fatalf("err = %v, want ErrNoSchedule", err)
@@ -243,7 +286,7 @@ func TestNextWithoutScheduleReports(t *testing.T) {
 func TestMediaSlidesNeverBlankLiveOutput(t *testing.T) {
 	ctx := context.Background()
 	media := &fakeMedia{kind: "image", title: "Upper room", url: "/media/file/abc123"}
-	controller := New(&fakeScripture{}, &fakeSchedule{}, nil, media)
+	controller := New(&fakeScripture{}, &fakeSchedule{}, nil, media, nil)
 
 	state, err := controller.ProjectMedia(ctx, "abc123")
 	if err != nil {
@@ -281,7 +324,7 @@ func TestMediaSlidesNeverBlankLiveOutput(t *testing.T) {
 func TestVideoAndAudioKeepTheirKind(t *testing.T) {
 	ctx := context.Background()
 	controller := New(&fakeScripture{}, &fakeSchedule{}, nil,
-		&fakeMedia{kind: "video", title: "Creed", url: "/media/file/clip"})
+		&fakeMedia{kind: "video", title: "Creed", url: "/media/file/clip"}, nil)
 
 	state, err := controller.ProjectMedia(ctx, "clip")
 	if err != nil {
@@ -292,7 +335,7 @@ func TestVideoAndAudioKeepTheirKind(t *testing.T) {
 	}
 
 	audio := New(&fakeScripture{}, &fakeSchedule{}, nil,
-		&fakeMedia{kind: "audio", title: "Anthem", url: "/media/file/anthem"})
+		&fakeMedia{kind: "audio", title: "Anthem", url: "/media/file/anthem"}, nil)
 	state, err = audio.PreviewMedia(ctx, "anthem")
 	if err != nil {
 		t.Fatalf("preview audio: %v", err)
@@ -313,7 +356,7 @@ func TestScheduleItemDispatchesToMedia(t *testing.T) {
 			{ID: "img", ServiceID: "svc", Position: 1, Kind: serviceorder.KindMedia, Title: "Cross", MediaID: "media-9"},
 		},
 	}
-	controller := New(&fakeScripture{}, schedule, nil, &fakeMedia{kind: "image", title: "Cross", url: "/media/file/media-9"})
+	controller := New(&fakeScripture{}, schedule, nil, &fakeMedia{kind: "image", title: "Cross", url: "/media/file/media-9"}, nil)
 
 	state, err := controller.PreviewItem(ctx, "img")
 	if err != nil {
@@ -324,5 +367,115 @@ func TestScheduleItemDispatchesToMedia(t *testing.T) {
 	}
 	if state.Preview.Source != "/media/file/media-9" {
 		t.Fatalf("preview source = %s", state.Preview.Source)
+	}
+	// A picture or clip fills the screen itself, so it carries no theme.
+	if state.Preview.Theme != (themes.Theme{}) {
+		t.Fatalf("media slide picked up a theme: %+v", state.Preview.Theme)
+	}
+}
+
+func scheduleWith(override string) *fakeSchedule {
+	return &fakeSchedule{
+		service: serviceorder.Service{ID: "svc"},
+		items: []serviceorder.Item{{
+			ID: "one", ServiceID: "svc", Position: 1, Kind: serviceorder.KindScripture,
+			Title: "John 3:16", TranslationID: "kjv", BookID: 43, Chapter: 3,
+			VerseStart: 16, VerseEnd: 16, ThemeID: override,
+		}},
+	}
+}
+
+func themedController(reader ThemeReader, override string) *Controller {
+	return New(&fakeScripture{
+		verses:      []bible.SearchResult{johnVerse()},
+		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
+	}, scheduleWith(override), nil, nil, reader)
+}
+
+func TestItemThemeOverrideBeatsTheKindDefault(t *testing.T) {
+	ctx := context.Background()
+	reader := bright()
+	quiet := themes.DefaultTheme(themes.KindScripture)
+	quiet.ID, quiet.Name, quiet.Style.FontSize = "theme-quiet", "Quiet reading", 3.2
+	reader.byID["theme-quiet"] = quiet
+
+	state, err := themedController(reader, "theme-quiet").PreviewItem(ctx, "one")
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if state.Preview.Theme.ID != "theme-quiet" {
+		t.Fatalf("override ignored, got %+v", state.Preview.Theme)
+	}
+}
+
+// A theme that was deleted, or one borrowed from another kind, must not decide
+// how a slide looks. The operator chose it once; the room still needs to read.
+func TestUnusableThemeOverridesFallBackToTheDefault(t *testing.T) {
+	ctx := context.Background()
+	reader := bright()
+
+	missing, err := themedController(reader, "theme-gone").PreviewItem(ctx, "one")
+	if err != nil {
+		t.Fatalf("preview with a deleted theme: %v", err)
+	}
+	if missing.Preview.Theme.ID != "theme-scripture" {
+		t.Fatalf("deleted override gave %+v", missing.Preview.Theme)
+	}
+
+	wrongKind, err := themedController(reader, "theme-lyrics").PreviewItem(ctx, "one")
+	if err != nil {
+		t.Fatalf("preview with a lyric theme on a bible slide: %v", err)
+	}
+	if wrongKind.Preview.Theme.ID != "theme-scripture" {
+		t.Fatalf("lyric theme leaked onto a scripture slide: %+v", wrongKind.Preview.Theme)
+	}
+}
+
+// A fresh install has no themes at all, and the first slide still has to be
+// readable, so the app's own defaults are the last resort.
+func TestNoThemesStillDrawsReadableSlides(t *testing.T) {
+	ctx := context.Background()
+	state, err := themedController(nil, "").PreviewItem(ctx, "one")
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	expected := themes.DefaultTheme(themes.KindScripture)
+	if state.Preview.Theme.Style != expected.Style {
+		t.Fatalf("theme = %+v, want %+v", state.Preview.Theme.Style, expected.Style)
+	}
+	if state.Preview.Theme.Reference != expected.Reference {
+		t.Fatalf("reference = %+v, want %+v", state.Preview.Theme.Reference, expected.Reference)
+	}
+}
+
+func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
+	ctx := context.Background()
+	reader := bright()
+	controller := themedController(reader, "")
+
+	first, err := controller.ProjectScripture(ctx, "kjv", 43, 3, 16, 16)
+	if err != nil {
+		t.Fatalf("project: %v", err)
+	}
+	if first.Live.Theme.ID != "theme-scripture" {
+		t.Fatalf("live theme = %+v", first.Live.Theme)
+	}
+
+	// Making another theme the default must not restyle the slide already on the
+	// wall; the operator changes that by projecting the next item.
+	evening := themes.DefaultTheme(themes.KindScripture)
+	evening.ID, evening.Name, evening.Style.Color = "theme-evening", "Evening", "#123456"
+	reader.byID["theme-evening"] = evening
+	reader.defaults[themes.KindScripture] = evening
+
+	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	if err != nil {
+		t.Fatalf("preview after the default changed: %v", err)
+	}
+	if updated.Preview.Theme.ID != "theme-evening" {
+		t.Fatalf("preview did not take the new default: %+v", updated.Preview.Theme)
+	}
+	if updated.Live.Theme.ID != "theme-scripture" {
+		t.Fatalf("live output restyled itself mid-service: %+v", updated.Live.Theme)
 	}
 }

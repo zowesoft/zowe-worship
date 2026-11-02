@@ -11,6 +11,7 @@ import (
 	"zowe-worship/internal/media"
 	"zowe-worship/internal/serviceorder"
 	"zowe-worship/internal/songs"
+	"zowe-worship/internal/themes"
 )
 
 var (
@@ -34,6 +35,9 @@ type Content struct {
 	Fit         string   `json:"fit,omitempty"`
 	Ratio       float64  `json:"ratio"`
 	Lines       []string `json:"lines"`
+	// Theme is the look frozen with this slide. Media slides fill the screen
+	// themselves, so they carry no theme and a zero value says so.
+	Theme themes.Theme `json:"theme"`
 }
 
 type State struct {
@@ -63,6 +67,13 @@ type ScheduleReader interface {
 	Items(ctx context.Context, serviceID string) ([]serviceorder.Item, error)
 }
 
+// ThemeReader supplies the look a slide is drawn with: the theme an item asks
+// for, or the default for its kind.
+type ThemeReader interface {
+	Get(ctx context.Context, id string) (themes.Theme, error)
+	Default(ctx context.Context, kind themes.Kind) (themes.Theme, error)
+}
+
 // Controller owns preview and live output. Recognition and UI code never write
 // live state directly; only the explicit projection commands here do.
 type Controller struct {
@@ -71,13 +82,22 @@ type Controller struct {
 	song      SongReader
 	media     MediaReader
 	schedule  ScheduleReader
+	themes    ThemeReader
 
 	preview *Content
 	live    *Content
 }
 
-func New(scripture ScriptureReader, schedule ScheduleReader, song SongReader, media MediaReader) *Controller {
-	return &Controller{scripture: scripture, schedule: schedule, song: song, media: media}
+func New(
+	scripture ScriptureReader, schedule ScheduleReader, song SongReader, media MediaReader, themeReader ThemeReader,
+) *Controller {
+	return &Controller{
+		scripture: scripture,
+		schedule:  schedule,
+		song:      song,
+		media:     media,
+		themes:    themeReader,
+	}
 }
 
 func (c *Controller) State() State {
@@ -96,7 +116,7 @@ func (c *Controller) PreviewScripture(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.scriptureContent(ctx, "", translationID, bookID, chapter, startVerse, endVerse)
+	content, err := c.scriptureContent(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -108,7 +128,7 @@ func (c *Controller) PreviewSongSection(ctx context.Context, songID, sectionID s
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.songContent(ctx, "", songID, sectionID)
+	content, err := c.songContent(ctx, "", "", songID, sectionID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -176,7 +196,7 @@ func (c *Controller) ProjectScripture(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.scriptureContent(ctx, "", translationID, bookID, chapter, startVerse, endVerse)
+	content, err := c.scriptureContent(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -189,7 +209,7 @@ func (c *Controller) ProjectSongSection(ctx context.Context, songID, sectionID s
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	content, err := c.songContent(ctx, "", songID, sectionID)
+	content, err := c.songContent(ctx, "", "", songID, sectionID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
@@ -278,13 +298,34 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 func (c *Controller) itemContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
 	switch item.Kind {
 	case serviceorder.KindSong:
-		return c.songContent(ctx, item.ID, item.SongID, item.SectionID)
+		return c.songContent(ctx, item.ID, item.ThemeID, item.SongID, item.SectionID)
 	case serviceorder.KindMedia:
 		return c.mediaContent(ctx, item.ID, item.MediaID)
 	default:
-		return c.scriptureContent(ctx, item.ID, item.TranslationID,
+		return c.scriptureContent(ctx, item.ID, item.ThemeID, item.TranslationID,
 			item.BookID, item.Chapter, item.VerseStart, item.VerseEnd)
 	}
+}
+
+// themeFor decides which theme a slide is drawn with: the override on the item,
+// then the default for its kind, then the app's own readable defaults. That last
+// step matters on a fresh install, where nobody has made a theme yet but a slide
+// still has to look right on the wall.
+//
+// An override that no longer exists, or belongs to another kind, is ignored
+// rather than trusted: a theme deleted between services should not blank a slide.
+func (c *Controller) themeFor(ctx context.Context, override string, kind themes.Kind) themes.Theme {
+	if c.themes != nil {
+		if override != "" {
+			if theme, err := c.themes.Get(ctx, override); err == nil && theme.Kind == kind {
+				return theme.Normalised()
+			}
+		}
+		if theme, err := c.themes.Default(ctx, kind); err == nil {
+			return theme.Normalised()
+		}
+	}
+	return themes.DefaultTheme(kind)
 }
 
 func (c *Controller) mediaContent(ctx context.Context, itemID, mediaID string) (*Content, error) {
@@ -310,7 +351,7 @@ func (c *Controller) mediaContent(ctx context.Context, itemID, mediaID string) (
 }
 
 func (c *Controller) scriptureContent(
-	ctx context.Context, itemID, translationID string, bookID, chapter, startVerse, endVerse int,
+	ctx context.Context, itemID, themeID, translationID string, bookID, chapter, startVerse, endVerse int,
 ) (*Content, error) {
 	verses, err := c.scripture.Passage(ctx, translationID, bookID, chapter, startVerse, endVerse)
 	if err != nil {
@@ -338,10 +379,11 @@ func (c *Controller) scriptureContent(
 		Reference:   reference,
 		Translation: translation.Abbreviation,
 		Lines:       lines,
+		Theme:       c.themeFor(ctx, themeID, themes.KindScripture),
 	}, nil
 }
 
-func (c *Controller) songContent(ctx context.Context, itemID, songID, sectionID string) (*Content, error) {
+func (c *Controller) songContent(ctx context.Context, itemID, themeID, songID, sectionID string) (*Content, error) {
 	if c.song == nil {
 		return nil, errors.New("songs are not available")
 	}
@@ -362,6 +404,7 @@ func (c *Controller) songContent(ctx context.Context, itemID, songID, sectionID 
 		Subtitle: section.Label,
 		Label:    label,
 		Lines:    splitLines(section.Text),
+		Theme:    c.themeFor(ctx, themeID, themes.KindLyrics),
 	}, nil
 }
 

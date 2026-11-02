@@ -307,3 +307,48 @@ func TestScheduleSurvivesReopen(t *testing.T) {
 		t.Fatalf("current = %+v items = %+v", current, items)
 	}
 }
+
+func TestItemThemeOverrideRoundTrip(t *testing.T) {
+	repo, _, _ := newTestRepository(t)
+	ctx := context.Background()
+
+	service, err := repo.Create(ctx, "Sunday Service")
+	if err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+	item, err := repo.AddScripture(ctx, service.ID, scriptureInput("John 3:16", 43, 3, 16))
+	if err != nil {
+		t.Fatalf("add scripture: %v", err)
+	}
+	if item.ThemeID != "" {
+		t.Fatalf("a new item should start on its kind default, got %q", item.ThemeID)
+	}
+
+	if err := repo.SetTheme(ctx, item.ID, "theme-42"); err != nil {
+		t.Fatalf("set theme: %v", err)
+	}
+	stored, err := repo.Item(ctx, item.ID)
+	if err != nil {
+		t.Fatalf("read item: %v", err)
+	}
+	if stored.ThemeID != "theme-42" {
+		t.Fatalf("theme = %q, want theme-42", stored.ThemeID)
+	}
+
+	// Clearing the override puts the item back on whatever its kind default is
+	// at the time it is projected, rather than freezing today's winner in place.
+	if err := repo.SetTheme(ctx, item.ID, ""); err != nil {
+		t.Fatalf("clear theme: %v", err)
+	}
+	cleared, err := repo.Item(ctx, item.ID)
+	if err != nil {
+		t.Fatalf("read item again: %v", err)
+	}
+	if cleared.ThemeID != "" {
+		t.Fatalf("clearing the override left %q", cleared.ThemeID)
+	}
+
+	if err := repo.SetTheme(ctx, "missing", "theme-42"); !errors.Is(err, ErrItemNotFound) {
+		t.Fatalf("err = %v, want ErrItemNotFound", err)
+	}
+}

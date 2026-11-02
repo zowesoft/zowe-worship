@@ -43,7 +43,10 @@ type Item struct {
 	SongID        string
 	SectionID     string
 	MediaID       string
-	CreatedAt     time.Time
+	// ThemeID overrides the theme for this one item. Empty means the slide takes
+	// the default theme for its kind.
+	ThemeID   string
+	CreatedAt time.Time
 }
 
 type ScriptureInput struct {

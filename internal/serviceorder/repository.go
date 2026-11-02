@@ -14,6 +14,7 @@ type Repository interface {
 	AddMedia(ctx context.Context, serviceID string, input MediaInput) (Item, error)
 	RemoveItem(ctx context.Context, itemID string) error
 	Reorder(ctx context.Context, itemIDs []string) error
+	SetTheme(ctx context.Context, itemID, themeID string) error
 	Item(ctx context.Context, itemID string) (Item, error)
 	Items(ctx context.Context, serviceID string) ([]Item, error)
 }
