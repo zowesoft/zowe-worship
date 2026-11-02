@@ -26,7 +26,8 @@ export type IconName =
   | 'play'
   | 'pause'
   | 'restart'
-  | 'palette';
+  | 'palette'
+  | 'home';
 
 const paths: Record<IconName, ReactNode> = {
   order: <><path d="M9 5h12M9 12h12M9 19h12" /><path d="M3 5h1M3 12h1M3 19h1" /></>,
@@ -55,6 +56,7 @@ const paths: Record<IconName, ReactNode> = {
   pause: <path d="M9 5v14M15 5v14" />,
   restart: <><path d="M20 12a8 8 0 1 1-2.6-5.9" /><path d="M20 4v5h-5" /></>,
   palette: <><path d="M12 3a9 9 0 1 0 0 18c1.6 0 2-1.2 1.3-2.1-.8-1 .1-2.4 1.4-2.4H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5Z" /><circle cx="7.5" cy="11.5" r="1" /><circle cx="10.5" cy="7.5" r="1" /><circle cx="15" cy="8.5" r="1" /></>,
+  home: <><path d="M3 12L12 4l9 8" /><path d="M5 10v10a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1V10" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: IconName; size?: number; className?: string }) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BibleWorkspace } from '../features/bible/BibleWorkspace';
 import { AudienceDisplay } from '../features/display/AudienceDisplay';
+import { HomeWorkspace } from '../features/home/HomeWorkspace';
 import { MediaEditorWindow } from '../features/media/MediaEditorWindow';
 import { MediaWorkspace } from '../features/media/MediaWorkspace';
 import { SettingsWindow } from '../features/settings/SettingsWindow';
@@ -18,7 +19,7 @@ const viewParams = new URLSearchParams(window.location.search);
 const windowView = viewParams.get('view');
 
 export default function App() {
-  const [activePage, setActivePage] = useState<PageId>('bible');
+  const [activePage, setActivePage] = useState<PageId>('home');
 
   if (windowView === 'audience') {
     return <AudienceDisplay />;
@@ -39,13 +40,15 @@ export default function App() {
   return (
     <StudioProvider>
       <AppShell activePage={activePage} onNavigate={setActivePage}>
-        {activePage === 'bible'
-          ? <BibleWorkspace />
-          : activePage === 'songs'
-            ? <SongsWorkspace />
-            : activePage === 'media'
-              ? <MediaWorkspace />
-              : <ServiceOrderWorkspace />}
+        {activePage === 'home'
+          ? <HomeWorkspace onNavigate={setActivePage} />
+          : activePage === 'bible'
+            ? <BibleWorkspace />
+            : activePage === 'songs'
+              ? <SongsWorkspace />
+              : activePage === 'media'
+                ? <MediaWorkspace />
+                : <ServiceOrderWorkspace />}
       </AppShell>
     </StudioProvider>
   );
