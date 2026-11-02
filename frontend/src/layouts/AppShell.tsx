@@ -5,10 +5,14 @@ import { BackendStatus } from '../components/BackendStatus';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { SlideMedia } from '../components/SlideMedia';
+import { ThemedSlide } from '../components/ThemedSlide';
 import { useStudio } from '../stores/StudioProvider';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
+import { App } from '../../bindings/zowe-worship';
 import * as models from '../../bindings/zowe-worship/models';
 import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
+import type { Theme } from '../../bindings/zowe-worship/internal/themes/models';
+import { Kind as ThemeKind } from '../../bindings/zowe-worship/internal/themes/models';
 
 export type PageId = 'home' | 'bible' | 'songs' | 'media' | 'service';
 
@@ -366,11 +370,67 @@ function SlideContent({ content }: { content: Content }) {
   }
 
   return (
-    <div className="slide-content">
-      <p className="slide-verses">
-        {(content.lines ?? []).map((line, index) => <span key={index}>{line}</span>)}
-      </p>
-      <p className="slide-reference">{content.label}</p>
+    <ThemedSlide
+      theme={content.theme}
+      lines={content.lines ?? []}
+      reference={content.label}
+      urlFor={(mediaID) => `/media/file/${mediaID}`}
+      className="slide-stage"
+    />
+  );
+}
+
+// A slide of this shape is themed as this kind. Media fills its own screen, so
+// it has no theme and no picker.
+function themeKind(kind: string): ThemeKind | null {
+  if (kind === 'scripture') return ThemeKind.KindScripture;
+  if (kind === 'song') return ThemeKind.KindLyrics;
+  return null;
+}
+
+function PreviewTheme({ preview }: { preview: Content }) {
+  const studio = useStudio();
+  const [themes, setThemes] = useState<Theme[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    App.ListThemes()
+      .then((list) => setThemes(list ?? []))
+      .catch((error: unknown) => setProblem(error instanceof Error ? error.message : String(error)));
+  }, []);
+
+  const kind = themeKind(preview.kind);
+  const item = (studio.order?.items ?? []).find((candidate) => candidate.id === preview.itemId);
+  const ofKind = (themes ?? []).filter((theme) => theme.kind === kind);
+  if (kind === null || item === undefined || themes === null || ofKind.length === 0) return null;
+
+  const fallback = ofKind.find((theme) => theme.isDefault);
+  const itemID = item.id;
+  const chosenTheme = item.themeId ?? '';
+
+  async function choose(themeID: string) {
+    setProblem(null);
+    try {
+      await studio.setItemTheme(itemID, themeID);
+      // The pane shows the frozen slide, so it has to be rebuilt from the item
+      // before the operator can see the change they just asked for.
+      await studio.previewItem(itemID);
+    } catch (error: unknown) {
+      setProblem(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  return (
+    <div className="pane-theme">
+      <label className="pane-theme-field">
+        <span>Theme</span>
+        <select value={chosenTheme} onChange={(event) => void choose(event.target.value)}>
+          <option value="">{fallback ? `Default — ${fallback.name}` : 'Kind default'}</option>
+          {ofKind.map((theme) => <option key={theme.id} value={theme.id}>{theme.name}</option>)}
+        </select>
+      </label>
+      <span className="pane-theme-hint">Goes on air when you send this slide live.</span>
+      {problem && <span className="pane-theme-problem">{problem}</span>}
     </div>
   );
 }
@@ -447,7 +507,7 @@ function PresentationPanes() {
         </div>
 
         {preview ? (
-          <div className="presentation-screen presentation-screen--preview"><SlideContent content={preview} /></div>
+          <div className="presentation-screen presentation-screen--preview presentation-screen--slide"><SlideContent content={preview} /></div>
         ) : (
           <div className="presentation-screen presentation-screen--preview">
             <Icon name="layers" size={30} />
@@ -455,6 +515,8 @@ function PresentationPanes() {
             <p>Search scripture or choose a schedule item to prepare a slide.</p>
           </div>
         )}
+
+        {preview && <PreviewTheme preview={preview} />}
 
         <div className="pane-caption">
           <span className="status-dot" />
@@ -474,7 +536,7 @@ function PresentationPanes() {
         </div>
 
         {live ? (
-          <div className="presentation-screen"><SlideContent content={live} /></div>
+          <div className="presentation-screen presentation-screen--slide"><SlideContent content={live} /></div>
         ) : (
           <div className="presentation-screen">
             <Icon name="display" size={30} />
