@@ -131,7 +131,7 @@ func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
 	ctx := context.Background()
 	controller, scripture := newController()
 
-	state, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	state, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("preview: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
 	scripture.verses = []bible.SearchResult{{
 		Book: johnVerse().Book, Chapter: 3, Verse: 16, Text: "A different rendering.",
 	}}
-	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("second preview: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestEmptyPassageIsRejected(t *testing.T) {
 	controller, scripture := newController()
 	scripture.verses = nil
 
-	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16); !errors.Is(err, ErrEmptyPassage) {
+	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false); !errors.Is(err, ErrEmptyPassage) {
 		t.Fatalf("err = %v, want ErrEmptyPassage", err)
 	}
 	if controller.State().Preview != nil {
@@ -496,7 +496,7 @@ func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
 	reader := bright()
 	controller := themedController(reader, "")
 
-	first, err := controller.ProjectScripture(ctx, "kjv", 43, 3, 16, 16)
+	first, err := controller.ProjectScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("project: %v", err)
 	}
@@ -511,7 +511,7 @@ func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
 	reader.byID["theme-evening"] = evening
 	reader.defaults[themes.KindScripture] = evening
 
-	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("preview after the default changed: %v", err)
 	}

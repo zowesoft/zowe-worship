@@ -20,6 +20,20 @@ func (a *App) NewTheme(kind themes.Kind) themes.Theme {
 	return themes.DefaultTheme(kind)
 }
 
+// themeChange hands the editor its refreshed list and rebuilds the previewed
+// slide, because an operator who changes a reference colour expects to see it in
+// the pane they are aiming at rather than after hunting for the item again.
+// Live output is deliberately untouched: a slide on the wall keeps the look it
+// was projected with.
+func (a *App) themeChange(list []themes.Theme, err error) ([]themes.Theme, error) {
+	if err == nil && a.presentation != nil {
+		if state, refreshErr := a.presentation.RefreshPreview(a.context()); refreshErr == nil {
+			a.publishToDisplay(state)
+		}
+	}
+	return list, err
+}
+
 func (a *App) ListThemes() ([]themes.Theme, error) {
 	if a.themes == nil {
 		return nil, errStorageUnavailable
@@ -38,7 +52,7 @@ func (a *App) CreateTheme(theme themes.Theme) ([]themes.Theme, error) {
 	if _, err := a.themes.Create(ctx, theme); err != nil {
 		return nil, err
 	}
-	return a.themes.List(ctx)
+	return a.themeChange(a.themes.List(ctx))
 }
 
 func (a *App) UpdateTheme(theme themes.Theme) ([]themes.Theme, error) {
@@ -50,7 +64,7 @@ func (a *App) UpdateTheme(theme themes.Theme) ([]themes.Theme, error) {
 	if _, err := a.themes.Update(ctx, theme); err != nil {
 		return nil, err
 	}
-	return a.themes.List(ctx)
+	return a.themeChange(a.themes.List(ctx))
 }
 
 func (a *App) DeleteTheme(id string) ([]themes.Theme, error) {
@@ -62,7 +76,7 @@ func (a *App) DeleteTheme(id string) ([]themes.Theme, error) {
 	if err := a.themes.Delete(ctx, strings.TrimSpace(id)); err != nil {
 		return nil, err
 	}
-	return a.themes.List(ctx)
+	return a.themeChange(a.themes.List(ctx))
 }
 
 func (a *App) MakeThemeDefault(id string) ([]themes.Theme, error) {
@@ -74,7 +88,7 @@ func (a *App) MakeThemeDefault(id string) ([]themes.Theme, error) {
 	if err := a.themes.MakeDefault(ctx, strings.TrimSpace(id)); err != nil {
 		return nil, err
 	}
-	return a.themes.List(ctx)
+	return a.themeChange(a.themes.List(ctx))
 }
 
 // DuplicateTheme copies one under a fresh name, because the usual reason to
@@ -101,7 +115,7 @@ func (a *App) DuplicateTheme(id string) ([]themes.Theme, error) {
 	if _, err := a.themes.Create(ctx, copied); err != nil {
 		return nil, err
 	}
-	return a.themes.List(ctx)
+	return a.themeChange(a.themes.List(ctx))
 }
 
 // OpenThemeWindow edits themes in their own window, which keeps the studio a

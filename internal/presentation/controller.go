@@ -84,9 +84,14 @@ type previewSource struct {
 	chapter       int
 	verseStart    int
 	verseEnd      int
-	songID        string
-	sectionID     string
-	mediaID       string
+	// verse is the one currently shown when a passage is displayed one verse at a
+	// time; the whole range stays in verseStart and verseEnd so Next and Previous
+	// know how far they may walk.
+	verse    int
+	oneVerse bool
+	songID   string
+	sectionID string
+	mediaID   string
 }
 
 // Controller owns preview and live output. Recognition and UI code never write
@@ -126,18 +131,31 @@ func (c *Controller) stateLocked() State {
 	return State{Preview: clone(c.preview), Live: clone(c.live)}
 }
 
+// previewScripture builds the slide for a passage. With oneVerse the operator
+// sees a single verse at a time and walks the range with Next and Previous; the
+// full range is remembered so the stepping knows where the passage ends.
 func (c *Controller) previewScripture(
-	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int, oneVerse bool,
 ) (State, error) {
-	content, err := c.scriptureContent(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
+	return c.showVerse(ctx, previewSource{
+		translationID: translationID, bookID: bookID, chapter: chapter,
+		verseStart: startVerse, verseEnd: endVerse, oneVerse: oneVerse,
+	}, startVerse)
+}
+
+func (c *Controller) showVerse(ctx context.Context, source previewSource, verse int) (State, error) {
+	from, to := source.verseStart, source.verseEnd
+	if source.oneVerse {
+		from, to = verse, verse
+	}
+
+	content, err := c.scriptureContent(ctx, "", "", source.translationID, source.bookID, source.chapter, from, to)
 	if err != nil {
 		return c.stateLocked(), err
 	}
+	source.verse = verse
 	c.preview = content
-	c.source = previewSource{
-		translationID: translationID, bookID: bookID, chapter: chapter,
-		verseStart: startVerse, verseEnd: endVerse,
-	}
+	c.source = source
 	return c.stateLocked(), nil
 }
 
@@ -181,11 +199,11 @@ func (c *Controller) sendLive(state State, err error) (State, error) {
 }
 
 func (c *Controller) PreviewScripture(
-	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int, oneVerse bool,
 ) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.previewScripture(ctx, translationID, bookID, chapter, startVerse, endVerse)
+	return c.previewScripture(ctx, translationID, bookID, chapter, startVerse, endVerse, oneVerse)
 }
 
 func (c *Controller) PreviewSongSection(ctx context.Context, songID, sectionID string) (State, error) {
@@ -213,11 +231,11 @@ func (c *Controller) ProjectMedia(ctx context.Context, mediaID string) (State, e
 }
 
 func (c *Controller) ProjectScripture(
-	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int, oneVerse bool,
 ) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.sendLive(c.previewScripture(ctx, translationID, bookID, chapter, startVerse, endVerse))
+	return c.sendLive(c.previewScripture(ctx, translationID, bookID, chapter, startVerse, endVerse, oneVerse))
 }
 
 func (c *Controller) ProjectSongSection(ctx context.Context, songID, sectionID string) (State, error) {
@@ -247,10 +265,27 @@ func (c *Controller) RefreshPreview(ctx context.Context) (State, error) {
 	case source.songID != "":
 		return c.previewSongSection(ctx, source.songID, source.sectionID)
 	case source.translationID != "":
-		return c.previewScripture(ctx, source.translationID, source.bookID,
-			source.chapter, source.verseStart, source.verseEnd)
+		return c.showVerse(ctx, source, source.verse)
 	}
 	return c.stateLocked(), ErrNoPreview
+}
+
+// stepVerse walks a passage that is shown one verse at a time. It reports false
+// when the preview is not such a passage, or the range is spent, and the caller
+// then moves through the schedule as it always has.
+func (c *Controller) stepVerse(ctx context.Context, direction int) (bool, State, error) {
+	source := c.source
+	if !source.oneVerse || source.translationID == "" {
+		return false, c.stateLocked(), nil
+	}
+
+	verse := source.verse + direction
+	if verse < source.verseStart || verse > source.verseEnd {
+		return false, c.stateLocked(), nil
+	}
+
+	state, err := c.showVerse(ctx, source, verse)
+	return true, state, err
 }
 
 func (c *Controller) ProjectPreview() (State, error) {
@@ -275,12 +310,20 @@ func (c *Controller) ClearLive() State {
 func (c *Controller) Next(ctx context.Context) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if done, state, err := c.stepVerse(ctx, 1); done {
+		return state, err
+	}
 	return c.move(ctx, 1)
 }
 
 func (c *Controller) Previous(ctx context.Context) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if done, state, err := c.stepVerse(ctx, -1); done {
+		return state, err
+	}
 	return c.move(ctx, -1)
 }
 

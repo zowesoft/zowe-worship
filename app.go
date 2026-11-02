@@ -606,7 +606,7 @@ func (a *App) PreviewScripture(request ScriptureRequest) (PresentationView, erro
 		return PresentationView{}, err
 	}
 	return a.applied(a.presentation.PreviewScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd))
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd, false))
 }
 
 func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, error) {
@@ -618,7 +618,7 @@ func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, erro
 		return PresentationView{}, err
 	}
 	return a.applied(a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd))
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd, false))
 }
 
 func (a *App) PreviewServiceItem(itemID string) (PresentationView, error) {

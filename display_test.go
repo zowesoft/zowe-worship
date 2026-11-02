@@ -38,7 +38,7 @@ func TestProjectionCommandsPublishOnlyWhenTheySucceed(t *testing.T) {
 	app := newTestApp(t)
 	installTestBible(t, app)
 
-	state, err := app.applied(app.presentation.ProjectScripture(app.context(), "kjv", 43, 3, 16, 16))
+	state, err := app.applied(app.presentation.ProjectScripture(app.context(), "kjv", 43, 3, 16, 16, false))
 	if err != nil {
 		t.Fatalf("project: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestProjectionCommandsPublishOnlyWhenTheySucceed(t *testing.T) {
 
 	// A rejected command leaves the audience showing what it was already
 	// showing, so a typo cannot blank the projector mid-service.
-	if _, err := app.applied(app.presentation.PreviewScripture(app.context(), "kjv", 999, 1, 1, 1)); err == nil {
+	if _, err := app.applied(app.presentation.PreviewScripture(app.context(), "kjv", 999, 1, 1, 1, false)); err == nil {
 		t.Fatal("preview of an unknown book succeeded")
 	}
 }
