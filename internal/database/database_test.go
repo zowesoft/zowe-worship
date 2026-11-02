@@ -60,8 +60,12 @@ func TestMigrateIsIdempotentAndSurvivesReopen(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&applied); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if applied != 7 {
-		t.Fatalf("applied migrations = %d, want 7", applied)
+	allMigrations, err := loadMigrations()
+	if err != nil {
+		t.Fatalf("loadMigrations: %v", err)
+	}
+	if applied != len(allMigrations) {
+		t.Fatalf("applied migrations = %d, want %d", applied, len(allMigrations))
 	}
 
 	if _, err := db.Exec(`

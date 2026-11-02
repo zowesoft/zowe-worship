@@ -16,6 +16,7 @@ import (
 	"zowe-worship/internal/scripture"
 	"zowe-worship/internal/serviceorder"
 	"zowe-worship/internal/songs"
+	"zowe-worship/internal/themes"
 )
 
 var errStorageUnavailable = errors.New("storage is not available")
@@ -31,6 +32,7 @@ type App struct {
 	order         *serviceorder.SQLiteRepository
 	songs         *songs.SQLiteRepository
 	media         *media.Library
+	themes        *themes.SQLiteRepository
 	presentation  *presentation.Controller
 	display       application.Window
 	displayScreen ScreenOption
@@ -117,6 +119,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.order = serviceorder.NewSQLiteRepository(core)
 	a.songs = songs.NewSQLiteRepository(core)
 	a.media = media.NewLibrary(media.NewSQLiteRepository(core), paths.Media(), paths.MediaThumbnails())
+	a.themes = themes.NewSQLiteRepository(core)
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media)
 	return nil
 }

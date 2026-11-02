@@ -7,6 +7,7 @@ import { SettingsWindow } from '../features/settings/SettingsWindow';
 import { SongsWorkspace } from '../features/songs/SongsWorkspace';
 import { SongEditorWindow } from '../features/songs/SongEditorWindow';
 import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWorkspace';
+import { ThemesWindow } from '../features/themes/ThemesWindow';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
 import { StudioProvider } from '../stores/StudioProvider';
@@ -30,6 +31,9 @@ export default function App() {
   }
   if (windowView === 'settings') {
     return <SettingsWindow />;
+  }
+  if (windowView === 'themes') {
+    return <ThemesWindow />;
   }
 
   return (

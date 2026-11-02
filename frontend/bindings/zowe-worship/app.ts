@@ -8,6 +8,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as media$0 from "./internal/media/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as themes$0 from "./internal/themes/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -53,12 +56,32 @@ export function CreateSong(request: $models.NewSongRequest): $CancellablePromise
     return $Call.ByID(800922996, request);
 }
 
+/**
+ * CreateTheme stores one theme and returns the whole list, so the editor can
+ * show the new entry without a second call racing the save.
+ */
+export function CreateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(1128641746, theme);
+}
+
 export function DeleteMedia(id: string): $CancellablePromise<$models.MediaView[] | null> {
     return $Call.ByID(3365336450, id);
 }
 
 export function DeleteSong(songID: string): $CancellablePromise<$models.SongsView> {
     return $Call.ByID(348664795, songID);
+}
+
+export function DeleteTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(3148838931, id);
+}
+
+/**
+ * DuplicateTheme copies one under a fresh name, because the usual reason to
+ * duplicate is to keep a working theme while trying a change on it.
+ */
+export function DuplicateTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(742395031, id);
 }
 
 export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
@@ -79,6 +102,14 @@ export function GetPresentationState(): $CancellablePromise<$models.Presentation
 
 export function GetServiceOrder(): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(2748070250);
+}
+
+/**
+ * GetSetting returns the value stored for key. If the key has never been set,
+ * it returns an empty string without error.
+ */
+export function GetSetting(key: string): $CancellablePromise<string> {
+    return $Call.ByID(48053349, key);
 }
 
 export function GetStorage(): $CancellablePromise<$models.StorageView> {
@@ -115,8 +146,16 @@ export function ListSongs(query: string): $CancellablePromise<$models.SongsView>
     return $Call.ByID(554409833, query);
 }
 
+export function ListThemes(): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(3487303623);
+}
+
 export function ListTranslations(): $CancellablePromise<$models.TranslationView[] | null> {
     return $Call.ByID(2485403361);
+}
+
+export function MakeThemeDefault(id: string): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(232015445, id);
 }
 
 /**
@@ -142,6 +181,14 @@ export function MediaControl(action: string): $CancellablePromise<void> {
  */
 export function MediaEnded(): $CancellablePromise<void> {
     return $Call.ByID(2523104073);
+}
+
+/**
+ * NewTheme hands the editor an unsaved theme with the app's readable defaults,
+ * so "a new theme looks like this" is stated once rather than in two languages.
+ */
+export function NewTheme(kind: themes$0.Kind): $CancellablePromise<themes$0.Theme> {
+    return $Call.ByID(3981138590, kind);
 }
 
 export function NextServiceItem(): $CancellablePromise<$models.PresentationView> {
@@ -180,6 +227,14 @@ export function OpenSettings(): $CancellablePromise<$models.EditorView> {
  */
 export function OpenSongEditor(songID: string): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(1743082593, songID);
+}
+
+/**
+ * OpenThemeWindow edits themes in their own window, which keeps the studio a
+ * production view.
+ */
+export function OpenThemeWindow(): $CancellablePromise<$models.EditorView> {
+    return $Call.ByID(2269568954);
 }
 
 /**
@@ -270,11 +325,33 @@ export function SendPreviewLive(): $CancellablePromise<$models.PresentationView>
 }
 
 /**
+ * SetDefaultTranslation updates the default translation setting and returns the refreshed storage view.
+ */
+export function SetDefaultTranslation(id: string): $CancellablePromise<$models.StorageView> {
+    return $Call.ByID(1460585431, id);
+}
+
+/**
+ * SetSetting writes a key/value setting.
+ */
+export function SetSetting(key: string, value: string): $CancellablePromise<void> {
+    return $Call.ByID(4214292049, key, value);
+}
+
+export function ThemeFonts(): $CancellablePromise<themes$0.FontFamily[] | null> {
+    return $Call.ByID(3681971160);
+}
+
+/**
  * UpdateSong rewrites one song in the library. Sections keep their ids, so a
  * slide already scheduled from one still resolves afterwards.
  */
 export function UpdateSong(request: $models.EditSongRequest): $CancellablePromise<$models.SongsView> {
     return $Call.ByID(673211229, request);
+}
+
+export function UpdateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(3833562841, theme);
 }
 
 /**

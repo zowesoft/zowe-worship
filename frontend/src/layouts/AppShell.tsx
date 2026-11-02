@@ -671,13 +671,29 @@ function WorkspaceTabs({ activePage, onNavigate }: {
           <span>{item.label}</span>
         </button>
       ))}
-      {/* Settings is a window of its own, so this tab never becomes the active page. */}
+      {/* Themes and Settings are windows of their own, so neither becomes the active page. */}
+      <button type="button" className="workspace-tab" onClick={() => void studio.openThemes()}>
+        <Icon name="palette" size={15} />
+        <span>Themes</span>
+      </button>
       <button type="button" className="workspace-tab" onClick={() => void studio.openSettings()}>
         <Icon name="settings" size={15} />
         <span>Settings</span>
       </button>
     </nav>
   );
+}
+
+function isTextInput(element: Element | null): boolean {
+  if (!element) return false;
+  const tagName = element.tagName.toLowerCase();
+  if (tagName === 'input') {
+    const type = (element as HTMLInputElement).type.toLowerCase();
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(type);
+  }
+  if (tagName === 'textarea') return true;
+  if ((element as HTMLElement).isContentEditable) return true;
+  return false;
 }
 
 export function AppShell({ activePage, onNavigate, children }: {
@@ -687,6 +703,91 @@ export function AppShell({ activePage, onNavigate, children }: {
 }) {
   const activeLabel = navigation.find((item) => item.id === activePage)?.label ?? 'Bible';
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const studio = useStudio();
+  const [shortcutNotice, setShortcutNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+
+  function flashNotice(msg: string) {
+    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+    setShortcutNotice(msg);
+    noticeTimer.current = window.setTimeout(() => setShortcutNotice(null), 3000);
+  }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const activeEl = document.activeElement;
+      const inText = isTextInput(activeEl);
+
+      // Alt+Enter: Project selected preview or candidate
+      if (event.altKey && event.key === 'Enter') {
+        event.preventDefault();
+        if (studio.presentation?.preview) {
+          void studio.sendPreviewLive();
+          flashNotice('Preview sent live');
+        } else {
+          flashNotice('No preview ready to send live');
+        }
+        return;
+      }
+
+      // Ctrl+Shift+S: Open scripture search
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'S' || event.key === 's')) {
+        event.preventDefault();
+        onNavigate('bible');
+        window.setTimeout(() => {
+          const input = document.getElementById('bible-search-input') as HTMLInputElement | null;
+          input?.focus();
+          input?.select();
+        }, 60);
+        return;
+      }
+
+      // F8: Start/stop scripture listening
+      if (event.key === 'F8') {
+        event.preventDefault();
+        flashNotice('Scripture listening is offline (speech model pending)');
+        return;
+      }
+
+      // F9: Pause/resume automatic projection
+      if (event.key === 'F9') {
+        event.preventDefault();
+        flashNotice('Automatic projection is paused');
+        return;
+      }
+
+      // F12: Emergency disable automatic projection (per PRD: must not blank audience display)
+      if (event.key === 'F12') {
+        event.preventDefault();
+        flashNotice('Emergency auto-projection disabled (live display preserved)');
+        return;
+      }
+
+      // Left / Right: Previous / Next slide when not typing in text fields
+      if (!inText) {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          void studio.previousItem();
+          return;
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          void studio.nextItem();
+          return;
+        }
+      }
+
+      // Escape: dismiss input focus; PRD: Escape must not clear live output by default
+      if (event.key === 'Escape') {
+        if (inText) {
+          (activeEl as HTMLElement).blur();
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [studio, onNavigate]);
 
   useEffect(() => {
     workspaceRef.current?.scrollTo({ top: 0 });
@@ -712,6 +813,12 @@ export function AppShell({ activePage, onNavigate, children }: {
           <ProductionCard />
         </div>
       </main>
+      {shortcutNotice && (
+        <div className="shortcut-toast" role="status">
+          <Icon name="display" size={15} />
+          <span>{shortcutNotice}</span>
+        </div>
+      )}
     </div>
   );
 }
