@@ -3,7 +3,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -17,9 +17,7 @@ import * as themes$0 from "./internal/themes/models.js";
 import * as $models from "./models.js";
 
 export function AddCustomItemToService(request: $models.CustomItemRequest): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(1942981528, request).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(1942981528, request);
 }
 
 /**
@@ -27,27 +25,19 @@ export function AddCustomItemToService(request: $models.CustomItemRequest): $Can
  * a reference rather than a second copy, so one file can serve two services.
  */
 export function AddMediaToService(mediaID: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(1388766008, mediaID).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(1388766008, mediaID);
 }
 
 export function AddScriptureToService(request: $models.ScriptureRequest): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(3832875437, request).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(3832875437, request);
 }
 
 export function AddSongArrangementToService(request: $models.SongArrangementRequest): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(3389470005, request).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(3389470005, request);
 }
 
 export function AddSongSectionToService(request: $models.SongSectionRequest): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(1958429116, request).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(1958429116, request);
 }
 
 /**
@@ -55,9 +45,7 @@ export function AddSongSectionToService(request: $models.SongSectionRequest): $C
  * view, so the new file appears in the list without a second call.
  */
 export function BackupNow(): $CancellablePromise<$models.StorageView> {
-    return $Call.ByID(666389681).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(666389681);
 }
 
 /**
@@ -65,117 +53,83 @@ export function BackupNow(): $CancellablePromise<$models.StorageView> {
  * When VerseStart is 0 the whole chapter is returned.
  */
 export function BrowsePassage(req: $models.BrowsePassageRequest): $CancellablePromise<$models.BibleSearchResponse> {
-    return $Call.ByID(1549292557, req).then(($result: any) => {
-        return $$createType2($result);
-    });
+    return $Call.ByID(1549292557, req);
 }
 
 export function ClearLive(): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(2483162096).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(2483162096);
 }
 
 export function CloseAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
-    return $Call.ByID(3121378433).then(($result: any) => {
-        return $$createType4($result);
-    });
+    return $Call.ByID(3121378433);
 }
 
 export function CreateService(name: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(1173647428, name).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(1173647428, name);
 }
 
 export function CreateSong(request: $models.NewSongRequest): $CancellablePromise<$models.SongsView> {
-    return $Call.ByID(800922996, request).then(($result: any) => {
-        return $$createType5($result);
-    });
+    return $Call.ByID(800922996, request);
 }
 
 /**
  * CreateTheme stores one theme and returns the whole list, so the editor can
  * show the new entry without a second call racing the save.
  */
-export function CreateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[]> {
-    return $Call.ByID(1128641746, theme).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function CreateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(1128641746, theme);
 }
 
-export function DeleteMedia(id: string): $CancellablePromise<$models.MediaView[]> {
-    return $Call.ByID(3365336450, id).then(($result: any) => {
-        return $$createType9($result);
-    });
+export function DeleteMedia(id: string): $CancellablePromise<$models.MediaView[] | null> {
+    return $Call.ByID(3365336450, id);
 }
 
 export function DeleteSong(songID: string): $CancellablePromise<$models.SongsView> {
-    return $Call.ByID(348664795, songID).then(($result: any) => {
-        return $$createType5($result);
-    });
+    return $Call.ByID(348664795, songID);
 }
 
 export function DeleteSongArrangement(arrangementID: string): $CancellablePromise<void> {
     return $Call.ByID(2012676801, arrangementID);
 }
 
-export function DeleteTheme(id: string): $CancellablePromise<themes$0.Theme[]> {
-    return $Call.ByID(3148838931, id).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function DeleteTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(3148838931, id);
 }
 
 export function DuplicateService(serviceID: string, newName: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(472481605, serviceID, newName).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(472481605, serviceID, newName);
 }
 
 export function DuplicateSong(songID: string): $CancellablePromise<$models.SongsView> {
-    return $Call.ByID(229380479, songID).then(($result: any) => {
-        return $$createType5($result);
-    });
+    return $Call.ByID(229380479, songID);
 }
 
 /**
  * DuplicateTheme copies one under a fresh name, because the usual reason to
  * duplicate is to keep a working theme while trying a change on it.
  */
-export function DuplicateTheme(id: string): $CancellablePromise<themes$0.Theme[]> {
-    return $Call.ByID(742395031, id).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function DuplicateTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(742395031, id);
 }
 
 export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
-    return $Call.ByID(713661858).then(($result: any) => {
-        return $$createType10($result);
-    });
+    return $Call.ByID(713661858);
 }
 
 export function GetAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
-    return $Call.ByID(733832149).then(($result: any) => {
-        return $$createType4($result);
-    });
+    return $Call.ByID(733832149);
 }
 
 export function GetMediaPresentation(mediaID: string): $CancellablePromise<media$0.Presentation> {
-    return $Call.ByID(3601998157, mediaID).then(($result: any) => {
-        return $$createType11($result);
-    });
+    return $Call.ByID(3601998157, mediaID);
 }
 
 export function GetPresentationState(): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(2716261496).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(2716261496);
 }
 
 export function GetServiceOrder(): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(2748070250).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(2748070250);
 }
 
 /**
@@ -187,9 +141,7 @@ export function GetSetting(key: string): $CancellablePromise<string> {
 }
 
 export function GetStorage(): $CancellablePromise<$models.StorageView> {
-    return $Call.ByID(25239652).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(25239652);
 }
 
 /**
@@ -197,26 +149,20 @@ export function GetStorage(): $CancellablePromise<$models.StorageView> {
  * taken come back explained rather than failing the whole import, because the
  * usual case is a folder dropped with a mix of usable and unusable things in it.
  */
-export function ImportMedia(paths: string[]): $CancellablePromise<$models.MediaImportResult> {
-    return $Call.ByID(3099520704, paths).then(($result: any) => {
-        return $$createType12($result);
-    });
+export function ImportMedia(paths: string[] | null): $CancellablePromise<$models.MediaImportResult> {
+    return $Call.ByID(3099520704, paths);
 }
 
 /**
  * ListBooks returns all 66 canonical books, ordered by canonical position.
  * The result is static and does not depend on any installed translation.
  */
-export function ListBooks(): $CancellablePromise<$models.BibleBookView[]> {
-    return $Call.ByID(635303021).then(($result: any) => {
-        return $$createType14($result);
-    });
+export function ListBooks(): $CancellablePromise<$models.BibleBookView[] | null> {
+    return $Call.ByID(635303021);
 }
 
-export function ListMedia(): $CancellablePromise<$models.MediaView[]> {
-    return $Call.ByID(1688718951).then(($result: any) => {
-        return $$createType9($result);
-    });
+export function ListMedia(): $CancellablePromise<$models.MediaView[] | null> {
+    return $Call.ByID(1688718951);
 }
 
 /**
@@ -224,40 +170,28 @@ export function ListMedia(): $CancellablePromise<$models.MediaView[]> {
  * rather than assumed to be "the primary", because which physical monitor is
  * primary depends on how the room is wired.
  */
-export function ListScreens(): $CancellablePromise<$models.ScreenOption[]> {
-    return $Call.ByID(1081669978).then(($result: any) => {
-        return $$createType16($result);
-    });
+export function ListScreens(): $CancellablePromise<$models.ScreenOption[] | null> {
+    return $Call.ByID(1081669978);
 }
 
-export function ListServices(): $CancellablePromise<$models.ServiceView[]> {
-    return $Call.ByID(2917226001).then(($result: any) => {
-        return $$createType18($result);
-    });
+export function ListServices(): $CancellablePromise<$models.ServiceView[] | null> {
+    return $Call.ByID(2917226001);
 }
 
 export function ListSongs(query: string): $CancellablePromise<$models.SongsView> {
-    return $Call.ByID(554409833, query).then(($result: any) => {
-        return $$createType5($result);
-    });
+    return $Call.ByID(554409833, query);
 }
 
-export function ListThemes(): $CancellablePromise<themes$0.Theme[]> {
-    return $Call.ByID(3487303623).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function ListThemes(): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(3487303623);
 }
 
-export function ListTranslations(): $CancellablePromise<$models.TranslationView[]> {
-    return $Call.ByID(2485403361).then(($result: any) => {
-        return $$createType20($result);
-    });
+export function ListTranslations(): $CancellablePromise<$models.TranslationView[] | null> {
+    return $Call.ByID(2485403361);
 }
 
-export function MakeThemeDefault(id: string): $CancellablePromise<themes$0.Theme[]> {
-    return $Call.ByID(232015445, id).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function MakeThemeDefault(id: string): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(232015445, id);
 }
 
 /**
@@ -265,10 +199,8 @@ export function MakeThemeDefault(id: string): $CancellablePromise<themes$0.Theme
  * operator sees, the values that get stored and the ratio the renderer uses are
  * one list rather than three.
  */
-export function MediaAspects(): $CancellablePromise<media$0.Aspect[]> {
-    return $Call.ByID(1442082748).then(($result: any) => {
-        return $$createType22($result);
-    });
+export function MediaAspects(): $CancellablePromise<media$0.Aspect[] | null> {
+    return $Call.ByID(1442082748);
 }
 
 /**
@@ -292,15 +224,11 @@ export function MediaEnded(): $CancellablePromise<void> {
  * so "a new theme looks like this" is stated once rather than in two languages.
  */
 export function NewTheme(kind: themes$0.Kind): $CancellablePromise<themes$0.Theme> {
-    return $Call.ByID(3981138590, kind).then(($result: any) => {
-        return $$createType6($result);
-    });
+    return $Call.ByID(3981138590, kind);
 }
 
 export function NextServiceItem(): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(3770077700).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(3770077700);
 }
 
 /**
@@ -309,9 +237,7 @@ export function NextServiceItem(): $CancellablePromise<$models.PresentationView>
  * operator can open it mid-service.
  */
 export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$models.DisplayView> {
-    return $Call.ByID(3719972303, screenID).then(($result: any) => {
-        return $$createType4($result);
-    });
+    return $Call.ByID(3719972303, screenID);
 }
 
 /**
@@ -319,9 +245,7 @@ export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$mode
  * studio a production view rather than a workspace with drawers in it.
  */
 export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.EditorView> {
-    return $Call.ByID(1808648114, mediaID).then(($result: any) => {
-        return $$createType23($result);
-    });
+    return $Call.ByID(1808648114, mediaID);
 }
 
 /**
@@ -330,9 +254,7 @@ export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.Ed
  * needs to see where the app looked.
  */
 export function OpenSettings(): $CancellablePromise<$models.EditorView> {
-    return $Call.ByID(2024983644).then(($result: any) => {
-        return $$createType23($result);
-    });
+    return $Call.ByID(2024983644);
 }
 
 /**
@@ -340,9 +262,7 @@ export function OpenSettings(): $CancellablePromise<$models.EditorView> {
  * the studio.
  */
 export function OpenSongEditor(songID: string): $CancellablePromise<$models.EditorView> {
-    return $Call.ByID(1743082593, songID).then(($result: any) => {
-        return $$createType23($result);
-    });
+    return $Call.ByID(1743082593, songID);
 }
 
 /**
@@ -350,9 +270,7 @@ export function OpenSongEditor(songID: string): $CancellablePromise<$models.Edit
  * production view.
  */
 export function OpenThemeWindow(): $CancellablePromise<$models.EditorView> {
-    return $Call.ByID(2269568954).then(($result: any) => {
-        return $$createType23($result);
-    });
+    return $Call.ByID(2269568954);
 }
 
 /**
@@ -366,90 +284,64 @@ export function PickMediaFile(): $CancellablePromise<string> {
  * PickMediaFiles opens the native picker so an operator can reach any folder
  * without learning where Zowe keeps its own copies.
  */
-export function PickMediaFiles(): $CancellablePromise<string[]> {
-    return $Call.ByID(4150223347).then(($result: any) => {
-        return $$createType24($result);
-    });
+export function PickMediaFiles(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(4150223347);
 }
 
 export function PreviewMedia(mediaID: string): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(1538984449, mediaID).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(1538984449, mediaID);
 }
 
 export function PreviewScripture(request: $models.ScriptureRequest): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(1473915070, request).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(1473915070, request);
 }
 
 export function PreviewServiceItem(itemID: string): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(990081721, itemID).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(990081721, itemID);
 }
 
 export function PreviewSongSection(request: $models.SongSectionRequest): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(1548494977, request).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(1548494977, request);
 }
 
 export function PreviousServiceItem(): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(1202660132).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(1202660132);
 }
 
 export function ProjectMedia(mediaID: string): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(3656485126, mediaID).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(3656485126, mediaID);
 }
 
 export function ProjectScripture(request: $models.ScriptureRequest): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(1187188873, request).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(1187188873, request);
 }
 
 export function ProjectSongSection(request: $models.SongSectionRequest): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(2112940354, request).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(2112940354, request);
 }
 
 /**
  * RelinkMedia adopts a new copy of a file the library lost, then returns the
  * whole grid so the tile stops saying Missing.
  */
-export function RelinkMedia(mediaID: string, path: string): $CancellablePromise<$models.MediaView[]> {
-    return $Call.ByID(2207098652, mediaID, path).then(($result: any) => {
-        return $$createType9($result);
-    });
+export function RelinkMedia(mediaID: string, path: string): $CancellablePromise<$models.MediaView[] | null> {
+    return $Call.ByID(2207098652, mediaID, path);
 }
 
 export function RemoveServiceItem(itemID: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(1555208891, itemID).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(1555208891, itemID);
 }
 
 export function RenameService(serviceID: string, name: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(3184253086, serviceID, name).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(3184253086, serviceID, name);
 }
 
 /**
  * ReorderServiceItems stores the whole schedule order at once, so the gap an
  * operator drops a row into is the position that gets written.
  */
-export function ReorderServiceItems(itemIDs: string[]): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(1487992245, itemIDs).then(($result: any) => {
-        return $$createType0($result);
-    });
+export function ReorderServiceItems(itemIDs: string[] | null): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(1487992245, itemIDs);
 }
 
 /**
@@ -457,36 +349,26 @@ export function ReorderServiceItems(itemIDs: string[]): $CancellablePromise<$mod
  * like, so a live image updates from the same reply the editor shows.
  */
 export function SaveMediaPresentation(mediaID: string, presentation: media$0.Presentation): $CancellablePromise<media$0.Slide> {
-    return $Call.ByID(2615786972, mediaID, presentation).then(($result: any) => {
-        return $$createType25($result);
-    });
+    return $Call.ByID(2615786972, mediaID, presentation);
 }
 
 export function SaveSongArrangement(request: $models.SaveArrangementRequest): $CancellablePromise<$models.ArrangementView> {
-    return $Call.ByID(4127006175, request).then(($result: any) => {
-        return $$createType26($result);
-    });
+    return $Call.ByID(4127006175, request);
 }
 
 export function SearchBible(request: $models.BibleSearchRequest): $CancellablePromise<$models.BibleSearchResponse> {
-    return $Call.ByID(1580433009, request).then(($result: any) => {
-        return $$createType2($result);
-    });
+    return $Call.ByID(1580433009, request);
 }
 
 export function SendPreviewLive(): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(2243982563).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(2243982563);
 }
 
 /**
  * SetDefaultTranslation updates the default translation setting and returns the refreshed storage view.
  */
 export function SetDefaultTranslation(id: string): $CancellablePromise<$models.StorageView> {
-    return $Call.ByID(1460585431, id).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(1460585431, id);
 }
 
 /**
@@ -496,9 +378,7 @@ export function SetDefaultTranslation(id: string): $CancellablePromise<$models.S
  * room when the operator projects the item again.
  */
 export function SetItemTheme(itemID: string, themeID: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(345195545, itemID, themeID).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(345195545, itemID, themeID);
 }
 
 /**
@@ -508,16 +388,12 @@ export function SetSetting(key: string, value: string): $CancellablePromise<void
     return $Call.ByID(4214292049, key, value);
 }
 
-export function ThemeFonts(): $CancellablePromise<themes$0.FontFamily[]> {
-    return $Call.ByID(3681971160).then(($result: any) => {
-        return $$createType28($result);
-    });
+export function ThemeFonts(): $CancellablePromise<themes$0.FontFamily[] | null> {
+    return $Call.ByID(3681971160);
 }
 
 export function UpdateServiceItemMeta(itemID: string, notes: string, duration: number): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(229381405, itemID, notes, duration).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(229381405, itemID, notes, duration);
 }
 
 /**
@@ -525,15 +401,11 @@ export function UpdateServiceItemMeta(itemID: string, notes: string, duration: n
  * slide already scheduled from one still resolves afterwards.
  */
 export function UpdateSong(request: $models.EditSongRequest): $CancellablePromise<$models.SongsView> {
-    return $Call.ByID(673211229, request).then(($result: any) => {
-        return $$createType5($result);
-    });
+    return $Call.ByID(673211229, request);
 }
 
-export function UpdateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[]> {
-    return $Call.ByID(3833562841, theme).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function UpdateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[] | null> {
+    return $Call.ByID(3833562841, theme);
 }
 
 /**
@@ -541,38 +413,5 @@ export function UpdateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0
  * output is untouched: the audience keeps whatever is on air.
  */
 export function UseService(serviceID: string): $CancellablePromise<$models.ServiceOrderView> {
-    return $Call.ByID(3988522559, serviceID).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(3988522559, serviceID);
 }
-
-// Private type creation functions
-const $$createType0 = $models.ServiceOrderView.createFrom;
-const $$createType1 = $models.StorageView.createFrom;
-const $$createType2 = $models.BibleSearchResponse.createFrom;
-const $$createType3 = $models.PresentationView.createFrom;
-const $$createType4 = $models.DisplayView.createFrom;
-const $$createType5 = $models.SongsView.createFrom;
-const $$createType6 = themes$0.Theme.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $models.MediaView.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.AppInfo.createFrom;
-const $$createType11 = media$0.Presentation.createFrom;
-const $$createType12 = $models.MediaImportResult.createFrom;
-const $$createType13 = $models.BibleBookView.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $models.ScreenOption.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $models.ServiceView.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $models.TranslationView.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = media$0.Aspect.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $models.EditorView.createFrom;
-const $$createType24 = $Create.Array($Create.Any);
-const $$createType25 = media$0.Slide.createFrom;
-const $$createType26 = $models.ArrangementView.createFrom;
-const $$createType27 = themes$0.FontFamily.createFrom;
-const $$createType28 = $Create.Array($$createType27);
