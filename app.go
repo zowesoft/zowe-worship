@@ -475,6 +475,26 @@ func (a *App) AddScriptureToService(request ScriptureRequest) (ServiceOrderView,
 	if err != nil {
 		return ServiceOrderView{}, err
 	}
+
+	// One verse per slide turns a passage into one row per verse, so the operator
+	// sees every verse in the order, can drop the ones they do not want, and steps
+	// through the rest with Next and Previous like any other item.
+	if a.oneVersePerSlide(ctx) && len(verses) > 1 {
+		for _, verse := range verses {
+			if _, err := a.order.AddScripture(ctx, service.ID, serviceorder.ScriptureInput{
+				Title:         verse.Reference(),
+				TranslationID: normalized.TranslationID,
+				BookID:        normalized.BookID,
+				Chapter:       verse.Chapter,
+				VerseStart:    verse.Verse,
+				VerseEnd:      verse.Verse,
+			}); err != nil {
+				return ServiceOrderView{}, err
+			}
+		}
+		return a.serviceOrderView(ctx)
+	}
+
 	if _, err := a.order.AddScripture(ctx, service.ID, serviceorder.ScriptureInput{
 		Title:         title,
 		TranslationID: normalized.TranslationID,
@@ -606,7 +626,8 @@ func (a *App) PreviewScripture(request ScriptureRequest) (PresentationView, erro
 		return PresentationView{}, err
 	}
 	return a.applied(a.presentation.PreviewScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd, false))
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd,
+		a.oneVersePerSlide(a.context())))
 }
 
 func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, error) {
@@ -618,7 +639,8 @@ func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, erro
 		return PresentationView{}, err
 	}
 	return a.applied(a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd, false))
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd,
+		a.oneVersePerSlide(a.context())))
 }
 
 func (a *App) PreviewServiceItem(itemID string) (PresentationView, error) {

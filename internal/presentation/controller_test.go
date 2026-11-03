@@ -16,9 +16,12 @@ type fakeScripture struct {
 	verses      []bible.SearchResult
 	translation bible.Translation
 	err         error
+	lastStart   int
+	lastEnd     int
 }
 
-func (f *fakeScripture) Passage(context.Context, string, int, int, int, int) ([]bible.SearchResult, error) {
+func (f *fakeScripture) Passage(_ context.Context, _ string, _, _, startVerse, endVerse int) ([]bible.SearchResult, error) {
+	f.lastStart, f.lastEnd = startVerse, endVerse
 	return f.verses, f.err
 }
 
@@ -569,5 +572,70 @@ func TestCustomSlideKinds(t *testing.T) {
 	}
 	if liveState.Live == nil || liveState.Live.Kind != "blank" {
 		t.Fatalf("live blank failed: %+v", liveState.Live)
+	}
+}
+
+func TestOneVersePerSlideWalksThePassage(t *testing.T) {
+	ctx := context.Background()
+	scripture := &fakeScripture{
+		verses:      []bible.SearchResult{johnVerse()},
+		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
+	}
+	controller := New(scripture, &fakeSchedule{}, nil, nil, bright())
+
+	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 18, true); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if scripture.lastStart != 16 || scripture.lastEnd != 16 {
+		t.Fatalf("first slide = verses %d-%d, want 16-16", scripture.lastStart, scripture.lastEnd)
+	}
+
+	for _, want := range []int{17, 18} {
+		if _, err := controller.Next(ctx); err != nil {
+			t.Fatalf("next to verse %d: %v", want, err)
+		}
+		if scripture.lastStart != want || scripture.lastEnd != want {
+			t.Fatalf("slide = verses %d-%d, want %d-%d", scripture.lastStart, scripture.lastEnd, want, want)
+		}
+	}
+
+	// Past the last verse the passage is spent, so navigation returns to the
+	// schedule instead of repeating the final verse forever.
+	if _, err := controller.Next(ctx); !errors.Is(err, ErrNoSchedule) {
+		t.Fatalf("next past the passage = %v, want ErrNoSchedule", err)
+	}
+	if scripture.lastStart != 18 {
+		t.Fatalf("walking past the end moved the verse to %d", scripture.lastStart)
+	}
+
+	if _, err := controller.Previous(ctx); err != nil {
+		t.Fatalf("previous: %v", err)
+	}
+	if scripture.lastStart != 17 || scripture.lastEnd != 17 {
+		t.Fatalf("previous = verses %d-%d, want 17-17", scripture.lastStart, scripture.lastEnd)
+	}
+}
+
+func TestWholePassageStaysOnOneSlide(t *testing.T) {
+	ctx := context.Background()
+	scripture := &fakeScripture{
+		verses:      []bible.SearchResult{johnVerse()},
+		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
+	}
+	controller := New(scripture, &fakeSchedule{}, nil, nil, bright())
+
+	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 18, false); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if scripture.lastStart != 16 || scripture.lastEnd != 18 {
+		t.Fatalf("passage slide = verses %d-%d, want 16-18", scripture.lastStart, scripture.lastEnd)
+	}
+
+	// With the passage on one slide, Next is schedule navigation again.
+	if _, err := controller.Next(ctx); !errors.Is(err, ErrNoSchedule) {
+		t.Fatalf("next = %v, want ErrNoSchedule", err)
+	}
+	if scripture.lastStart != 16 || scripture.lastEnd != 18 {
+		t.Fatalf("next rebuilt the passage slide: %d-%d", scripture.lastStart, scripture.lastEnd)
 	}
 }
