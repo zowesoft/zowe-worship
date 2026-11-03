@@ -10,8 +10,9 @@ vars:
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: '{{.GOOS | default OS}}'
 
-# Zowe Worship ships for Windows only, so the other platform Taskfiles from the
-# v3 template are not carried along.
+# Zowe Worship targets every desktop OS Wails v3 supports — Windows packaging
+# lives in ./build/windows today; other platform Taskfiles join as those
+# packaging targets come online.
 includes:
   common: ./build/Taskfile.yml
   windows: ./build/windows/Taskfile.yml
@@ -63,6 +64,34 @@ tasks:
       - task: common:build:docker
 
   run:docker:
-    summary: Builds and runs the Docker image
+    summary: Builds and runs the Docker image for server mode deployment
     cmds:
       - task: common:run:docker
+
+  asr:bench:fetch:
+    summary: Downloads whisper.cpp CPU binaries and the tiny.en smoke model into benchmarks/
+    cmds:
+      - powershell -ExecutionPolicy Bypass -File benchmarks/fetch.ps1
+
+  asr:bench:
+    summary: Runs the spoken-reference benchmark, detector-only mode (see benchmarks/README.md)
+    cmds:
+      - go run ./cmd/asr-bench -set benchmarks/sample-set {{.FLAGS}}
+
+  asr:bench:whisper:
+    summary: Example engine run — whisper.cpp tiny.en over the sample set
+    cmds:
+      - go run ./cmd/asr-bench -set benchmarks/sample-set
+        -engine "whisper.tiny=benchmarks/tools/Release/whisper-cli.exe -m benchmarks/models/ggml-tiny.en.bin -np -f {audio}"
+
+  asr:bench:moonshine:
+    summary: Engine run — Moonshine tiny (int8) via sherpa-onnx
+    cmds:
+      - go run ./cmd/asr-bench -set benchmarks/smoke-set
+        -engine "moonshine.tiny=benchmarks/tools/sherpa-onnx-v2.0.1-win-x64-shared-MT-Release/bin/sherpa-onnx-offline.exe --moonshine-preprocessor=benchmarks/models/moonshine-tiny-en-int8/preprocess.onnx --moonshine-encoder=benchmarks/models/moonshine-tiny-en-int8/encode.int8.onnx --moonshine-uncached-decoder=benchmarks/models/moonshine-tiny-en-int8/uncached_decode.int8.onnx --moonshine-cached-decoder=benchmarks/models/moonshine-tiny-en-int8/cached_decode.int8.onnx --tokens=benchmarks/models/moonshine-tiny-en-int8/tokens.txt {audio}"
+
+  asr:bench:parakeet:
+    summary: Engine run — Parakeet TDT 0.6B v3 (int8) via sherpa-onnx
+    cmds:
+      - go run ./cmd/asr-bench -set benchmarks/smoke-set
+        -engine "parakeet.v3=benchmarks/tools/sherpa-onnx-v2.0.1-win-x64-shared-MT-Release/bin/sherpa-onnx-offline.exe --encoder=benchmarks/models/parakeet-tdt-0.6b-v3-int8/encoder.int8.onnx --decoder=benchmarks/models/parakeet-tdt-0.6b-v3-int8/decoder.int8.onnx --joiner=benchmarks/models/parakeet-tdt-0.6b-v3-int8/joiner.int8.onnx --tokens=benchmarks/models/parakeet-tdt-0.6b-v3-int8/tokens.txt {audio}"

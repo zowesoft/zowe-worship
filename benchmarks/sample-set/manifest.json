@@ -1,0 +1,25 @@
+{
+  "name": "sample",
+  "clips": [
+    {
+      "id": "opening-romans",
+      "transcript": "Tonight we opened, let us turn to Romans 8:28 in the word of the Lord.",
+      "references": ["Romans 8:28"]
+    },
+    {
+      "id": "love-chapter",
+      "transcript": "We continue this evening in first Corinthians chapter thirteen, the love chapter.",
+      "references": ["1 Corinthians 13"]
+    },
+    {
+      "id": "gospel-psalm",
+      "transcript": "And John three sixteen says the same thing as Psalm fifty one tells us honestly.",
+      "references": ["John 3:16", "Psalms 51"]
+    },
+    {
+      "id": "no-references",
+      "transcript": "No scripture was spoken during this announcement section about the choir and the offering plates.",
+      "references": []
+    }
+  ]
+}

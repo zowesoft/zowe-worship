@@ -1,0 +1,80 @@
+{
+    "name":  "tts-synthetic",
+    "clips":  [
+                  {
+                      "id":  "opening-romans",
+                      "file":  "opening-romans.wav",
+                      "references":  [
+                                         "Romans 8:28"
+                                     ],
+                      "transcript":  "Good morning, everyone. Let us open our Bibles this morning to Romans, chapter eight, verse twenty eight. And we know that all things work together for good to them that love God. Let us pray."
+                  },
+                  {
+                      "id":  "second-corinthians",
+                      "file":  "second-corinthians.wav",
+                      "references":  [
+                                         "2 Corinthians 4"
+                                     ],
+                      "transcript":  "This morning we continue in second Corinthians, chapter four. In the middle of trouble we do not lose heart. Our light affliction works a far more eternal weight of glory."
+                  },
+                  {
+                      "id":  "gospel-psalm-combo",
+                      "file":  "gospel-psalm-combo.wav",
+                      "references":  [
+                                         "John 3:16",
+                                         "Psalms 51:10"
+                                     ],
+                      "transcript":  "Please turn to John, three sixteen. And then hold your place and go over to Psalm fifty one, verse ten, and we will come back to the gospel in a moment."
+                  },
+                  {
+                      "id":  "matthew-range",
+                      "file":  "matthew-range.wav",
+                      "references":  [
+                                         "Matthew 11:28-30"
+                                     ],
+                      "transcript":  "The passage for tonight is Matthew, chapter eleven, verses twenty eight through thirty. Come unto me, all ye that labour and are heavy laden, and I will give you rest."
+                  },
+                  {
+                      "id":  "announcements-trap",
+                      "file":  "announcements-trap.wav",
+                      "references":  [
+
+                                     ],
+                      "transcript":  "Before we open the word, a few announcements. The youth group meets on the twenty eighth at six thirty. The choir still needs fifteen volunteers for the Christmas program, and the food pantry served one hundred nineteen families last month."
+                  },
+                  {
+                      "id":  "revelation-bookends",
+                      "file":  "revelation-bookends.wav",
+                      "references":  [
+                                         "Genesis 1:1",
+                                         "Revelation 22:21"
+                                     ],
+                      "transcript":  "Genesis one one opens the whole story: in the beginning God created the heaven and the earth. And Revelation, twenty two twenty one, closes it: the grace of our Lord Jesus Christ be with you all."
+                  },
+                  {
+                      "id":  "peter-psalm-hundred",
+                      "file":  "peter-psalm-hundred.wav",
+                      "references":  [
+                                         "1 Peter 5:7",
+                                         "Psalms 119:105"
+                                     ],
+                      "transcript":  "Two texts finish our series tonight. First Peter, five seven: casting all your care upon him, for he careth for you. And Psalm one hundred nineteen, verse one hundred five: thy word is a lamp unto my feet."
+                  },
+                  {
+                      "id":  "the-book-of-james",
+                      "file":  "the-book-of-james.wav",
+                      "references":  [
+                                         "James 1:5"
+                                     ],
+                      "transcript":  "Turn with me, if you would, to the book of James. Chapter one. Verse five. If any of you lack wisdom, let him ask of God, that giveth to all men liberally."
+                  },
+                  {
+                      "id":  "samuel-anniversary",
+                      "file":  "samuel-anniversary.wav",
+                      "references":  [
+                                         "1 Samuel 1"
+                                     ],
+                      "transcript":  "For our tenth anniversary we return to where it all started, first Samuel chapter one, and Hannah\u0027s prayer. Also remember today is May twenty eighth at one hundred nineteen years our oldest member turns one hundred twenty."
+                  }
+              ]
+}

@@ -1,0 +1,535 @@
+{
+  "engines": [
+    {
+      "engine": "whisper.tiny",
+      "clips": [
+        {
+          "clip": "opening-romans",
+          "expected": [
+            "Romans 8:28"
+          ],
+          "detected": [
+            "Romans 8:28"
+          ],
+          "hits": [
+            "Romans 8:28"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Good morning, everyone. Let us open our Bibles this morning to Romans, chapter 8, verse 28. And we know that all things work together for good to them that love God. Let us pray.",
+          "wer": 0.08571428571428572,
+          "has_gold_words": true
+        },
+        {
+          "clip": "second-corinthians",
+          "expected": [
+            "2 Corinthians 4"
+          ],
+          "detected": [
+            "2 Corinthians 4"
+          ],
+          "hits": [
+            "2 Corinthians 4"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "This morning we continue in 2 Corinthians, Chapter 4. In the middle of trouble we do not lose heart. Our light affliction works a far more eternal weight of glory.",
+          "wer": 0.06666666666666667,
+          "has_gold_words": true
+        },
+        {
+          "clip": "gospel-psalm-combo",
+          "expected": [
+            "John 3:16",
+            "Psalms 51:10"
+          ],
+          "detected": [
+            "John 3",
+            "Psalms 51:10"
+          ],
+          "hits": [
+            "John 3",
+            "Psalms 51:10"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Please turn to John, 3-16. And then hold your place and go over to Psalm 51, verse 10, and we will come back to the Gospel in a moment.",
+          "wer": 0.16129032258064516,
+          "has_gold_words": true
+        },
+        {
+          "clip": "matthew-range",
+          "expected": [
+            "Matthew 11:28-30"
+          ],
+          "detected": [
+            "Matthew 11"
+          ],
+          "hits": [
+            "Matthew 11"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "The passage for tonight is Matthew, chapter 11, verses 28 through 30. Come unto me, all yet at labor and are heavy laden, and I will give you rest.",
+          "wer": 0.23333333333333334,
+          "has_gold_words": true
+        },
+        {
+          "clip": "announcements-trap",
+          "expected": [],
+          "detected": null,
+          "hits": null,
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "before we open the word, a few announcements. The youth group meets on the 28th at 630. The choir still needs 15 volunteers for the Christmas program and the food pantry served 119 families last month.",
+          "wer": 0.2,
+          "has_gold_words": true
+        },
+        {
+          "clip": "revelation-bookends",
+          "expected": [
+            "Genesis 1:1",
+            "Revelation 22:21"
+          ],
+          "detected": [
+            "Genesis 1",
+            "Revelation 22"
+          ],
+          "hits": [
+            "Genesis 1",
+            "Revelation 22"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "Genesis 1-1 opens the whole story, in the beginning God created the heaven and the earth. And Revelation 22-21, closes it, the grace of our Lord Jesus Christ be with you all.",
+          "wer": 0.16666666666666666,
+          "has_gold_words": true
+        },
+        {
+          "clip": "peter-psalm-hundred",
+          "expected": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "detected": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "hits": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 2,
+          "transcript": "two texts finish our series tonight. First Peter, 5/7, casting all your care upon him, for he carer for you. And Psalm 119, verse 105, Thy word is a lamp unto my feet.",
+          "wer": 0.23684210526315788,
+          "has_gold_words": true
+        },
+        {
+          "clip": "the-book-of-james",
+          "expected": [
+            "James 1:5"
+          ],
+          "detected": [
+            "James 1:5"
+          ],
+          "hits": [
+            "James 1:5"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Turn with me, if you would, to the Book of James 1. Verse 5. If any of you lack wisdom, let him ask of God, that giveeth to all men liberally.",
+          "wer": 0.125,
+          "has_gold_words": true
+        },
+        {
+          "clip": "samuel-anniversary",
+          "expected": [
+            "1 Samuel 1"
+          ],
+          "detected": [
+            "1 Samuel 1"
+          ],
+          "hits": [
+            "1 Samuel 1"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "For our 10th anniversary we return to where it all started, first Samuel chapter 1, and Hana's prayer. Also remember today is May 28 at 119 years our oldest member turns 120.",
+          "wer": 0.2894736842105263,
+          "has_gold_words": true
+        }
+      ],
+      "expected": 11,
+      "hits": 11,
+      "extra": 0,
+      "verse_hits": 7,
+      "transcribe_ms": 40296,
+      "mean_wer": 0.1738874516039202,
+      "wer_clips": 9
+    },
+    {
+      "engine": "moonshine.tiny",
+      "clips": [
+        {
+          "clip": "opening-romans",
+          "expected": [
+            "Romans 8:28"
+          ],
+          "detected": [
+            "Romans 8:28"
+          ],
+          "hits": [
+            "Romans 8:28"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Good morning, everyone. Let us open our Bibles this morning to Romans, chapter 8, verse 28. And we know that all things work together for good to them that love God. Let us pray.",
+          "wer": 0.08571428571428572,
+          "has_gold_words": true
+        },
+        {
+          "clip": "second-corinthians",
+          "expected": [
+            "2 Corinthians 4"
+          ],
+          "detected": [
+            "2 Corinthians 4"
+          ],
+          "hits": [
+            "2 Corinthians 4"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "This morning we continue in 2 Corinthians chapter 4. In the middle of trouble we do not lose heart. Our light affliction works a far more eternal weight of glory.",
+          "wer": 0.06666666666666667,
+          "has_gold_words": true
+        },
+        {
+          "clip": "gospel-psalm-combo",
+          "expected": [
+            "John 3:16",
+            "Psalms 51:10"
+          ],
+          "detected": [
+            "John 3:16",
+            "Psalms 51:10"
+          ],
+          "hits": [
+            "John 3:16",
+            "Psalms 51:10"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 2,
+          "transcript": "Please turn to John 3:16 and then hold your place and go over to Psalm 51 verse 10 and we will come back to the gospel in a moment",
+          "wer": 0.16129032258064516,
+          "has_gold_words": true
+        },
+        {
+          "clip": "matthew-range",
+          "expected": [
+            "Matthew 11:28-30"
+          ],
+          "detected": [
+            "Matthew 11"
+          ],
+          "hits": [
+            "Matthew 11"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "The passage for tonight is Matthew, chapter 11, verses 28-30. Come unto me, all yet at labor and are heavy laden, and I will give you rest.",
+          "wer": 0.26666666666666666,
+          "has_gold_words": true
+        },
+        {
+          "clip": "announcements-trap",
+          "expected": [],
+          "detected": null,
+          "hits": null,
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "Before we open the word, a few announcements. The youth group meets on the 28th at 6:30. The choir still needs 15 volunteers for the Christmas program, and the food pantry served 119 families last month.",
+          "wer": 0.2,
+          "has_gold_words": true
+        },
+        {
+          "clip": "revelation-bookends",
+          "expected": [
+            "Genesis 1:1",
+            "Revelation 22:21"
+          ],
+          "detected": [
+            "Genesis 1:1"
+          ],
+          "hits": [
+            "Genesis 1:1"
+          ],
+          "missed": [
+            "Revelation 22:21"
+          ],
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Genesis 1:1 opens the whole story, in the beginning God created the heaven and the earth. And Revelation: 22:21, closes it, the grace of our Lord Jesus Christ be with you all.",
+          "wer": 0.16666666666666666,
+          "has_gold_words": true
+        },
+        {
+          "clip": "peter-psalm-hundred",
+          "expected": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "detected": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "hits": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 2,
+          "transcript": "Two texts finish our series tonight. First Peter, 5:7, casting all your care upon him, for he careth for you. And Psalm 119, verse 105, thy word is a lamp unto my feet.",
+          "wer": 0.21052631578947367,
+          "has_gold_words": true
+        },
+        {
+          "clip": "the-book-of-james",
+          "expected": [
+            "James 1:5"
+          ],
+          "detected": [
+            "James 1:5"
+          ],
+          "hits": [
+            "James 1:5"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Turn with me, if you would, to the book of James, chapter 1, verse 5, If any of you lack wisdom, let him ask of God, that giveth to all men liberally.",
+          "wer": 0.0625,
+          "has_gold_words": true
+        },
+        {
+          "clip": "samuel-anniversary",
+          "expected": [
+            "1 Samuel 1"
+          ],
+          "detected": [
+            "1 Samuel 1"
+          ],
+          "hits": [
+            "1 Samuel 1"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "For our 10th anniversary we return to where it all started, 1 Samuel chapter 1, and Hannah's prayer. Also remember today is May 28th at 119 years our oldest member turns 120.",
+          "wer": 0.2894736842105263,
+          "has_gold_words": true
+        }
+      ],
+      "expected": 11,
+      "hits": 10,
+      "extra": 0,
+      "verse_hits": 9,
+      "transcribe_ms": 32083,
+      "mean_wer": 0.16772273425499232,
+      "wer_clips": 9
+    },
+    {
+      "engine": "parakeet.v3",
+      "clips": [
+        {
+          "clip": "opening-romans",
+          "expected": [
+            "Romans 8:28"
+          ],
+          "detected": [
+            "Romans 8:28"
+          ],
+          "hits": [
+            "Romans 8:28"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Good morning, everyone. Let us open our Bibles this morning to Romans, chapter 8, verse 28. And we know that all things work together for good to them that love God. Let us pray.",
+          "wer": 0.08571428571428572,
+          "has_gold_words": true
+        },
+        {
+          "clip": "second-corinthians",
+          "expected": [
+            "2 Corinthians 4"
+          ],
+          "detected": [
+            "2 Corinthians 4"
+          ],
+          "hits": [
+            "2 Corinthians 4"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "This morning we continue in 2 Corinthians, chapter 4. In the middle of trouble we do not lose heart. Our light affliction works a far more eternal weight of glory.",
+          "wer": 0.06666666666666667,
+          "has_gold_words": true
+        },
+        {
+          "clip": "gospel-psalm-combo",
+          "expected": [
+            "John 3:16",
+            "Psalms 51:10"
+          ],
+          "detected": [
+            "Psalms 51:10"
+          ],
+          "hits": [
+            "Psalms 51:10"
+          ],
+          "missed": [
+            "John 3:16"
+          ],
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Please turn to John, 316. And then hold your place and go over to Psalm 51, verse 10, and we will come back to the gospel in a moment.",
+          "wer": 0.16129032258064516,
+          "has_gold_words": true
+        },
+        {
+          "clip": "matthew-range",
+          "expected": [
+            "Matthew 11:28-30"
+          ],
+          "detected": [
+            "Matthew 11"
+          ],
+          "hits": [
+            "Matthew 11"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "The passage for tonight is Matthew, chapter 11, verses 28 through 30. Come unto me, all ye that labor and are heavy laden, and I will give you rest.",
+          "wer": 0.16666666666666666,
+          "has_gold_words": true
+        },
+        {
+          "clip": "announcements-trap",
+          "expected": [],
+          "detected": null,
+          "hits": null,
+          "missed": null,
+          "extra": null,
+          "verse_hits": 0,
+          "transcript": "Before we open the word, a few announcements. The youth group meets on the 28th at 630. The choir still needs 15 volunteers for the Christmas program, and the food pantry served 119 families last month.",
+          "wer": 0.2,
+          "has_gold_words": true
+        },
+        {
+          "clip": "revelation-bookends",
+          "expected": [
+            "Genesis 1:1",
+            "Revelation 22:21"
+          ],
+          "detected": [
+            "Genesis 1:1",
+            "Revelation 22:21"
+          ],
+          "hits": [
+            "Genesis 1:1",
+            "Revelation 22:21"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 2,
+          "transcript": "Genesis 1 1 opens the whole story, in the beginning God created the heaven and the earth. And Revelation 22 21 closes it. The grace of our Lord Jesus Christ be with you all.",
+          "wer": 0.16666666666666666,
+          "has_gold_words": true
+        },
+        {
+          "clip": "peter-psalm-hundred",
+          "expected": [
+            "1 Peter 5:7",
+            "Psalms 119:105"
+          ],
+          "detected": [
+            "Psalms 119:105"
+          ],
+          "hits": [
+            "Psalms 119:105"
+          ],
+          "missed": [
+            "1 Peter 5:7"
+          ],
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Two texts finish our series tonight. 1 Peter, 57, Casting all your care upon him, for he careth for you. And Psalm 119, verse 105, Thy word is a lamp unto my feet.",
+          "wer": 0.23684210526315788,
+          "has_gold_words": true
+        },
+        {
+          "clip": "the-book-of-james",
+          "expected": [
+            "James 1:5"
+          ],
+          "detected": [
+            "James 1:5"
+          ],
+          "hits": [
+            "James 1:5"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "Turn with me, if you would, to the book of James, Chapter 1. Verse 5. If any of you lack wisdom, let him ask of God, that giveth to all men liberally.",
+          "wer": 0.0625,
+          "has_gold_words": true
+        },
+        {
+          "clip": "samuel-anniversary",
+          "expected": [
+            "1 Samuel 1"
+          ],
+          "detected": [
+            "1 Samuel 1"
+          ],
+          "hits": [
+            "1 Samuel 1"
+          ],
+          "missed": null,
+          "extra": null,
+          "verse_hits": 1,
+          "transcript": "For our 10th anniversary we return to where it all started, 1 Samuel chapter 1, and Hannah's Prayer. Also remember today is May 28 at 119 years our oldest member turns 120.",
+          "wer": 0.2894736842105263,
+          "has_gold_words": true
+        }
+      ],
+      "expected": 11,
+      "hits": 9,
+      "extra": 0,
+      "verse_hits": 8,
+      "transcribe_ms": 149491,
+      "mean_wer": 0.15953559975206832,
+      "wer_clips": 9
+    }
+  ]
+}
