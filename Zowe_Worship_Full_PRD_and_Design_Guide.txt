@@ -672,16 +672,21 @@ Product decision: full-text Bible search, persistent live/preview controls and m
 
 17. Feature Workstreams and Delivery Backlog
 --------------------------------------------
-Status baseline: 2026-10-28. Only the desktop scaffold, persistent placeholder UI, typed application-info bridge and build/test setup are implemented. Database persistence, presentation outputs, content management, AI, search and integrations remain planned. The feature groups below describe work to build, not features already shipped.
+Status baseline: 2026-11-02. The status column below is a summary only. The
+authoritative, continuously updated record of what is implemented, where it lives
+and what remains open is docs/FEATURE_IMPLEMENTATION_TRACKER.md; consult it before
+starting or resuming work, and update it when a slice lands. The feature groups
+below describe the intended scope of each workstream, not a claim that every
+listed capability is shipped.
 
 ID | Feature group | Scope | Dependencies | Status
 ------------------------------------------------------------------------------
-F01 | Desktop foundation and reliability | Wails/Go/React shell, typed bindings/events, SQLite migrations, settings, packaging and recovery | None | Scaffold implemented; persistence and recovery planned
-F02 | Bible library and translation search | KJV, NIV, ESV, NLT and NASB packages; reference/phrase/full-text search; browsing and attribution | F01; validated data and distribution rights | Planned
-F03 | Service order and multi-display presentation | Services, live/preview controller, manual projection, production controls, operator/audience displays and reconnection | F01; F02 for scripture content | Planned
-F04 | Songs and lyric presentation | Local song library, sections, arrangements, full-text lookup, lyric slides and service cues | F01 and F03 | Planned
-F05 | Media library and playback | Image/video/audio imports, metadata, preview, transport controls, service items and relinking | F01 and F03 | Planned
-F06 | Custom theme editor | Reusable scripture/lyrics/text themes, backgrounds, typography, layout preview and persistence | F03; F04/F05 for content and backgrounds | Planned
+F01 | Desktop foundation and reliability | Wails/Go/React shell, typed bindings/events, SQLite migrations, settings, packaging and recovery | None | Partial: shell, bindings, migrations, settings and backups implemented; packaging and restore/recovery planned
+F02 | Bible library and translation search | KJV, NIV, ESV, NLT and NASB packages; reference/phrase/full-text search; browsing and attribution | F01; validated data and distribution rights | Partial: KJV package install, reference/phrase/prefix search, browsing and pagination implemented; extra translations, relaxed ranking and license surface pending
+F03 | Service order and multi-display presentation | Services, live/preview controller, manual projection, production controls, operator/audience displays and reconnection | F01; F02 for scripture content | Partial: services, items, live/preview controller, manual projection and audience display implemented; presentation history, configured shortcuts and reconnection evidence pending
+F04 | Songs and lyric presentation | Local song library, sections, arrangements, full-text lookup, lyric slides and service cues | F01 and F03 | Partial: song library, sections, arrangements, CCLI metadata, lyric projection and FTS implemented; acceptance evidence pending
+F05 | Media library and playback | Image/video/audio imports, metadata, preview, transport controls, service items and relinking | F01 and F03 | Partial: import, framing, image/video/audio projection, transport and relinking implemented; stop/seek/volume and codec list pending
+F06 | Custom theme editor | Reusable scripture/lyrics/text themes, backgrounds, typography, layout preview and persistence | F03; F04/F05 for content and backgrounds | Done: theme CRUD, typography/background/reference styling, live preview, frozen per-slide resolution and per-item overrides implemented
 F07 | Offline AI scripture detection | Audio devices, Whisper, transcript lifecycle, scripture candidates, confidence gates, approval queue and emergency disable | F01, F02 and F03 | Planned
 F08 | Semantic scripture and song search | Local embeddings, model/version-aware indexes, relevance evaluation and ranked stored-content results | F02 and F04 | Planned
 F09 | Online lyrics discovery | Genius search, attribution, provider-permitted authentication and authorized song import | F04; provider terms and content rights | Planned
