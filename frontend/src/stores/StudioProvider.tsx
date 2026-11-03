@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Events } from '@wailsio/runtime';
 import { App } from '../../bindings/zowe-worship';
 import * as models from '../../bindings/zowe-worship/models';
 import type { Aspect } from '../../bindings/zowe-worship/internal/media/models';
@@ -146,6 +147,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       active = false;
     };
   }, []);
+
+  // The app republishes the slide pair whenever anything changes it, including a
+  // theme edited in its own window, so the studio never shows a stale preview.
+  useEffect(() => Events.On('presentation', (event) => {
+    setPresentationState(event.data as models.PresentationView);
+  }), []);
 
   const run = useCallback(async <T,>(action: () => Promise<T>, apply?: (value: T) => void): Promise<T> => {
     try {

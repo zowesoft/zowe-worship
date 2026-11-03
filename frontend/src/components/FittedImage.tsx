@@ -41,7 +41,7 @@ export function frameStyle(aspect?: string, ratio = 0, fit: 'contain' | 'cover' 
 export function FittedImage({ src, alt, aspect, ratio = 0, fit = 'contain', className }: Props) {
   return (
     <img
-      className={`fitted-image${className ? ` ${className}` : ''}`}
+      className={`block ${className ? ` ${className}` : ''}`}
       src={src}
       alt={alt}
       style={frameStyle(aspect, ratio, fit)}

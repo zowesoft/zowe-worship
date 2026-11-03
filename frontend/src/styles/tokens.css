@@ -1,5 +1,21 @@
-:root {
-  color-scheme: dark;
+/* The app's design tokens. They live in a Tailwind @theme block so each one is
+   both a plain CSS variable (everything already reads var(--color-*)) and the
+   source of a matching utility (bg-panel, text-secondary, border-border, ...),
+   without duplicating the palette in two places. Only the theme and utilities
+   layers are pulled in, so Tailwind's Preflight reset stays out of the way and
+   the app keeps its own base styles.
+
+   The layer order matters: global.css is wrapped in `base`, which sits below
+   `utilities`. That is what lets a utility beat the app's own bare-element
+   rules (such as `button { color: inherit }`) at a call site, instead of the
+   other way around. An unlayered rule would outrank every layered one, so the
+   order has to be stated up front, before the imports. */
+@layer theme, base, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
   --color-app: #080F1C;
   --color-panel: #0F1A2B;
   --color-elevated: #17253B;
@@ -16,4 +32,20 @@
   --radius: 10px;
   --sidebar-width: 232px;
   --header-height: 68px;
+  --animate-toast-in: toast-in 0.18s ease-out;
+  --animate-pulse-dot: pulse-animation 1.6s infinite ease-in-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-animation {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+:root {
+  color-scheme: dark;
 }

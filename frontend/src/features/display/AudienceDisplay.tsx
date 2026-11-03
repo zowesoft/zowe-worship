@@ -5,7 +5,6 @@ import { ThemedSlide } from '../../components/ThemedSlide';
 import { App } from '../../../bindings/zowe-worship';
 import type { PresentationView } from '../../../bindings/zowe-worship/models';
 import type { Content } from '../../../bindings/zowe-worship/internal/presentation/models';
-import './audience.css';
 
 export function AudienceDisplay() {
   const [state, setState] = useState<PresentationView | null>(null);
@@ -70,13 +69,15 @@ export function AudienceDisplay() {
   }, [state]);
 
   if (!shown) {
-    return <main className="audience audience--blank" aria-label="Audience display" />;
+    return <main className="h-full grid content-center justify-items-center gap-[clamp(24px,5vh,60px)] py-[clamp(24px,6vh,80px)] px-[clamp(28px,8vw,180px)] bg-[#000] text-text overflow-hidden" aria-label="Audience display" />;
   }
 
   if (shown.kind === 'image' || shown.kind === 'video' || shown.kind === 'audio') {
-    const frame = shown.kind === 'image' ? 'audience audience--image'
-      : shown.kind === 'video' ? 'audience audience--media'
-        : 'audience';
+    const frame = shown.kind === 'image'
+      ? 'h-full grid content-center justify-items-center gap-[clamp(24px,5vh,60px)] bg-app text-text overflow-hidden p-0'
+      : shown.kind === 'video'
+        ? 'h-full grid content-stretch justify-items-center gap-[clamp(24px,5vh,60px)] bg-app text-text overflow-hidden p-0'
+        : 'h-full grid content-center justify-items-center gap-[clamp(24px,5vh,60px)] py-[clamp(24px,6vh,80px)] px-[clamp(28px,8vw,180px)] bg-app text-text overflow-hidden';
     return (
       <main className={frame} aria-label="Audience display">
         <SlideMedia content={shown} player mediaRef={mediaRef} onEnded={() => void App.MediaEnded()} />
@@ -85,13 +86,13 @@ export function AudienceDisplay() {
   }
 
   return (
-    <main className="audience audience--slide" aria-label="Audience display">
+    <main className="h-full grid content-stretch justify-items-center gap-[clamp(24px,5vh,60px)] bg-app text-text overflow-hidden p-0" aria-label="Audience display">
       <ThemedSlide
         theme={shown.theme}
         lines={shown.lines ?? []}
         reference={shown.label}
         urlFor={(mediaID) => `/media/file/${mediaID}`}
-        className="audience-slide"
+        className="w-full h-full"
       />
     </main>
   );

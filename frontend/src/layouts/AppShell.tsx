@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Events } from '@wailsio/runtime';
 import { BackendStatus } from '../components/BackendStatus';
+import { Dropdown } from '../components/Dropdown';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { SlideMedia } from '../components/SlideMedia';
@@ -81,40 +82,43 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
   const drag = useDragOrder((from, to) => void moveItem(from, to));
 
   return (
-    <aside className="sidebar" aria-label="Service schedule">
-      <div className="brand">
-        <span className="brand-mark" aria-hidden="true">z</span>
-        <div><strong>Zowe Worship</strong><span>BY ZOWESOFT</span></div>
+    <aside className="col-start-1 row-span-full flex flex-col min-h-0 bg-panel border-r border-border" aria-label="Service schedule">
+      <div className="flex items-center gap-[11px] h-(--header-height) px-[18px] shrink-0 border-b border-border max-[959px]:px-3 max-[959px]:gap-2">
+        <span className="grid place-items-center w-8 h-8 border border-blue rounded-lg text-text bg-selected text-[25px] font-bold italic leading-none pb-1 max-[959px]:w-[29px] max-[959px]:h-[29px] max-[959px]:text-[22px]" aria-hidden="true">z</span>
+        <div>
+          <strong className="block text-[15px] tracking-[-0.3px] whitespace-nowrap max-[959px]:text-[13.5px]">Zowe Worship</strong>
+          <span className="block text-secondary text-[8.5px] tracking-[1.6px] mt-0.5">BY ZOWESOFT</span>
+        </div>
       </div>
 
-      <div className="sidebar-content">
-        <section className="service-summary" aria-labelledby="service-summary-title">
-          <p className="eyebrow" id="service-summary-title">Current service</p>
-          <strong>{service?.name ?? 'No service selected'}</strong>
-          <span>
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pt-[18px] px-3 pb-0 max-[959px]:px-2">
+        <section className="px-2 pt-0.5 pb-4 border-b border-border" aria-labelledby="service-summary-title">
+          <p className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary" id="service-summary-title">Current service</p>
+          <strong className="block text-[12.5px] mt-1.5">{service?.name ?? 'No service selected'}</strong>
+          <span className="block text-secondary text-[10.5px] leading-[1.6] mt-1">
             {service
               ? `${items.length} ${items.length === 1 ? 'item' : 'items'} scheduled`
               : 'Create a service to build the schedule.'}
           </span>
         </section>
 
-        <section className="schedule" aria-labelledby="schedule-title">
-          <div className="schedule-heading">
-            <h2 id="schedule-title">Schedule</h2>
-            <span className="schedule-count">{items.length} items</span>
+        <section className="pt-[15px]" aria-labelledby="schedule-title">
+          <div className="flex items-center justify-between gap-2 px-2 pb-2.5">
+            <h2 id="schedule-title" className="text-[10px] uppercase tracking-[1.2px] text-secondary">Schedule</h2>
+            <span className="text-secondary text-[9.5px]">{items.length} items</span>
           </div>
 
           {items.length === 0 ? (
-            <div className="schedule-empty">
-              <span className="schedule-icon"><Icon name="order" size={20} /></span>
-              <p>No items scheduled.</p>
-              <span>Scripture, songs and media will appear here in service order.</span>
-              <button type="button" className="button button--full" onClick={() => onNavigate('service')}>
+            <div className="grid justify-items-center gap-[7px] p-[18px] px-3 border border-dashed border-border rounded-lg bg-app text-center">
+              <span className="grid place-items-center w-[34px] h-[34px] border border-[#30466A] rounded-lg bg-selected text-[#8CABFF]"><Icon name="order" size={20} /></span>
+              <p className="text-[11.5px] font-medium">No items scheduled.</p>
+              <span className="text-secondary text-[10px] leading-[1.6]">Scripture, songs and media will appear here in service order.</span>
+              <button type="button" className="w-full min-h-8 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#35445C] rounded-md bg-elevated text-[11px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950] mt-1" onClick={() => onNavigate('service')}>
                 Open Service Order
               </button>
             </div>
           ) : (
-            <ol className="schedule-items">
+            <ol className="list-none grid gap-1 m-0 p-0">
               {items.map((item, index) => {
                 const isLive = liveID !== '' && liveID === item.id;
                 const isPreview = previewID !== '' && previewID === item.id;
@@ -123,32 +127,37 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
                   <li
                     key={item.id}
                     className={[
-                      'schedule-item',
-                      isLive ? 'schedule-item--live' : '',
-                      isPreview ? 'schedule-item--preview' : '',
-                      drag.dragging === index ? 'schedule-item--dragging' : '',
-                      isDropTarget ? 'schedule-item--target' : '',
+                      'rounded-md cursor-pointer select-none',
+                      drag.dragging === index ? 'opacity-40' : '',
+                      isDropTarget ? 'shadow-[0_0_0_1px_var(--color-blue)]' : '',
                     ].filter(Boolean).join(' ')}
                     title={`Click to preview ${item.title} · double-click to send live · drag to reorder`}
                     onClick={() => void previewItem(item.id)}
                     onDoubleClick={() => void sendItemLive(item.id)}
                     {...drag.rowProps(index)}
                   >
-                    <button type="button" className="schedule-item-main" aria-pressed={isPreview}>
-                      <span className="schedule-grip" aria-hidden="true"><Icon name="grip" size={13} /></span>
-                      <span className="schedule-position">{item.position}</span>
-                      <span className="schedule-copy">
-                        <strong>{item.title}</strong>
-                        <span>{itemSubtitle(item)}</span>
+                    <button
+                      type="button"
+                      aria-pressed={isPreview}
+                      className={[
+                        'w-full flex items-center gap-2 px-2 py-[7px] border rounded-md bg-transparent text-left text-inherit hover:bg-elevated',
+                        isPreview ? 'border-[#304C80]! bg-selected!' : isLive ? 'border-[#1E4D40]! bg-[#0E2A24]!' : 'border-transparent',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      <span className="w-[11px] shrink-0 text-[#56698A] cursor-grab" aria-hidden="true"><Icon name="grip" size={13} /></span>
+                      <span className="w-4 shrink-0 text-center text-secondary text-[9.5px]">{item.position}</span>
+                      <span className="flex-1 min-w-0">
+                        <strong className="block truncate text-[11px] font-medium">{item.title}</strong>
+                        <span className="block mt-px text-secondary text-[9px]">{itemSubtitle(item)}</span>
                       </span>
                       {item.status === 'live' ? (
-                        <span className="status-pill status-pill--on">Live</span>
+                        <span className="inline-flex items-center px-2 py-[3px] border border-[#1E4D40]! rounded-full bg-[#0E2A24]! text-[#6EE7C0]! text-[9px] whitespace-nowrap shrink-0">Live</span>
                       ) : item.status === 'next' ? (
-                        <span className="status-pill status-pill--warn">Next</span>
+                        <span className="inline-flex items-center px-2 py-[3px] border border-[#4D3F1E]! rounded-full bg-[#2B2413]! text-amber! text-[9px] whitespace-nowrap shrink-0">Next</span>
                       ) : item.status === 'completed' ? (
-                        <span className="status-pill status-pill--muted">Done</span>
+                        <span className="inline-flex items-center px-2 py-[3px] border border-[#2A3950] rounded-full bg-elevated text-secondary text-[9px] whitespace-nowrap shrink-0">Done</span>
                       ) : (
-                        <span className="status-pill status-pill--subtle">Ready</span>
+                        <span className="inline-flex items-center px-2 py-[3px] border border-[#2A3950]! rounded-full bg-[#151F2E]! text-[#7E92AB]! text-[9px] whitespace-nowrap shrink-0">Ready</span>
                       )}
                     </button>
                   </li>
@@ -157,12 +166,12 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
             </ol>
           )}
 
-          {studio.error && <p className="studio-error" role="status">{studio.error}</p>}
+          {studio.error && <p className="mt-2.5 px-2.5 py-2 border border-[#5A2B35] rounded-md bg-[#1C1217] text-[#FFB1B7] text-[9.5px] leading-normal" role="status">{studio.error}</p>}
         </section>
 
-        <div className="sidebar-bottom">
+        <div className="mt-auto pt-7">
           <BackendStatus />
-          <p className="brand-line">Scripture First. Always.</p>
+          <p className="border-t border-border p-4 px-2 text-secondary text-[10px]">Scripture First. Always.</p>
         </div>
       </div>
     </aside>
@@ -171,24 +180,11 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
 
 function ServiceSwitcher() {
   const studio = useStudio();
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const wrapRef = useRef<HTMLDivElement>(null);
   const current = studio.order?.service ?? null;
 
-  useEffect(() => {
-    if (!open) return;
-
-    function dismiss(event: MouseEvent) {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-
-    document.addEventListener('mousedown', dismiss);
-    return () => document.removeEventListener('mousedown', dismiss);
-  }, [open]);
-
-  async function pick(serviceID: string) {
-    setOpen(false);
+  async function pick(serviceID: string, close: () => void) {
+    close();
     try {
       await studio.useService(serviceID);
     } catch {
@@ -196,51 +192,57 @@ function ServiceSwitcher() {
     }
   }
 
-  async function create(event: FormEvent<HTMLFormElement>) {
+  async function create(event: FormEvent<HTMLFormElement>, close: () => void) {
     event.preventDefault();
     const trimmed = name.trim();
     if (trimmed === '') return;
     try {
       await studio.createService(trimmed);
       setName('');
-      setOpen(false);
+      close();
     } catch {
       // The studio error is shown in the sidebar.
     }
   }
 
   return (
-    <div className="service-switcher-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className="service-switcher"
-        disabled={!studio.bridgeAvailable}
-        aria-haspopup="true"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span>{current?.name ?? 'No service selected'}</span>
-        <Icon name="chevron" size={14} />
-      </button>
-
-      {open && (
-        <div className="service-menu" role="menu">
+    <Dropdown
+      wrapperClassName="relative flex min-w-0"
+      panelClassName="min-w-[240px]"
+      trigger={({ open, toggle }) => (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 p-0 border-0 bg-transparent text-text text-[15px] font-semibold tracking-[-0.2px] whitespace-nowrap disabled:text-text disabled:opacity-95 disabled:cursor-default hover:not-disabled:text-blue hover:not-disabled:[&_svg]:text-blue [&_svg]:text-secondary max-[959px]:text-[13px]"
+          disabled={!studio.bridgeAvailable}
+          aria-haspopup="true"
+          aria-expanded={open}
+          onClick={toggle}
+        >
+          <span>{current?.name ?? 'No service selected'}</span>
+          <Icon name="chevron" size={14} />
+        </button>
+      )}
+      menu={({ close }) => (
+        <>
           {studio.services.map((service) => (
             <button
               key={service.id}
               type="button"
               role="menuitemradio"
               aria-checked={current?.id === service.id}
-              className={`service-menu-item${current?.id === service.id ? ' service-menu-item--current' : ''}`}
-              onClick={() => void pick(service.id)}
+              className={[
+                'flex items-center gap-2 p-[7px] px-2 border-0 rounded-md bg-transparent text-text text-[11.5px] text-left hover:bg-selected [&>span]:truncate [&_svg]:shrink-0',
+                current?.id === service.id ? '[&_svg]:text-teal' : '[&_svg]:text-transparent',
+              ].filter(Boolean).join(' ')}
+              onClick={() => void pick(service.id, close)}
             >
               <Icon name="check" size={13} />
               <span>{service.name}</span>
             </button>
           ))}
-          {studio.services.length === 0 && <p className="service-menu-empty">No saved services yet.</p>}
+          {studio.services.length === 0 && <p className="px-2 py-1.5 text-secondary text-[10.5px]">No saved services yet.</p>}
 
-          <form className="service-menu-new" onSubmit={(event) => void create(event)}>
+          <form className="flex gap-1.5 mt-1 pt-2 border-t border-border" onSubmit={(event) => void create(event, close)}>
             <input
               type="text"
               value={name}
@@ -248,36 +250,24 @@ function ServiceSwitcher() {
               aria-label="New service name"
               autoComplete="off"
               onChange={(event) => setName(event.target.value)}
+              className="flex-1 min-w-0 h-[30px] px-2.5 border border-[#35445C] rounded-md bg-app text-text text-[11.5px] focus:border-blue focus:outline-none placeholder:text-[#6F809B]"
             />
-            <button type="submit" className="button button--small button--primary" disabled={name.trim() === ''}>
+            <button type="submit" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-blue! rounded-md bg-blue! text-white! text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!" disabled={name.trim() === ''}>
               Add
             </button>
           </form>
-        </div>
+        </>
       )}
-    </div>
+    />
   );
 }
 
 function DisplaySelector() {
   const studio = useStudio();
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
   const display = studio.display;
 
-  useEffect(() => {
-    if (!open) return;
-
-    function dismiss(event: MouseEvent) {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-
-    document.addEventListener('mousedown', dismiss);
-    return () => document.removeEventListener('mousedown', dismiss);
-  }, [open]);
-
-  async function run(action: () => Promise<models.DisplayView>) {
-    setOpen(false);
+  async function run(action: () => Promise<models.DisplayView>, close: () => void) {
+    close();
     try {
       await action();
     } catch {
@@ -286,52 +276,59 @@ function DisplaySelector() {
   }
 
   return (
-    <div className="display-selector-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className="display-selector"
-        disabled={!studio.bridgeAvailable}
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => setOpen((value) => !value)}
-        title={display?.open ? `Audience display on ${display.screenName}` : 'Choose a display for the audience'}
-      >
-        <Icon name="display" size={16} />
-        <span>{display?.open ? display.screenName : 'No display'}</span>
-        <Icon name="chevron" size={13} />
-      </button>
-
-      {open && (
-        <div className="service-menu display-menu" role="menu">
+    <Dropdown
+      align="right"
+      wrapperClassName="relative flex"
+      panelClassName="min-w-[260px]"
+      trigger={({ open, toggle }) => (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 h-8 px-[9px] border border-[#2A3950] rounded-md bg-elevated text-text text-[10.5px] whitespace-nowrap disabled:text-secondary [&_svg:last-child]:text-secondary max-[1150px]:[&>span]:hidden"
+          disabled={!studio.bridgeAvailable}
+          aria-expanded={open}
+          aria-haspopup="true"
+          onClick={toggle}
+          title={display?.open ? `Audience display on ${display.screenName}` : 'Choose a display for the audience'}
+        >
+          <Icon name="display" size={16} />
+          <span>{display?.open ? display.screenName : 'No display'}</span>
+          <Icon name="chevron" size={13} />
+        </button>
+      )}
+      menu={({ close }) => (
+        <>
           {studio.screens.map((screen) => (
             <button
               key={screen.id}
               type="button"
               role="menuitemradio"
               aria-checked={display?.open && display.screenId === screen.id}
-              className={`service-menu-item${display?.open && display.screenId === screen.id ? ' service-menu-item--current' : ''}`}
-              onClick={() => void run(() => studio.openDisplay(screen.id))}
+              className={[
+                'flex items-center gap-2 p-[7px] px-2 border-0 rounded-md bg-transparent text-text text-[11.5px] text-left hover:bg-selected [&>span]:truncate [&_svg]:shrink-0',
+                display?.open && display.screenId === screen.id ? '[&_svg]:text-teal' : '[&_svg]:text-transparent',
+              ].filter(Boolean).join(' ')}
+              onClick={() => void run(() => studio.openDisplay(screen.id), close)}
             >
               <Icon name="check" size={13} />
               <span>{screen.name}</span>
             </button>
           ))}
           {studio.screens.length === 0 && (
-            <p className="service-menu-empty">No second display detected. Connect a projector or monitor, then reopen this menu.</p>
+            <p className="px-2 py-1.5 text-secondary text-[10.5px]">No second display detected. Connect a projector or monitor, then reopen this menu.</p>
           )}
           {display?.open && (
             <button
               type="button"
-              className="service-menu-item display-menu-close"
-              onClick={() => void run(studio.closeDisplay)}
+              className="flex items-center gap-2 p-[7px] px-2 border-0 rounded-md bg-transparent text-text text-[11.5px] text-left hover:bg-selected [&>span]:truncate [&_svg]:shrink-0 mt-1 pt-[9px] border-t! border-border! rounded-t-none! rounded-b-md! [&_svg]:text-error"
+              onClick={() => void run(studio.closeDisplay, close)}
             >
               <Icon name="close" size={13} />
               <span>Close audience display</span>
             </button>
           )}
-        </div>
+        </>
       )}
-    </div>
+    />
   );
 }
 
@@ -343,29 +340,32 @@ function AppHeader() {
   const timeLabel = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
   return (
-    <header className="app-header">
-      <div className="service-context">
+    <header className="col-start-2 row-start-1 flex items-center justify-between gap-[18px] px-5 border-b border-border bg-panel min-w-0 max-[959px]:px-3.5 max-[959px]:gap-2.5">
+      <div className="flex items-center gap-[18px] min-w-0">
         <ServiceSwitcher />
-        <div className="header-meta">
+        <div className="flex items-center gap-3.5 pl-[18px] border-l border-border text-secondary text-[10.5px] whitespace-nowrap max-[1000px]:hidden">
           <span>{dateLabel}</span>
           <span>{timeLabel}</span>
         </div>
-        <span className={`connection-pill${connected ? ' connection-pill--on' : ' connection-pill--warn'}`}>
-          <span className="status-dot" />{connected ? 'Desktop connected' : 'Browser preview'}
+        <span className={`inline-flex items-center gap-1.5 px-[9px] py-1 border rounded-[5px] text-[9.5px] whitespace-nowrap max-[959px]:px-[7px] ${connected ? 'border-[#1E4D40] bg-[#0E2A24] text-[#6EE7C0]' : 'border-[#4D3F1E]! bg-[#2B2413]! text-amber!'}`}>
+          <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-teal' : 'bg-amber'}`} />{connected ? 'Desktop connected' : 'Browser preview'}
         </span>
       </div>
 
-      <div className="header-actions">
+      <div className="flex items-center gap-[5px] shrink-0">
         <DisplaySelector />
-        <button type="button" className="icon-button" onClick={() => void studio.openSettings()} aria-label="Open settings" title="Settings">
+        <button type="button" className="inline-grid place-items-center w-[34px] h-[34px] border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50" onClick={() => void studio.openSettings()} aria-label="Open settings" title="Settings">
           <Icon name="settings" size={18} />
         </button>
-        <button type="button" className="icon-button" disabled aria-label="Notifications unavailable" title="Notifications are not implemented.">
+        <button type="button" className="inline-grid place-items-center w-[34px] h-[34px] border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50" disabled aria-label="Notifications unavailable" title="Notifications are not implemented.">
           <Icon name="bell" size={18} />
         </button>
-        <div className="operator" aria-label="Local operator">
-          <span className="avatar"><Icon name="user" size={17} /></span>
-          <div><strong>Local operator</strong><span>This device</span></div>
+        <div className="flex items-center gap-[9px] ml-1.5 pl-3.5 border-l border-border max-[959px]:pl-2 max-[959px]:ml-0.5" aria-label="Local operator">
+          <span className="grid place-items-center w-[31px] h-[31px] border border-[#304C80] rounded-full bg-[#1D315A] text-[#AFC4FF]"><Icon name="user" size={17} /></span>
+          <div className="max-[959px]:hidden">
+            <strong className="block text-[10.5px] font-medium">Local operator</strong>
+            <span className="block text-secondary text-[9.5px] mt-px">This device</span>
+          </div>
         </div>
       </div>
     </header>
@@ -385,7 +385,7 @@ function SlideContent({ content }: { content: Content }) {
       lines={content.lines ?? []}
       reference={content.label}
       urlFor={(mediaID) => `/media/file/${mediaID}`}
-      className="slide-stage"
+      className="w-full h-full"
     />
   );
 }
@@ -431,16 +431,16 @@ function PreviewTheme({ preview }: { preview: Content }) {
   }
 
   return (
-    <div className="pane-theme">
-      <label className="pane-theme-field">
+    <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-[7px]">
+      <label className="flex items-center gap-[7px] text-secondary text-[9.5px] tracking-[0.7px] uppercase">
         <span>Theme</span>
-        <select value={chosenTheme} onChange={(event) => void choose(event.target.value)}>
+        <select className="h-[26px] max-w-[170px] px-1.5 border border-[#35445C] rounded-md bg-app text-text text-[11px] normal-case tracking-normal" value={chosenTheme} onChange={(event) => void choose(event.target.value)}>
           <option value="">{fallback ? `Default — ${fallback.name}` : 'Kind default'}</option>
           {ofKind.map((theme) => <option key={theme.id} value={theme.id}>{theme.name}</option>)}
         </select>
       </label>
-      <span className="pane-theme-hint">Goes on air when you send this slide live.</span>
-      {problem && <span className="pane-theme-problem">{problem}</span>}
+      <span className="ml-auto text-[#6F809B] text-[9.5px]">Goes on air when you send this slide live.</span>
+      {problem && <span className="text-error text-[10px]">{problem}</span>}
     </div>
   );
 }
@@ -499,14 +499,14 @@ function PresentationPanes() {
   }
 
   return (
-    <section className="presentation-panes" aria-label="Persistent presentation workspace">
-      <section className="panel output-pane output-pane--preview" aria-labelledby="preview-title">
-        <div className="pane-heading">
-          <h2 id="preview-title"><span className="status-dot" /><Icon name="preview" size={15} />Preview</h2>
-          <div className="pane-heading-actions">
+    <section className="grid grid-cols-2 gap-3.5" aria-label="Persistent presentation workspace">
+      <section className="bg-panel border border-border rounded-[10px] overflow-hidden" aria-labelledby="preview-title">
+        <div className="min-h-[46px] px-3 py-2 flex items-center justify-between gap-2.5 border-b border-border max-[959px]:px-2.5 max-[959px]:py-[7px]">
+          <h2 id="preview-title" className="flex items-center gap-[7px] text-[10px] tracking-[1.1px] uppercase text-secondary [&_svg]:text-secondary"><span className="inline-block w-1.5 h-1.5 rounded-full bg-secondary" /><Icon name="preview" size={15} />Preview</h2>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="button button--small button--primary"
+              className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-blue! rounded-md bg-blue! text-white! text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
               disabled={preview === null}
               onClick={() => void sendLive()}
               title={preview === null ? 'Choose scripture to preview first.' : 'Project the preview to the live output'}
@@ -517,9 +517,9 @@ function PresentationPanes() {
         </div>
 
         {preview ? (
-          <div className="presentation-screen presentation-screen--preview presentation-screen--slide"><SlideContent content={preview} /></div>
+          <div className="aspect-[16/9] w-full bg-[#0B1321]! p-0! flex flex-col items-center justify-center text-center"><SlideContent content={preview} /></div>
         ) : (
-          <div className="presentation-screen presentation-screen--preview">
+          <div className="aspect-[16/9] w-full bg-[#0B1321]! px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
             <Icon name="layers" size={30} />
             <strong>No content selected</strong>
             <p>Search scripture or choose a schedule item to prepare a slide.</p>
@@ -528,44 +528,44 @@ function PresentationPanes() {
 
         {preview && <PreviewTheme preview={preview} />}
 
-        <div className="pane-caption">
-          <span className="status-dot" />
+        <div className="flex items-center gap-[7px] border-t border-border min-h-8 px-3 py-2 text-secondary text-[9.5px]">
+          <span className="inline-block w-1 h-1 rounded-full bg-secondary shrink-0" />
           {preview ? `Preview holds ${preview.label}.` : 'Preview is not connected to the presentation controller.'}
         </div>
       </section>
 
-      <section className="panel output-pane output-pane--live" aria-labelledby="live-title">
-        <div className="pane-heading">
-          <h2 id="live-title"><span className="live-dot" /><Icon name="display" size={15} />Live Output</h2>
-          <div className="pane-heading-actions">
-            <span className={`status-pill${live ? ' status-pill--on' : ''}`}>{live ? 'On air' : 'Off air'}</span>
-            <span className={`status-pill${studio.display?.open ? ' status-pill--on' : ''}`}>
+      <section className="bg-panel border border-border rounded-[10px] overflow-hidden border-[#5A4120]!" aria-labelledby="live-title">
+        <div className="min-h-[46px] px-3 py-2 flex items-center justify-between gap-2.5 border-b border-border max-[959px]:px-2.5 max-[959px]:py-[7px]">
+          <h2 id="live-title" className="flex items-center gap-[7px] text-[10px] tracking-[1.1px] uppercase text-secondary [&_svg]:text-secondary"><span className="inline-block w-[7px] h-[7px] rounded-full bg-teal shadow-[0_0_0_3px_rgba(33,214,162,0.14)]" /><Icon name="display" size={15} />Live Output</h2>
+          <div className="flex items-center gap-1.5">
+            <span className={`inline-flex items-center px-2 py-[3px] border rounded-full text-[9px] whitespace-nowrap ${live ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!' : 'border-[#2A3950] bg-elevated text-secondary'}`}>{live ? 'On air' : 'Off air'}</span>
+            <span className={`inline-flex items-center px-2 py-[3px] border rounded-full text-[9px] whitespace-nowrap ${studio.display?.open ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!' : 'border-[#2A3950] bg-elevated text-secondary'}`}>
               {studio.display?.open ? studio.display.screenName : 'No display'}
             </span>
           </div>
         </div>
 
         {live ? (
-          <div className="presentation-screen presentation-screen--slide"><SlideContent content={live} /></div>
+          <div className="aspect-[16/9] w-full bg-[#060B14] p-0! flex flex-col items-center justify-center text-center"><SlideContent content={live} /></div>
         ) : (
-          <div className="presentation-screen">
+          <div className="aspect-[16/9] w-full bg-[#060B14] px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
             <Icon name="display" size={30} />
             <strong>No output connected</strong>
             <p>An audience display will appear here.</p>
           </div>
         )}
 
-        <div className="pane-controls">
-          <div className="pane-caption">
-            <span className="status-dot" />
+        <div className="flex items-center justify-between gap-2.5 border-t border-border px-2.5 py-[7px]">
+          <div className="flex items-center gap-[7px] border-0 min-h-0 p-0 text-secondary text-[9.5px]">
+            <span className="inline-block w-1 h-1 rounded-full bg-secondary shrink-0" />
             {scheduleCount > 0 ? `${scheduleCount} ${scheduleCount === 1 ? 'item' : 'items'} in the schedule.` : 'No service order is running.'}
           </div>
-          <div className="pane-buttons">
+          <div className="flex items-center gap-[3px]">
             {liveIsMedia && (
               <>
                 <button
                   type="button"
-                  className="icon-button icon-button--small"
+                  className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50"
                   onClick={() => void control(playing ? 'pause' : 'play')}
                   aria-label={playing ? 'Pause the clip' : 'Play the clip'}
                   title={playing ? 'Pause' : 'Play'}
@@ -574,7 +574,7 @@ function PresentationPanes() {
                 </button>
                 <button
                   type="button"
-                  className="icon-button icon-button--small"
+                  className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50"
                   onClick={() => void control('restart')}
                   aria-label="Restart the clip"
                   title="Restart from the beginning"
@@ -583,14 +583,14 @@ function PresentationPanes() {
                 </button>
               </>
             )}
-            <button type="button" className="icon-button icon-button--small icon-button--prev" disabled={scheduleCount === 0} onClick={() => void step('previous')} aria-label="Previous schedule item" title="Previous schedule item">
+            <button type="button" className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50 [&>svg]:rotate-90" disabled={scheduleCount === 0} onClick={() => void step('previous')} aria-label="Previous schedule item" title="Previous schedule item">
               <Icon name="chevron" size={14} />
             </button>
-            <button type="button" className="icon-button icon-button--small icon-button--next" disabled={scheduleCount === 0} onClick={() => void step('next')} aria-label="Next schedule item" title="Next schedule item">
+            <button type="button" className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50 [&>svg]:-rotate-90" disabled={scheduleCount === 0} onClick={() => void step('next')} aria-label="Next schedule item" title="Next schedule item">
               <Icon name="chevron" size={14} />
             </button>
-            <button type="button" className="button button--small" disabled={live === null} onClick={() => void clearLive()} title="Clear the live output">Clear</button>
-            <button type="button" className="button button--small button--danger" disabled title="Automatic projection is not implemented.">
+            <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950]" disabled={live === null} onClick={() => void clearLive()} title="Clear the live output">Clear</button>
+            <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-[#FFB1B7]! border-[#3A222A]! bg-[#221019]! disabled:text-[#B77F87]! disabled:bg-[#1C1217]! disabled:border-[#3A222A]!" disabled title="Automatic projection is not implemented.">
               <Icon name="detection" size={12} />Emergency
             </button>
           </div>
@@ -602,57 +602,57 @@ function PresentationPanes() {
 
 function DetectionPanel() {
   return (
-    <aside className="panel detection-panel" aria-labelledby="detection-panel-title">
-      <div className="panel-heading">
-        <h2 id="detection-panel-title"><Icon name="detection" size={16} />AI Scripture Detection</h2>
-        <span className="badge badge--muted">Scaffold</span>
+    <aside className="min-w-0 bg-panel border border-border rounded-[10px]" aria-labelledby="detection-panel-title">
+      <div className="min-h-11 px-3.5 py-2.5 flex items-center justify-between gap-2.5 border-b border-border">
+        <h2 id="detection-panel-title" className="text-[11px] flex items-center gap-[7px] uppercase tracking-[0.7px] text-secondary [&_svg]:text-secondary"><Icon name="detection" size={16} />AI Scripture Detection</h2>
+        <span className="inline-flex px-2 py-[3px] border border-[#2A3950]! rounded-[5px] bg-elevated! text-secondary! text-[9.5px] font-medium whitespace-nowrap">Scaffold</span>
       </div>
 
-      <div className="detection-body">
-        <div className="listening-row">
-          <span className="status-dot" />
-          <strong>Not listening</strong>
-          <Icon name="detection" size={22} className="listening-wave" />
+      <div className="grid gap-3 p-3.5">
+        <div className="flex items-center gap-2 text-secondary">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-secondary shrink-0" />
+          <strong className="text-text text-[10.5px] font-medium">Not listening</strong>
+          <Icon name="detection" size={22} className="ml-auto text-teal opacity-[.65]" />
         </div>
 
-        <div className="audio-input-card">
-          <span className="icon-tile icon-tile--small icon-tile--violet"><Icon name="mic" size={18} /></span>
-          <div><span>Audio input</span><strong>Not configured</strong></div>
-          <Icon name="chevron" size={14} />
+        <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30]">
+          <span className="inline-grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg"><Icon name="mic" size={18} /></span>
+          <div className="flex flex-col gap-px min-w-0"><span className="text-secondary text-[9.5px]">Audio input</span><strong className="text-[11px] font-medium">Not configured</strong></div>
+          <Icon name="chevron" size={14} className="ml-auto text-secondary" />
         </div>
 
-        <section className="detection-block" aria-labelledby="transcript-title">
-          <div className="detection-block-heading">
-            <h3 id="transcript-title">Current transcript</h3>
-            <span>00:00</span>
+        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="transcript-title">
+          <div className="flex items-center justify-between gap-2">
+            <h3 id="transcript-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Current transcript</h3>
+            <span className="text-secondary text-[9.5px]">00:00</span>
           </div>
-          <p className="detection-empty-text">No transcript. Audio capture and speech recognition are not implemented.</p>
+          <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">No transcript. Audio capture and speech recognition are not implemented.</p>
         </section>
 
-        <section className="detection-block" aria-labelledby="candidate-title">
-          <div className="detection-block-heading"><h3 id="candidate-title">Candidate</h3></div>
-          <div className="candidate-empty">
+        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="candidate-title">
+          <div className="flex items-center justify-between gap-2"><h3 id="candidate-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Candidate</h3></div>
+          <div className="grid justify-items-center gap-1.5 p-[18px] px-3 border border-dashed border-border rounded-[7px] bg-app text-secondary text-center [&_svg]:opacity-65 [&_p]:text-[10px] [&_p]:leading-[1.6] [&_p]:max-w-[230px]">
             <Icon name="bible" size={22} />
             <p>No scripture candidates. Detected references will be reviewed here.</p>
           </div>
         </section>
 
-        <section className="detection-block" aria-labelledby="queue-title">
-          <div className="detection-block-heading">
-            <h3 id="queue-title">Pending queue</h3>
-            <span className="queue-count">0</span>
+        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="queue-title">
+          <div className="flex items-center justify-between gap-2">
+            <h3 id="queue-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Pending queue</h3>
+            <span className="inline-grid place-items-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-elevated text-[9.5px]">0</span>
           </div>
-          <p className="detection-empty-text">Nothing waiting for confirmation.</p>
+          <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">Nothing waiting for confirmation.</p>
         </section>
 
-        <section className="detection-block" aria-labelledby="recent-title">
-          <div className="detection-block-heading"><h3 id="recent-title">Recent detections</h3></div>
-          <p className="detection-empty-text">No detections yet.</p>
+        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="recent-title">
+          <div className="flex items-center justify-between gap-2"><h3 id="recent-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Recent detections</h3></div>
+          <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">No detections yet.</p>
         </section>
 
-        <div className="safety-note">
-          <Icon name="bible" size={16} />
-          <p>Scripture first. Nothing is detected or projected automatically in this build.</p>
+        <div className="flex items-start gap-2 text-secondary">
+          <Icon name="bible" size={16} className="text-[#B3A4FF] mt-0.5" />
+          <p className="text-[10px] leading-[1.6]">Scripture first. Nothing is detected or projected automatically in this build.</p>
         </div>
       </div>
     </aside>
@@ -673,52 +673,54 @@ function ProductionCard() {
     }
   }
 
+  const iconBtn = 'inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50';
+
   return (
-    <section className="panel production-card" aria-label="Production controls">
-      <div className="panel-heading">
-        <h2><Icon name="display" size={16} />Production</h2>
-        <span className="badge badge--muted">Manual</span>
+    <section className="bg-panel border border-border rounded-[10px]" aria-label="Production controls">
+      <div className="min-h-11 px-3.5 py-2.5 flex items-center justify-between gap-2.5 border-b border-border">
+        <h2 className="text-[11px] flex items-center gap-[7px] uppercase tracking-[0.7px] text-secondary [&_svg]:text-secondary"><Icon name="display" size={16} />Production</h2>
+        <span className="inline-flex px-2 py-[3px] border border-[#2A3950]! rounded-[5px] bg-elevated! text-secondary! text-[9.5px] font-medium whitespace-nowrap">Manual</span>
       </div>
 
-      <div className="production-card-body">
-        <div className="audio-input-card">
-          <span className="icon-tile icon-tile--small icon-tile--violet"><Icon name="mic" size={18} /></span>
-          <div><span>Audio input</span><strong>Not configured</strong></div>
-          <Icon name="chevron" size={14} />
+      <div className="grid gap-2.5 p-3">
+        <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30]">
+          <span className="grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg shrink-0"><Icon name="mic" size={18} /></span>
+          <div className="flex flex-col gap-px min-w-0"><span className="text-secondary text-[9.5px]">Audio input</span><strong className="text-[11px] font-medium">Not configured</strong></div>
+          <Icon name="chevron" size={14} className="ml-auto text-secondary" />
         </div>
 
-        <div className="production-states">
-          <div className="production-state">
+        <div className="grid gap-1.5">
+          <div className="flex items-center gap-2 px-[9px] py-[7px] border border-border rounded-[7px] bg-[#111D30] [&>svg]:text-secondary [&>div]:min-w-0 [&_strong]:block [&_strong]:text-[10.5px] [&_strong]:font-medium [&_strong]:leading-[1.5] [&_div>span]:block [&_div>span]:text-secondary [&_div>span]:text-[9.5px] [&_div>span]:mt-px">
             <Icon name="display" size={15} />
             <div><strong>Live output</strong><span>{live ? live.label : 'No content'}</span></div>
-            <span className={`status-pill${live ? ' status-pill--on' : ''}`}>{live ? 'On air' : 'Off air'}</span>
+            <span className={`ml-auto inline-flex items-center px-2 py-[3px] border rounded-full text-[9px] whitespace-nowrap ${live ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!' : 'border-[#2A3950] bg-elevated text-secondary'}`}>{live ? 'On air' : 'Off air'}</span>
           </div>
-          <div className="production-state">
+          <div className="flex items-center gap-2 px-[9px] py-[7px] border border-border rounded-[7px] bg-[#111D30] [&>svg]:text-secondary [&>div]:min-w-0 [&_strong]:block [&_strong]:text-[10.5px] [&_strong]:font-medium [&_strong]:leading-[1.5] [&_div>span]:block [&_div>span]:text-secondary [&_div>span]:text-[9.5px] [&_div>span]:mt-px">
             <Icon name="preview" size={15} />
             <div><strong>Preview</strong><span>{preview ? preview.label : 'No content'}</span></div>
-            <span className="status-pill status-pill--warn">{preview ? 'Ready' : 'Idle'}</span>
+            <span className="ml-auto inline-flex items-center px-2 py-[3px] border border-[#4D3F1E]! rounded-full bg-[#2B2413]! text-amber! text-[9px] whitespace-nowrap">{preview ? 'Ready' : 'Idle'}</span>
           </div>
         </div>
 
-        <div className="production-controls">
-          <button type="button" className="icon-button icon-button--small icon-button--prev" disabled={scheduleCount === 0} onClick={() => void run(() => studio.previousItem())} aria-label="Previous schedule item" title="Previous schedule item">
+        <div className="flex items-center gap-1">
+          <button type="button" className={`${iconBtn} [&>svg]:rotate-90`} disabled={scheduleCount === 0} onClick={() => void run(() => studio.previousItem())} aria-label="Previous schedule item" title="Previous schedule item">
             <Icon name="chevron" size={15} />
           </button>
-          <button type="button" className="icon-button icon-button--small icon-button--next" disabled={scheduleCount === 0} onClick={() => void run(() => studio.nextItem())} aria-label="Next schedule item" title="Next schedule item">
+          <button type="button" className={`${iconBtn} [&>svg]:-rotate-90`} disabled={scheduleCount === 0} onClick={() => void run(() => studio.nextItem())} aria-label="Next schedule item" title="Next schedule item">
             <Icon name="chevron" size={15} />
           </button>
-          <button type="button" className="button button--small" disabled={live === null} onClick={() => void run(studio.clearLive)} title="Clear the live output">Clear</button>
-          <button type="button" className="icon-button icon-button--small" onClick={() => void run(studio.openSettings)} aria-label="Production settings" title="Open settings">
+          <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950]" disabled={live === null} onClick={() => void run(studio.clearLive)} title="Clear the live output">Clear</button>
+          <button type="button" className={`${iconBtn} ml-auto`} onClick={() => void run(studio.openSettings)} aria-label="Production settings" title="Open settings">
             <Icon name="settings" size={16} />
           </button>
         </div>
 
-        <div className="production-auto" title="Automatic projection is not implemented.">
-          <span className="toggle toggle--off" aria-hidden="true"><span /></span>
-          <div><strong>Auto Projection</strong><span><span className="status-dot" />Off</span></div>
+        <div className="flex items-center gap-[9px] pt-[9px] border-t border-border" title="Automatic projection is not implemented.">
+          <span className="relative flex items-center w-[30px] h-4 rounded-full bg-[#2A3950] shrink-0" aria-hidden="true"><span className="w-3 h-3 rounded-full bg-secondary ml-0.5" /></span>
+          <div className="min-w-0"><strong className="block text-[9.5px] font-medium">Auto Projection</strong><span className="flex items-center gap-1 text-secondary text-[9px] mt-px"><span className="inline-block w-[5px] h-[5px] rounded-full bg-secondary shrink-0" />Off</span></div>
         </div>
 
-        <p className="production-help">Auto-projection arrives with offline scripture detection.</p>
+        <p className="text-secondary text-[9.5px] leading-[1.5]">Auto-projection arrives with offline scripture detection.</p>
       </div>
     </section>
   );
@@ -730,13 +732,16 @@ function WorkspaceTabs({ activePage, onNavigate }: {
 }) {
   const studio = useStudio();
 
+  const tabBase = 'inline-flex items-center gap-[7px] px-3 py-[7px] border border-transparent rounded-md bg-transparent text-secondary text-[11px] font-medium whitespace-nowrap transition-[background,color] duration-120 hover:bg-elevated hover:text-text max-[959px]:px-[9px] max-[959px]:py-1.5';
+  const tabActive = 'bg-selected! border-[#304C80]! text-text! hover:bg-selected! hover:text-text!';
+
   return (
-    <nav className="workspace-tabs" aria-label="Workspaces">
+    <nav className="flex items-center gap-[3px] p-1 bg-panel border border-border rounded-lg overflow-x-auto" aria-label="Workspaces">
       {navigation.map((item) => (
         <button
           key={item.id}
           type="button"
-          className={`workspace-tab${activePage === item.id ? ' workspace-tab--active' : ''}`}
+          className={`${tabBase}${activePage === item.id ? ` ${tabActive} [&>svg]:text-[#8CABFF]` : ''}`}
           aria-current={activePage === item.id ? 'page' : undefined}
           onClick={() => onNavigate(item.id)}
         >
@@ -745,11 +750,11 @@ function WorkspaceTabs({ activePage, onNavigate }: {
         </button>
       ))}
       {/* Themes and Settings are windows of their own, so neither becomes the active page. */}
-      <button type="button" className="workspace-tab" onClick={() => void studio.openThemes()}>
+      <button type="button" className={tabBase} onClick={() => void studio.openThemes()}>
         <Icon name="palette" size={15} />
         <span>Themes</span>
       </button>
-      <button type="button" className="workspace-tab" onClick={() => void studio.openSettings()}>
+      <button type="button" className={tabBase} onClick={() => void studio.openSettings()}>
         <Icon name="settings" size={15} />
         <span>Settings</span>
       </button>
@@ -870,34 +875,34 @@ export function AppShell({ activePage, onNavigate, children }: {
   const showDock = activePage !== 'home';
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#workspace">Skip to workspace</a>
+    <div className="min-w-[768px] grid grid-cols-[var(--sidebar-width)_minmax(0,1fr)] grid-rows-[var(--header-height)_minmax(0,1fr)] h-dvh overflow-hidden max-[1300px]:[--sidebar-width:212px] max-[959px]:[--sidebar-width:184px]">
+      <a className="fixed z-10 top-3 left-3 px-4 py-2.5 bg-text text-app rounded-md -translate-y-[160%] focus:translate-y-0" href="#workspace">Skip to workspace</a>
       <ScheduleSidebar onNavigate={onNavigate} />
       <AppHeader />
-      <main id="workspace" className="workspace" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
-        <div className="workspace-primary" ref={workspaceRef}>
+      <main id="workspace" className="col-start-2 row-start-2 grid grid-cols-[minmax(0,1fr)_320px] grid-rows-[minmax(0,1fr)] items-stretch gap-[18px] p-[18px] overflow-hidden min-h-0 focus:outline-none focus:[outline-offset:-3px] min-[1600px]:grid-cols-[minmax(0,1fr)_352px] max-[1300px]:grid-cols-[minmax(0,1fr)_292px] max-[1300px]:gap-3.5 max-[1300px]:p-3.5 max-[1150px]:grid-cols-[minmax(0,1fr)_264px] max-[1150px]:gap-3 max-[1150px]:p-3 max-[959px]:grid-cols-[minmax(0,1fr)] max-[959px]:grid-rows-[auto] max-[959px]:p-3 max-[959px]:gap-3 max-[959px]:overflow-y-auto" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
+        <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden max-[959px]:overflow-visible" ref={workspaceRef}>
           {showDock && (
-            <div className="presentation-dock">
+            <div className="sticky top-0 z-4 grid gap-3.5 pb-3.5 bg-app after:absolute after:inset-x-0 after:bottom-[-8px] after:h-2 after:bg-linear-to-b after:from-app after:to-[rgba(8,15,28,0)] after:pointer-events-none max-[1300px]:gap-3 max-[1300px]:pb-3 max-[959px]:static max-[959px]:pb-0 max-[959px]:after:hidden">
               <PresentationPanes />
               <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
             </div>
           )}
           {!showDock && (
-            <div className="presentation-dock presentation-dock--tabs-only">
+            <div className="sticky top-0 z-4 grid gap-0 pb-2.5 bg-app max-[959px]:static max-[959px]:pb-0">
               <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
             </div>
           )}
-          <section className="page-content">
+          <section className="min-w-0">
             {children}
           </section>
         </div>
-        <div className="workspace-side">
+        <div className="grid gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
           <DetectionPanel />
           <ProductionCard />
         </div>
       </main>
       {shortcutNotice && (
-        <div className="shortcut-toast" role="status">
+        <div className="fixed bottom-6 right-6 z-[1000] flex items-center gap-2.5 px-4 py-2.5 bg-elevated border border-border shadow-[0_10px_30px_rgba(0,0,0,0.45)] rounded-lg text-text text-[12px] font-medium animate-toast-in pointer-events-none" role="status">
           <Icon name="display" size={15} />
           <span>{shortcutNotice}</span>
         </div>

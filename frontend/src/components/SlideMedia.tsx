@@ -30,21 +30,21 @@ export function SlideMedia({ content, player, mediaRef, onEnded }: Props) {
 
   if (content.kind === 'audio') {
     return (
-      <div className="slide-media slide-media--audio">
-        {player && <audio ref={attach} className="slide-media-sound" src={source} autoPlay onEnded={onEnded} />}
-        <span className="slide-media-icon"><Icon name="music" size={30} /></span>
-        <p className="slide-media-title">{content.label}</p>
-        {!player && <p className="slide-media-hint">Plays on the audience display</p>}
+      <div className="grid grid-rows-none content-center justify-items-center items-center gap-3.5 w-full h-full px-2.5 py-1">
+        {player && <audio ref={attach} className="hidden" src={source} autoPlay onEnded={onEnded} />}
+        <span className="grid place-items-center w-14 h-14 border border-[#30466A] rounded-[14px] bg-selected text-[#8CABFF]"><Icon name="music" size={30} /></span>
+        <p className="text-[15px] font-semibold text-center">{content.label}</p>
+        {!player && <p className="text-secondary text-[10px]">Plays on the audience display</p>}
       </div>
     );
   }
 
   if (content.kind === 'video') {
     return (
-      <div className="slide-media">
+      <div className="grid grid-rows-[minmax(0,1fr)_auto] justify-items-center items-center gap-1.5 w-full h-full px-2.5 py-1">
         <video
           ref={attach}
-          className="fitted-image"
+          className="block"
           src={source}
           style={style}
           autoPlay={player}
@@ -53,7 +53,7 @@ export function SlideMedia({ content, player, mediaRef, onEnded }: Props) {
           preload={player ? 'auto' : 'metadata'}
           onEnded={onEnded}
         />
-        {!player && <p className="slide-media-hint">Plays on the audience display</p>}
+        {!player && <p className="text-secondary text-[10px]">Plays on the audience display</p>}
       </div>
     );
   }
