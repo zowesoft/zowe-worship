@@ -122,6 +122,7 @@ func (e *ExecutableEngine) Transcribe(path string) (string, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, e.bin, args...)
+	hideConsole(cmd)
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
