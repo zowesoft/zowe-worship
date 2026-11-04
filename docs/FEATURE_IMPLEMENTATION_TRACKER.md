@@ -39,7 +39,7 @@ real text* on a machine without that env var.
 | --- | --- | --- | --- |
 | F01 | Desktop foundation and reliability | **Partial** | `main.go`, `app.go`, `internal/database`, `internal/settings`, `app_settings.go` |
 | F02 | Bible library and translation search | **Partial** | `internal/bible`, `internal/scripture`, `app.go`, `frontend/src/features/bible` |
-| F03 | Service order and multi-display presentation | **Partial** | `internal/presentation`, `internal/serviceorder`, `display.go`, `frontend/src/features/service-order`, `frontend/src/features/display` |
+| F03 | Service order and multi-display presentation | **Partial** | `internal/presentation`, `internal/serviceorder`, `internal/history`, `display.go`, `frontend/src/features/service-order`, `frontend/src/features/display`, `frontend/src/features/presentation` |
 | F04 | Songs and lyric presentation | **Partial** | `internal/songs`, `frontend/src/features/songs` |
 | F05 | Media library and playback | **Partial** | `internal/media`, `app_media.go`, `frontend/src/features/media` |
 | F06 | Custom theme editor | **Done** | `internal/themes`, `app_themes.go`, `frontend/src/features/themes`, `frontend/src/components/ThemedSlide.tsx` |
@@ -60,6 +60,12 @@ Done:
 - [x] Settings store with typed keys and fallbacks (`internal/settings/store.go`,
       `KeyDefaultTranslation`, `KeyVersesPerSlide`).
 - [x] Utility-window helper for editors (`windows.go` `openUtilityWindow`).
+- [x] Single-instance guard (`main.go` `SingleInstance`, id
+      `com.zowesoft.zowe-worship`). A second launch is refused and the running
+      studio is restored and focused instead. Keyed on the identifier, not the
+      executable name, so a renamed copy is refused too. Not a PRD requirement;
+      added because two studios would each hold their own preview/live state
+      while driving one projector and one database.
 
 Open:
 - [ ] Packaging / recovery round-trip beyond a manual backup (`BackupNow` writes a
@@ -110,11 +116,17 @@ Done:
       (`frontend/src/layouts/AppShell.tsx`).
 - [x] Keyboard shortcuts F8/F9/F12, Ctrl+Shift+S, Alt+Enter, ArrowLeft/Right,
       Esc (`AppShell.tsx` handler) — see caveat under F07.
+- [x] Presentation history writing — every command that changes live output
+      records a row (`app.go` `projected`/`recordProjection`, `internal/history`),
+      exposed through `App.RecentProjections` and shown in
+      `frontend/src/features/presentation/HistoryPanel.tsx`. Preview commands
+      deliberately do not write. Migration
+      `015_presentation_history_kinds.sql` drops the stale `kind` CHECK that
+      predated text/announcement/blank and the split media kinds.
 
 Open:
-- [ ] Presentation history writing — table exists (`009_presentation_history.sql`)
-      but no code inserts rows yet.
-- [ ] Reopen/restore past output from history.
+- [ ] Reopen/restore past output from history — rows carry the schedule item id
+      in `payload`, so a restore slice has what it needs.
 - [ ] Mixed-DPI, disconnect/reconnect recovery tests for the audience display.
 - [ ] Configured operator shortcuts (PRD §10: "must be configurable") — shortcuts
       are hard-coded, no settings UI.
@@ -237,7 +249,7 @@ Tables in `internal/database/migrations/`:
 | `media_assets` | Done (F05) |
 | `slide_templates` | Done (F06) — themes |
 | `settings` | Done (F01) |
-| `presentation_history` | table exists; **no writer** |
+| `presentation_history` | Done (F03) — written by `internal/history` on every live change |
 | `detection_history` | Done (F07) — decisions written by `internal/detection` |
 | `bible_fts` / `bible_book_aliases` | inside per-translation DBs; alias parsing via `books.go` |
 | `search_embeddings` | not created (F08) |
@@ -263,8 +275,9 @@ belong to F07.
 - **Keyboard shortcuts look done but aren't.** Navigation/projection shortcuts
   act; `F8` and `F12` now drive real detection state, `F9` is still a stub
   (see F07).
-- **`presentation_history`** is created but unwritten; `detection_history` is
-  written on every approve/dismiss/clear (F07).
+- **`presentation_history`** is written on every live change (F03);
+  `detection_history` is written on every approve/dismiss/clear (F07). Both read
+  and write; neither is surfaced as an export yet.
 
 ## Landed on `feat/f04-songs-presentation`
 
@@ -294,11 +307,11 @@ The bindings under `frontend/bindings/**` were regenerated with `-i`
 
 In dependency order:
 
-1. **Presentation history writing** (F03) — finish a cheap table already in
-   place; unblocks §14 evidence for projection recording.
-3. **Relaxed Bible search ranking** (F02) — the remaining meaningful search gap.
-4. **Configured shortcuts + settings UI** (F01/F03).
-5. **F07 offline detection, next slice** — continuous listening with automatic
+1. **Relaxed Bible search ranking** (F02) — the remaining meaningful search gap.
+2. **Configured shortcuts + settings UI** (F01/F03).
+3. **Reopen/restore past output** (F03) — `presentation_history` now has rows and
+   carries the item id in `payload`, so this is the natural follow-on.
+4. **F07 offline detection, next slice** — continuous listening with automatic
    segmentation (silence-based), Whisper model lifecycle behind
    `internal/speech`, confidence bands.
 
