@@ -18,6 +18,26 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Zowe Worship",
 		Description: "Scripture-first worship presentation",
+		// One studio per machine. Two processes would each hold their own
+		// preview/live state while driving the same projector and the same
+		// database, so an operator could send different slides without seeing
+		// the other window. The lock keys on this identifier rather than the
+		// executable name, so a renamed copy is still refused.
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.zowesoft.zowe-worship",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				// Refusing the second launch has to be visible, or it reads as
+				// the app failing to start.
+				desktop := application.Get()
+				if desktop == nil {
+					return
+				}
+				if studio, ok := desktop.Window.GetByName(studioWindow); ok {
+					studio.UnMinimise()
+					studio.Focus()
+				}
+			},
+		},
 		Windows: application.WindowsOptions{
 			// The audience display is never clicked, so Chromium's autoplay rule
 			// would refuse to start a projected clip with sound.
