@@ -51,6 +51,21 @@ tasks:
       - task: generate:syso
         vars:
           ARCH: '{{.ARCH}}'
+      # Windows maps a running .exe as an image, so `go build -o` cannot replace
+      # it in place — Go renames the old file aside as `<name>.exe~` and that
+      # leftover then sits in bin/ beside the real output. Stop any running
+      # instance and clear stale leftovers first, so the build always lands on
+      # the one expected file name. Both steps tolerate "nothing to do".
+      - cmd: >-
+          powershell -NoProfile -Command
+          "Get-Process '{{.APP_NAME}}','{{.APP_NAME}}-new' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+        platforms: [windows]
+        ignore_error: true
+      - cmd: >-
+          powershell -NoProfile -Command
+          "Remove-Item '{{.BIN_DIR}}/{{.APP_NAME}}.exe~','{{.BIN_DIR}}/{{.APP_NAME}}-new.exe' -ErrorAction SilentlyContinue"
+        platforms: [windows]
+        ignore_error: true
       - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe"'
       - cmd: powershell Remove-item *.syso
         platforms: [windows]
