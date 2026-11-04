@@ -153,9 +153,29 @@ func parseVerseTail(tokens []string, consumed []bool, index int) (verseStart, ve
 		verseStart = n
 		last = index
 		index++
+	} else if tokens[index] == "and" && index+1 < len(tokens) && !consumed[index+1] {
+		// "chapter 8 and verse 28" leaves "8 and 28" once the connector words
+		// drop: here the conjunction introduces the verse, not a second
+		// chapter.
+		if v, ok := tokenNumber(tokens[index+1]); ok {
+			verseStart = v
+			last = index + 1
+			index += 2
+		}
 	}
 
 	if verseStart > 0 && index < len(tokens) && tokens[index] == "-" &&
+		index+1 < len(tokens) && !consumed[index+1] {
+		if v, ok := tokenNumber(tokens[index+1]); ok {
+			verseEnd = v
+			last = index + 1
+		}
+	}
+
+	// Spoken ranges join with "and": "verses 6 and 7" leaves the tokens
+	// "6 and 7" once the connector words are dropped, so the conjunction
+	// closes the range exactly like a dash would.
+	if verseEnd == 0 && verseStart > 0 && index < len(tokens) && tokens[index] == "and" &&
 		index+1 < len(tokens) && !consumed[index+1] {
 		if v, ok := tokenNumber(tokens[index+1]); ok {
 			verseEnd = v

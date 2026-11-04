@@ -86,7 +86,7 @@ func tokenizeForDetection(text string) []string {
 	filtered := make([]string, 0, len(composed))
 	for _, token := range composed {
 		switch token {
-		case "chapter", "verse":
+		case "chapter", "verse", "verses", "chapters":
 			continue
 		}
 		filtered = append(filtered, token)
