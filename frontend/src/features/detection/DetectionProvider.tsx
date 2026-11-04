@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Events } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { useStudio } from '../../stores/StudioProvider';
@@ -79,6 +80,17 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     void refreshConfig();
     void refreshQueue();
   }, [refreshConfig, refreshQueue]);
+
+  // The backend streams the transcript while the engine is still running, so
+  // the panel fills in segment by segment instead of after the whole chunk.
+  useEffect(() => {
+    const cancel = Events.On('detection:progress', (event) => {
+      const progress = event.data as { transcript: string; candidates: models.DetectionView[] };
+      setTranscript(progress.transcript);
+      setCandidates(progress.candidates);
+    });
+    return () => { cancel(); };
+  }, []);
 
   // Device labels only become readable once permission is granted, so the
   // list is reread when listening starts.

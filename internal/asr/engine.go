@@ -1,6 +1,7 @@
 package asr
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -112,6 +113,15 @@ func (e *ExecutableEngine) Name() string { return e.name }
 // engine log noise. Failures include the stderr tail to speed up debugging
 // engine downloads and flags.
 func (e *ExecutableEngine) Transcribe(path string) (string, error) {
+	return e.TranscribeStream(path, nil)
+}
+
+// TranscribeStream runs the sidecar and reports the transcript as it grows.
+// whisper.cpp prints one stamped segment at a time, so onPartial fires while
+// the engine is still working and the operator can read along; engines that
+// only speak at the end (sherpa-onnx offline) never call it mid-run. The
+// returned transcript is the same cleaned text Transcribe returns.
+func (e *ExecutableEngine) TranscribeStream(path string, onPartial func(partial string)) (string, error) {
 	args := make([]string, 0, len(e.args))
 	for _, arg := range e.args {
 		arg = strings.ReplaceAll(arg, "{audio}", path)
@@ -123,18 +133,63 @@ func (e *ExecutableEngine) Transcribe(path string) (string, error) {
 
 	cmd := exec.CommandContext(ctx, e.bin, args...)
 	hideConsole(cmd)
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
+	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
-		tail := stderr.String()
-		if len(tail) > 2000 {
-			tail = tail[:2000]
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("engine %q stdout: %w", e.name, err)
+	}
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("engine %q failed to start: %w", e.name, err)
+	}
+
+	var stdout strings.Builder
+	var spoken strings.Builder
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		line := scanner.Text()
+		stdout.WriteString(line)
+		stdout.WriteString("\n")
+		if onPartial == nil {
+			continue
 		}
-		return "", fmt.Errorf("engine %q failed: %w\nstderr: %s", e.name, err, tail)
+		text, ok := segmentText(line)
+		if !ok {
+			continue
+		}
+		spoken.WriteString(text)
+		spoken.WriteString(" ")
+		onPartial(strings.TrimSpace(spoken.String()))
+	}
+	if err := cmd.Wait(); err != nil {
+		return "", fmt.Errorf("engine %q failed: %w\nstderr: %s", e.name, err, stderrTail(stderr.String()))
 	}
 	return CleanTranscript(stdout.String()), nil
+}
+
+// segmentText extracts the spoken words from one whisper.cpp segment line,
+// reporting false for log noise, blank lines, and engines whose output only
+// arrives at the end. Only stamped segments stream: everything else is
+// unreliable to read mid-run.
+func segmentText(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	loc := segmentStamp.FindStringIndex(trimmed)
+	if loc == nil || loc[0] != 0 {
+		return "", false
+	}
+	text := strings.TrimSpace(trimmed[loc[1]:])
+	if text == "" {
+		return "", false
+	}
+	return text, true
+}
+
+func stderrTail(text string) string {
+	if len(text) > 2000 {
+		return text[:2000]
+	}
+	return text
 }
 
 var (

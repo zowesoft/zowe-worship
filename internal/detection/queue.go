@@ -82,6 +82,71 @@ func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate,
 	return added, nil
 }
 
+// MergeLive queues detections heard in a transcript that is still growing.
+// whisper.cpp streams one segment at a time, so a hearing can start wide
+// ("Philippians chapter 4") and narrow moments later ("verses 6 and 7") as the
+// sentence continues, or grow the other way. Either direction, the latest
+// hearing of the same passage replaces the pending candidate in place — same
+// id, so the panel updates the card instead of stacking a second one.
+// Passages that do not overlap stay separate candidates.
+func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Candidate, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	added := make([]Candidate, 0, len(detections))
+	for _, detection := range detections {
+		replaced := -1
+		for i, candidate := range q.pending {
+			if candidate.Reference.Book.ID != detection.Reference.Book.ID ||
+				candidate.Reference.Chapter != detection.Reference.Chapter {
+				continue
+			}
+			if overlaps(candidate.Reference, detection.Reference) {
+				replaced = i
+				break
+			}
+		}
+		if replaced >= 0 {
+			updated := q.pending[replaced]
+			updated.Transcript = transcript
+			updated.Raw = detection.Raw
+			updated.Reference = detection.Reference
+			q.pending[replaced] = updated
+			added = append(added, updated)
+			continue
+		}
+		candidate := Candidate{
+			Transcript: transcript,
+			Reference:  detection.Reference,
+			Raw:        detection.Raw,
+			CreatedAt:  now,
+		}
+		id, err := database.NewID()
+		if err != nil {
+			return nil, fmt.Errorf("new candidate id: %w", err)
+		}
+		candidate.ID = id
+		q.pending = append(q.pending, candidate)
+		added = append(added, candidate)
+	}
+	return added, nil
+}
+
+// overlaps reports whether two verse ranges from the same book and chapter
+// share any verse, the test for whether one hearing of a passage refines
+// another. A zero range is the whole chapter, reaching every verse in it.
+func overlaps(a, b scripture.Reference) bool {
+	aEnd, bEnd := a.VerseEnd, b.VerseEnd
+	if aEnd == 0 {
+		aEnd = int(^uint(0) >> 1)
+	}
+	if bEnd == 0 {
+		bEnd = int(^uint(0) >> 1)
+	}
+	return a.VerseStart <= bEnd && b.VerseStart <= aEnd
+}
+
 // List returns the pending candidates, oldest first.
 func (q *Queue) List() []Candidate {
 	q.mu.Lock()

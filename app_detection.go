@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
+
 	"zowe-worship/internal/asr"
 	"zowe-worship/internal/detection"
 	"zowe-worship/internal/settings"
@@ -39,6 +41,18 @@ type DetectionView struct {
 // detector made of it. The transcript is returned even when nothing was
 // detected, so the panel can show why the queue stayed empty.
 type DetectionResult struct {
+	Transcript string          `json:"transcript"`
+	Candidates []DetectionView `json:"candidates"`
+}
+
+// detectionProgressEvent streams the transcript to the studio while the
+// engine is still running, so the operator reads along instead of waiting for
+// the whole chunk to finish.
+const detectionProgressEvent = "detection:progress"
+
+// DetectionProgressView is one streaming update: the transcript so far and
+// the queue as it now stands.
+type DetectionProgressView struct {
 	Transcript string          `json:"transcript"`
 	Candidates []DetectionView `json:"candidates"`
 }
@@ -91,19 +105,43 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 		return DetectionResult{}, fmt.Errorf("write audio chunk: %w", err)
 	}
 
-	transcript, err := spec.Transcribe(wavPath)
+	transcript, err := spec.TranscribeStream(wavPath, a.streamDetectionProgress)
 	if err != nil {
 		return DetectionResult{}, err
 	}
 
-	added, err := a.detection.Add(transcript, asr.DetectReferences(transcript))
-	if err != nil {
+	// The final transcript can still widen a hearing that streamed in narrow,
+	// so the queue settles through the same grow-in-place merge.
+	if _, err := a.detection.MergeLive(transcript, asr.DetectReferences(transcript)); err != nil {
 		return DetectionResult{}, err
 	}
 	return DetectionResult{
 		Transcript: transcript,
-		Candidates: toDetectionViews(added),
+		Candidates: toDetectionViews(a.detection.List()),
 	}, nil
+}
+
+// streamDetectionProgress runs on every transcript segment the engine emits.
+// Growing hearings of the same passage replace their pending candidate, and
+// the studio receives the transcript so far plus the refreshed queue.
+func (a *App) streamDetectionProgress(partial string) {
+	if a.detection == nil {
+		return
+	}
+	if _, err := a.detection.MergeLive(partial, asr.DetectReferences(partial)); err != nil {
+		return
+	}
+	if desktop := application.Get(); desktop != nil {
+		if studio, ok := desktop.Window.GetByName(studioWindow); ok {
+			studio.DispatchWailsEvent(&application.CustomEvent{
+				Name: detectionProgressEvent,
+				Data: DetectionProgressView{
+					Transcript: partial,
+					Candidates: toDetectionViews(a.detection.List()),
+				},
+			})
+		}
+	}
 }
 
 // ListDetections returns the candidates waiting for a decision.
