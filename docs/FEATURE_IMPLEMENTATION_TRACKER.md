@@ -43,7 +43,7 @@ real text* on a machine without that env var.
 | F04 | Songs and lyric presentation | **Partial** | `internal/songs`, `frontend/src/features/songs` |
 | F05 | Media library and playback | **Partial** | `internal/media`, `app_media.go`, `frontend/src/features/media` |
 | F06 | Custom theme editor | **Done** | `internal/themes`, `app_themes.go`, `frontend/src/features/themes`, `frontend/src/components/ThemedSlide.tsx` |
-| F07 | Offline AI scripture detection | **Planned** | `internal/asr` detector + `cmd/asr-bench` benchmark groundwork; `internal/audio`, `internal/speech`, `internal/confidence`, `frontend/src/features/live-detection` (empty) |
+| F07 | Offline AI scripture detection | **Partial** | `internal/asr`, `internal/detection`, `app_detection.go`, `frontend/src/features/detection`; `cmd/asr-bench` + `benchmarks/` groundwork |
 | F08 | Semantic scripture and song search | **Planned** | `internal/search` (empty); no model/index work |
 | F09 | Online lyrics discovery (Genius) | **Planned** | no package, no UI |
 | F10 | EasyWorship migration | **Planned** | no package, no UI |
@@ -185,24 +185,28 @@ Open:
       fields) — no explicit test asserting a malicious theme payload is refused.
 - [ ] §14 evidence: theme overflow across output aspect ratios captured.
 
-## F07 — Offline AI scripture detection (Planned)
+## F07 — Offline AI scripture detection (Partial)
 
-Nothing is wired to the UI. `internal/audio`, `internal/speech`,
-`internal/confidence` and `frontend/src/features/live-detection` contain only
-`.gitkeep`. Groundwork that does exist: `internal/asr` (sidecar engine adapter,
-WAV prep, conservative `DetectReferences` spoken-reference detector with tests)
-plus `cmd/asr-bench` and `benchmarks/` to score engines before any is chosen
-(`task asr:bench`).
+First slice landed: mic → transcript → candidate → approval → preview. The
+webview captures the input device (`getUserMedia` + AudioWorklet) into a
+16 kHz mono Int16 ring buffer; **Analyze** (panel button) sends the last ~20 s
+to `DetectScripture`, which wraps the PCM in a temp WAV, runs the engine spec
+from settings, transcribes, and queues every reference `DetectReferences`
+finds. `internal/detection` holds the candidate queue in memory and records
+every approve/dismiss/clear in `detection_history` (previously unwritten).
+Approving previews the passage in the default translation — the operator still
+sends it live, per PRD §9. `F8` toggles listening, `F12` persists the
+emergency disable (`detection_disabled`), and the engine command is set in
+Settings → Live detection.
 
-Important caveat on F03's shortcuts: `F8` (listening), `F9` (pause
-auto-projection) and `F12` (emergency disable) are **wired to placeholder
-notices** in `AppShell.tsx` — they do not start or stop real work yet, because
-the detection subsystem does not exist.
+Still open (later slices): continuous listening with automatic segmentation
+(currently manual chunks only), Whisper model lifecycle management, finalized
+transcripts, calibrated confidence bands, gated auto-projection with the
+safety checklist, and the remaining `internal/audio` / `internal/speech` /
+`internal/confidence` packages from the PRD §7 plan.
 
-To build (PRD §7): audio capture + device levels; Whisper model lifecycle;
-finalized transcripts; explicit-reference parsing; candidate queue; calibrated
-confidence bands; gated auto-projection with the safety checklist; detection
-panel; bounded in-memory transcript state.
+`F9` (pause auto-projection) remains a placeholder notice because nothing
+auto-projects yet.
 
 ## F08 — Semantic scripture and song search (Planned)
 
@@ -234,7 +238,7 @@ Tables in `internal/database/migrations/`:
 | `slide_templates` | Done (F06) — themes |
 | `settings` | Done (F01) |
 | `presentation_history` | table exists; **no writer** |
-| `detection_history` | table exists; **no writer** (F07) |
+| `detection_history` | Done (F07) — decisions written by `internal/detection` |
 | `bible_fts` / `bible_book_aliases` | inside per-translation DBs; alias parsing via `books.go` |
 | `search_embeddings` | not created (F08) |
 | `import_runs` | not created (F10) |
@@ -254,11 +258,13 @@ belong to F07.
 ## Cross-cutting deviations to keep in mind
 
 - **F07/F08 placeholders vs. roadmap.** The PRD §17 baseline said only the
-  scaffold existed; that is now stale. F01–F06 have working slices (F06 fully),
-  while F07–F10 remain genuinely unstarted.
-- **Keyboard shortcuts look done but aren't.** Only navigation/projection
-  shortcuts act; the detection shortcuts are stubs (see F07).
-- **`presentation_history` and `detection_history`** are created but unwritten.
+  scaffold existed; that is now stale. F01–F07 have working slices (F06 fully),
+  while F08–F10 remain genuinely unstarted.
+- **Keyboard shortcuts look done but aren't.** Navigation/projection shortcuts
+  act; `F8` and `F12` now drive real detection state, `F9` is still a stub
+  (see F07).
+- **`presentation_history`** is created but unwritten; `detection_history` is
+  written on every approve/dismiss/clear (F07).
 
 ## Landed on `feat/f04-songs-presentation`
 
@@ -292,7 +298,8 @@ In dependency order:
    place; unblocks §14 evidence for projection recording.
 3. **Relaxed Bible search ranking** (F02) — the remaining meaningful search gap.
 4. **Configured shortcuts + settings UI** (F01/F03).
-5. **F07 offline detection** — the largest unstarted block; start with the audio
-   adapter and Whisper lifecycle behind `internal/speech`.
+5. **F07 offline detection, next slice** — continuous listening with automatic
+   segmentation (silence-based), Whisper model lifecycle behind
+   `internal/speech`, confidence bands.
 
 Recommending a workstream is not authorization to build it — confirm scope first.
