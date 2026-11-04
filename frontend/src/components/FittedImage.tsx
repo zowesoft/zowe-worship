@@ -16,6 +16,10 @@ type Props = {
  * `aspect-ratio` together with both max constraints, which is what makes this
  * letterbox correctly in a 240px studio pane and on a projector without the box
  * having to measure anything.
+ *
+ * The percentages need a parent with a definite height to resolve against —
+ * flex centring or an explicit size qualifies, a content-hugging centred grid
+ * row does not, and the picture then lays out at full size and gets clipped.
  */
 export function frameStyle(aspect?: string, ratio = 0, fit: 'contain' | 'cover' = 'contain'): React.CSSProperties {
   const style: React.CSSProperties = { objectFit: fit };

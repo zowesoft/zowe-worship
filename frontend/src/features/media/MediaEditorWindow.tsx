@@ -78,7 +78,10 @@ export function MediaEditorWindow({ mediaID }: { mediaID: string }) {
       </header>
 
       <section className="min-h-0 grid grid-rows-[minmax(0,1fr)_auto] gap-[7px]" aria-label="Output preview">
-        <div className="min-h-0 grid place-items-center overflow-hidden border border-[#30445F] rounded-lg [background:repeating-conic-gradient(#0C1524_0%_25%,#0A1220_0%_50%)_50%_/_22px_22px]">
+        {/* Flex, not grid place-items-center: a centred grid row hugs its content,
+            so FittedImage's percentage max-height has nothing to resolve against
+            and the picture lays out at full size and is clipped by the pane. */}
+        <div className="min-h-0 flex items-center justify-center overflow-hidden border border-[#30445F] rounded-lg [background:repeating-conic-gradient(#0C1524_0%_25%,#0A1220_0%_50%)_50%_/_22px_22px]">
           <FittedImage
             src={asset.url}
             alt=""
