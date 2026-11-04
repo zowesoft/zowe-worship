@@ -211,11 +211,6 @@ func (r *SQLiteRepository) Remove(ctx context.Context, id string) error {
 }
 
 func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]SearchResult, error) {
-	match, err := matchExpression(req.Text, req.Mode)
-	if err != nil {
-		return nil, err
-	}
-
 	packageDB, err := r.openPackage(ctx, req.TranslationID)
 	if err != nil {
 		return nil, err
@@ -229,13 +224,34 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 	if limit > maxSearchLimit {
 		limit = maxSearchLimit
 	}
+	offset := req.Offset
+	if offset < 0 {
+		offset = 0
+	}
 
-	// Build optional WHERE clauses for book/testament filters.
-	where := []string{"verses_fts MATCH ?"}
-	args := []any{match}
+	filterClauses, filterArgs := searchFilters(req)
 
+	switch req.Mode {
+	case "", SearchWords:
+		return r.searchRelaxed(ctx, packageDB, req.Text, filterClauses, filterArgs, limit, offset)
+	case SearchPhrase, SearchPrefix:
+		match, err := matchExpression(req.Text, req.Mode)
+		if err != nil {
+			return nil, err
+		}
+		return r.runSearch(ctx, packageDB, match, filterClauses, filterArgs, limit, offset)
+	default:
+		return nil, fmt.Errorf("unknown search mode %q", req.Mode)
+	}
+}
+
+// searchFilters builds the optional testament/book WHERE clauses and their
+// arguments, shared by every stage of a search.
+func searchFilters(req SearchRequest) ([]string, []any) {
+	var clauses []string
+	var args []any
 	if req.Testament != "" {
-		where = append(where, "b.testament = ?")
+		clauses = append(clauses, "b.testament = ?")
 		args = append(args, string(req.Testament))
 	}
 	if len(req.BookIDs) > 0 {
@@ -243,13 +259,53 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 		for i, id := range req.BookIDs {
 			placeholders[i] = strconv.Itoa(id)
 		}
-		where = append(where, "b.id IN ("+strings.Join(placeholders, ",")+")")
+		clauses = append(clauses, "b.id IN ("+strings.Join(placeholders, ",")+")")
+	}
+	return clauses, args
+}
+
+// searchRelaxed answers a full-text query in two stages. Stage one keeps the
+// query honest: every word must appear, matched as a prefix so an inflection
+// like "loved" still answers a search for "love". Only when nothing carries
+// every word does stage two widen to any word. bm25 then floats the verses
+// matching the most (and rarest) of those words to the top, so the closest
+// partial matches lead instead of the search coming back empty.
+func (r *SQLiteRepository) searchRelaxed(
+	ctx context.Context,
+	db *sql.DB,
+	text string,
+	filterClauses []string,
+	filterArgs []any,
+	limit, offset int,
+) ([]SearchResult, error) {
+	terms, err := relaxedTerms(text)
+	if err != nil {
+		return nil, err
 	}
 
-	offset := req.Offset
-	if offset < 0 {
-		offset = 0
+	results, err := r.runSearch(ctx, db, strings.Join(terms, " AND "), filterClauses, filterArgs, limit, offset)
+	if err != nil {
+		return nil, err
 	}
+	// An empty later page means the page ran out, not that we should widen.
+	if len(results) > 0 || offset > 0 {
+		return results, nil
+	}
+
+	return r.runSearch(ctx, db, strings.Join(terms, " OR "), filterClauses, filterArgs, limit, offset)
+}
+
+// runSearch executes one FTS5 query and returns the ranked, snippeted verses.
+func (r *SQLiteRepository) runSearch(
+	ctx context.Context,
+	db *sql.DB,
+	match string,
+	filterClauses []string,
+	filterArgs []any,
+	limit, offset int,
+) ([]SearchResult, error) {
+	where := append([]string{"verses_fts MATCH ?"}, filterClauses...)
+	args := append([]any{match}, filterArgs...)
 	args = append(args, limit, offset)
 
 	q := `SELECT b.id, b.name, b.abbreviation, b.testament, v.chapter, v.verse, v.text,
@@ -261,9 +317,9 @@ func (r *SQLiteRepository) Search(ctx context.Context, req SearchRequest) ([]Sea
 		ORDER BY bm25(verses_fts), b.id, v.chapter, v.verse
 		LIMIT ? OFFSET ?`
 
-	rows, err := packageDB.QueryContext(ctx, q, args...)
+	rows, err := db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("search %s: %w", req.TranslationID, err)
+		return nil, fmt.Errorf("search: %w", err)
 	}
 	defer rows.Close()
 

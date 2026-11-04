@@ -85,16 +85,30 @@ Done:
 - [x] Workspace UI with search, highlight, passage browsing as stacked chapter
       blocks, testament filter, pagination (`frontend/src/features/bible/`).
 - [x] Bible tab renders Genesis 1 from app load and continues scrolled reading.
+- [x] Relaxed multi-term ranking for the default full-text ("words") search
+      (`internal/bible/sqlite.go` `searchRelaxed`). Two stages: prefix-AND first
+      (every word required, matched as a prefix so "love" reaches "loved"), then
+      — only when nothing carries every word — prefix-OR ranked by bm25. The
+      installed packages tokenize with `unicode61` (no stemmer), so prefixing is
+      how we bridge inflections without rebuilding every translation database.
+      Measured against the real `kjv-1.0.0.db` (31,102 verses):
+      - "God love world": exact-AND found 4 verses and missed John 3:16;
+        prefix-AND finds 5 with John 3:16 at #2 (behind 1 John 4:9, which also
+        carries all three words). This is the PRD §5 example.
+      - "believe saved": exact-AND 5 → prefix-AND 8, reaching "believeth", with
+        Mark 16:16 on top.
+      - "God loved shepherd" (no verse has all three): stage 1 empty, stage 2
+        widens and every top hit carries two of the three words.
 
 Open:
 - [ ] `NIV`, `ESV`, `NLT`, `NASB` packages — only `KJV` (+ `AMP` in fixtures) are
       targeted; add per-translation license/distribution metadata + integrity
       checks before bundling.
-- [ ] Relaxed multi-term / stem-prefix ranking ("God love world" →
-      "For God so loved the world") — PRD §5 calls this a planned follow-up to
-      the initial all-terms FTS5 search.
 - [ ] Performance targets measured (reference p95 < 50 ms, full-text p95 < 150 ms)
-      — no benchmark recorded.
+      — no benchmark recorded. Note: a per-row coverage recount for the widened
+      stage was rejected after measuring 29–58 s over 4,000+ OR candidates;
+      plain bm25 ordering answers the same queries in 20–430 ms and still floats
+      the highest-coverage verses to the top.
 - [ ] Attribution / license surface for installed translations in the UI.
 
 ## F03 — Service order and multi-display presentation (Partial)
@@ -307,7 +321,9 @@ The bindings under `frontend/bindings/**` were regenerated with `-i`
 
 In dependency order:
 
-1. **Relaxed Bible search ranking** (F02) — the remaining meaningful search gap.
+1. **Guided reference entry** (F02) — as the operator types, suggest matching
+   books (including numbered books via their number, e.g. "J" → "1 John"), then
+   step the cursor book → chapter → verse with Tab/Enter, inserting the colon.
 2. **Configured shortcuts + settings UI** (F01/F03).
 3. **Reopen/restore past output** (F03) — `presentation_history` now has rows and
    carries the item id in `payload`, so this is the natural follow-on.

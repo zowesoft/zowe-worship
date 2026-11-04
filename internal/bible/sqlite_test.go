@@ -82,6 +82,11 @@ func TestInstallAndSearch(t *testing.T) {
 			want:    []string{"John 3:16"},
 		},
 		{
+			name:    "a word reaches its inflections",
+			request: SearchRequest{TranslationID: "kjv", Text: "God love world", Mode: SearchWords},
+			want:    []string{"John 3:16"},
+		},
+		{
 			name:    "exact phrase ignores punctuation and case",
 			request: SearchRequest{TranslationID: "kjv", Text: "god is a spirit", Mode: SearchPhrase},
 			want:    []string{"John 4:24"},
@@ -122,6 +127,38 @@ func TestInstallAndSearch(t *testing.T) {
 				t.Fatalf("references = %v, want %v", references, tc.want)
 			}
 		})
+	}
+}
+
+func TestSearchWidensWhenNothingHasEveryWord(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newTestRepository(t)
+	if _, err := repo.Install(ctx, fixture("kjv", "1.0.0", "The LORD is my shepherd; I shall not want.")); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	// No single verse carries all three words, so the search widens to any of
+	// them. John 3:16 matches two of the three ("God", "loved"), so bm25 floats
+	// it above the verses that only carry one.
+	results, err := repo.Search(ctx, SearchRequest{TranslationID: "kjv", Text: "God loved shepherd", Mode: SearchWords})
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("widened search returned nothing")
+	}
+	if results[0].Reference() != "John 3:16" {
+		t.Fatalf("top result = %q, want the verse matching the most words (John 3:16)", results[0].Reference())
+	}
+
+	seen := map[string]bool{}
+	for _, result := range results {
+		seen[result.Reference()] = true
+	}
+	for _, want := range []string{"John 3:16", "Psalms 23:1", "John 4:24"} {
+		if !seen[want] {
+			t.Fatalf("widened search missing %q; got %v", want, results)
+		}
 	}
 }
 
@@ -419,12 +456,10 @@ func TestMatchExpressionQuotesUserInput(t *testing.T) {
 		mode SearchMode
 		want string
 	}{
-		{"grace faith", SearchWords, `"grace" AND "faith"`},
 		{"the lord is my shepherd", SearchPhrase, `"the lord is my shepherd"`},
 		{"shep", SearchPrefix, `"shep"*`},
 		{"green past", SearchPrefix, `"green" AND "past"*`},
-		{`"NEAR(foo bar)"`, SearchWords, `"""NEAR(foo" AND "bar)"""`},
-		{"grace, faith.", SearchWords, `"grace," AND "faith."`},
+		{`"NEAR(foo bar)"`, SearchPhrase, `"""NEAR(foo bar)"""`},
 	}
 
 	for _, tc := range cases {
@@ -435,5 +470,30 @@ func TestMatchExpressionQuotesUserInput(t *testing.T) {
 		if got != tc.want {
 			t.Fatalf("%q: got %s, want %s", tc.text, got, tc.want)
 		}
+	}
+}
+
+func TestRelaxedTermsPrefixesAndQuotesEveryWord(t *testing.T) {
+	cases := []struct {
+		text string
+		want []string
+	}{
+		{"God love world", []string{`"God"*`, `"love"*`, `"world"*`}},
+		{"grace, faith.", []string{`"grace,"*`, `"faith."*`}},
+		{`"NEAR(foo bar)"`, []string{`"""NEAR(foo"*`, `"bar)"""*`}},
+	}
+
+	for _, tc := range cases {
+		got, err := relaxedTerms(tc.text)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.text, err)
+		}
+		if strings.Join(got, " ") != strings.Join(tc.want, " ") {
+			t.Fatalf("%q: got %v, want %v", tc.text, got, tc.want)
+		}
+	}
+
+	if _, err := relaxedTerms("?!"); !errors.Is(err, ErrEmptyQuery) {
+		t.Fatalf("punctuation-only query err = %v, want ErrEmptyQuery", err)
 	}
 }

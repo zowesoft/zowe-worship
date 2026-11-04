@@ -128,7 +128,9 @@ func checkPackageVersion(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func matchExpression(text string, mode SearchMode) (string, error) {
+// searchTerms splits a query into the words worth matching, dropping tokens
+// that carry no letter or digit (bare punctuation, symbols).
+func searchTerms(text string) ([]string, error) {
 	words := make([]string, 0, 8)
 	for _, field := range strings.Fields(text) {
 		if hasSearchCharacter(field) {
@@ -136,16 +138,40 @@ func matchExpression(text string, mode SearchMode) (string, error) {
 		}
 	}
 	if len(words) == 0 {
-		return "", ErrEmptyQuery
+		return nil, ErrEmptyQuery
+	}
+	return words, nil
+}
+
+// prefixTerms quotes each word and adds the FTS5 prefix operator. The installed
+// packages tokenize with unicode61, which has no stemmer, so "love" would never
+// reach "loved" on its own — the prefix is how we bridge inflections without
+// rebuilding every translation database.
+func prefixTerms(words []string) []string {
+	terms := make([]string, len(words))
+	for i, word := range words {
+		terms[i] = quoteFTSTerm(word) + "*"
+	}
+	return terms
+}
+
+// relaxedTerms returns each query word as an FTS5 prefix term, ready to be
+// joined with AND (every word required) or OR (any word).
+func relaxedTerms(text string) ([]string, error) {
+	words, err := searchTerms(text)
+	if err != nil {
+		return nil, err
+	}
+	return prefixTerms(words), nil
+}
+
+func matchExpression(text string, mode SearchMode) (string, error) {
+	words, err := searchTerms(text)
+	if err != nil {
+		return "", err
 	}
 
 	switch mode {
-	case "", SearchWords:
-		quoted := make([]string, len(words))
-		for i, word := range words {
-			quoted[i] = quoteFTSTerm(word)
-		}
-		return strings.Join(quoted, " AND "), nil
 	case SearchPhrase:
 		return quoteFTSTerm(strings.Join(words, " ")), nil
 	case SearchPrefix:
