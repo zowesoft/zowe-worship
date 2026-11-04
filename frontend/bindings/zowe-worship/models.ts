@@ -106,6 +106,41 @@ export interface CustomItemRequest {
     "duration": number;
 }
 
+/**
+ * DetectionConfigView is the Live Detection settings card: which engine
+ * transcribes and whether the emergency switch is on.
+ */
+export interface DetectionConfigView {
+    "engineSpec": string;
+    "disabled": boolean;
+}
+
+/**
+ * DetectionResult answers one analyze request: what was heard and what the
+ * detector made of it. The transcript is returned even when nothing was
+ * detected, so the panel can show why the queue stayed empty.
+ */
+export interface DetectionResult {
+    "transcript": string;
+    "candidates": DetectionView[] | null;
+}
+
+/**
+ * DetectionView is one candidate in the approval queue. The reference fields
+ * mirror ScriptureRequest so the frontend can preview the passage without a
+ * second lookup.
+ */
+export interface DetectionView {
+    "id": string;
+    "transcript": string;
+    "reference": string;
+    "bookId": number;
+    "chapter": number;
+    "verseStart": number;
+    "verseEnd": number;
+    "createdAt": string;
+}
+
 export interface DisplayView {
     "open": boolean;
     "screenId": string;

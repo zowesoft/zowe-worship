@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/database"
+	"zowe-worship/internal/detection"
 	"zowe-worship/internal/media"
 	"zowe-worship/internal/presentation"
 	"zowe-worship/internal/scripture"
@@ -36,6 +37,7 @@ type App struct {
 	themes        *themes.SQLiteRepository
 	settings      *settings.Store
 	presentation  *presentation.Controller
+	detection     *detection.Queue
 	display       application.Window
 	displayScreen ScreenOption
 }
@@ -141,6 +143,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.themes = themes.NewSQLiteRepository(core)
 	a.settings = settings.New(core)
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
+	a.detection = detection.New(core)
 	return nil
 }
 
