@@ -150,6 +150,36 @@ func (a *App) ClearDetections() ([]DetectionView, error) {
 	return []DetectionView{}, nil
 }
 
+// EngineOption is one speech engine discovered on this computer, ready to be
+// selected in Settings without typing a path.
+type EngineOption struct {
+	Label string `json:"label"`
+	Spec  string `json:"spec"`
+}
+
+// ListDetectionEngines scans the usual engine locations — the benchmarks
+// folder beside the app in development and an engines folder under the data
+// root — and returns every engine/model pair found there.
+func (a *App) ListDetectionEngines() ([]EngineOption, error) {
+	var roots []string
+	if cwd, err := os.Getwd(); err == nil {
+		roots = append(roots, filepath.Join(cwd, "benchmarks"))
+	}
+	if exe, err := os.Executable(); err == nil {
+		roots = append(roots, filepath.Join(filepath.Dir(exe), "benchmarks"))
+	}
+	if paths, err := a.paths(); err == nil {
+		roots = append(roots, filepath.Join(paths.Root, "engines"))
+	}
+
+	discovered := asr.DiscoverEngines(roots...)
+	options := make([]EngineOption, 0, len(discovered))
+	for _, engine := range discovered {
+		options = append(options, EngineOption{Label: engine.Name, Spec: engine.Spec})
+	}
+	return options, nil
+}
+
 // GetDetectionConfig reads the Live Detection settings card.
 func (a *App) GetDetectionConfig() (DetectionConfigView, error) {
 	if a.settings == nil {

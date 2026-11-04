@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Window } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
-import type { StorageView } from '../../../bindings/zowe-worship/models';
+import type { EngineOption, StorageView } from '../../../bindings/zowe-worship/models';
 import { Icon } from '../../components/Icon';
 import { formatBytes, formatDateTime } from '../../lib/format';
 
@@ -10,6 +10,9 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
+// Select value for a spec typed by hand rather than discovered on disk.
+const CUSTOM_ENGINE = '__custom';
+
 export function SettingsWindow() {
   const [storage, setStorage] = useState<StorageView | null>(null);
   const [busy, setBusy] = useState(false);
@@ -17,6 +20,8 @@ export function SettingsWindow() {
   const [versesPerSlide, setVersesPerSlide] = useState('one');
   const [engineSpec, setEngineSpec] = useState('');
   const [engineDraft, setEngineDraft] = useState('');
+  const [engines, setEngines] = useState<EngineOption[]>([]);
+  const [customEngine, setCustomEngine] = useState(false);
   const [detectionDisabled, setDetectionDisabled] = useState(false);
   const [engineSaved, setEngineSaved] = useState(false);
 
@@ -43,6 +48,10 @@ export function SettingsWindow() {
       .catch(() => {
         // Without the bridge the detection card simply shows its empty state.
       });
+
+    App.ListDetectionEngines()
+      .then((found) => setEngines(found ?? []))
+      .catch(() => setEngines([]));
   }, []);
 
   async function chooseVerses(value: 'one' | 'all') {
@@ -85,6 +94,29 @@ export function SettingsWindow() {
     try {
       await App.SetDetectionEngine(engineDraft);
       setEngineSpec(engineDraft);
+      setEngineSaved(true);
+      window.setTimeout(() => setEngineSaved(false), 2500);
+    } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Picking a discovered engine saves it immediately; the text field only
+  // appears for a spec the scan did not find.
+  async function chooseEngine(spec: string) {
+    if (spec === CUSTOM_ENGINE) {
+      setCustomEngine(true);
+      return;
+    }
+    setCustomEngine(false);
+    setBusy(true);
+    setProblem(null);
+    try {
+      await App.SetDetectionEngine(spec);
+      setEngineSpec(spec);
+      setEngineDraft(spec);
       setEngineSaved(true);
       window.setTimeout(() => setEngineSaved(false), 2500);
     } catch (error: unknown) {
@@ -235,33 +267,63 @@ export function SettingsWindow() {
             out scripture references. Nothing is ever projected on its own — every
             detection waits for your approval in the studio panel.
           </p>
-          <label className="grid gap-1.5">
-            <span className="text-[10.5px] text-secondary">Engine command</span>
-            <input
-              type="text"
-              className="min-h-8 px-2.5 border border-[#35445C] rounded-md bg-app font-mono text-[11px] text-text select-text"
-              value={engineDraft}
-              spellCheck={false}
-              onChange={(event) => setEngineDraft(event.target.value)}
-              placeholder="whisper.tiny=C:\path\whisper-cli.exe -m model.bin -np -f {audio}"
-              aria-label="Speech engine command"
-            />
-          </label>
-          <p className="text-[#6F809B] text-[10px] leading-[1.6]">
-            Format: <code className="font-mono">name=binary args… {'{audio}'}</code> — the
-            placeholder receives a 16 kHz mono WAV of the chunk being analyzed.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-blue! bg-blue! text-white! rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
-              disabled={busy || engineDraft === engineSpec}
-              onClick={() => void saveEngine()}
-            >
-              Save engine
-            </button>
-            {engineSaved && <span className="text-[#6EE7C0] text-[10px]">Saved</span>}
-          </div>
+          {engines.length > 0 ? (
+            <label className="grid gap-1.5">
+              <span className="text-[10.5px] text-secondary">Speech engine</span>
+              <select
+                className="min-h-8 px-2.5 border border-[#35445C] rounded-md bg-app text-[11.5px] text-text"
+                value={!customEngine && engines.some((engine) => engine.spec === engineSpec) ? engineSpec : customEngine ? CUSTOM_ENGINE : ''}
+                disabled={busy}
+                onChange={(event) => void chooseEngine(event.target.value)}
+                aria-label="Speech engine"
+              >
+                <option value="" disabled>{engineSpec ? 'Engine not found on disk' : 'Choose an engine…'}</option>
+                {engines.map((engine) => (
+                  <option key={engine.spec} value={engine.spec}>{engine.label}</option>
+                ))}
+                <option value={CUSTOM_ENGINE}>Custom command…</option>
+              </select>
+            </label>
+          ) : (
+            <p className="text-[#6F809B] text-[10.5px] leading-[1.6]">
+              No speech engine was found on this computer. Download one with
+              {' '}<code className="font-mono">wails3 task asr:bench:fetch</code>, or point
+              the app at an engine you already have:
+            </p>
+          )}
+          {(customEngine || engines.length === 0) && (
+            <>
+              <label className="grid gap-1.5">
+                <span className="text-[10.5px] text-secondary">Engine command</span>
+                <input
+                  type="text"
+                  className="min-h-8 px-2.5 border border-[#35445C] rounded-md bg-app font-mono text-[11px] text-text select-text"
+                  value={engineDraft}
+                  spellCheck={false}
+                  onChange={(event) => setEngineDraft(event.target.value)}
+                  placeholder="whisper.tiny=C:\path\whisper-cli.exe -m model.bin -np -f {audio}"
+                  aria-label="Speech engine command"
+                />
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-blue! bg-blue! text-white! rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
+                  disabled={busy || engineDraft === engineSpec || engineDraft.trim() === ''}
+                  onClick={() => void saveEngine()}
+                >
+                  Save engine
+                </button>
+                {engineSaved && <span className="text-[#6EE7C0] text-[10px]">Saved</span>}
+              </div>
+            </>
+          )}
+          {!customEngine && engines.length > 0 && (
+            <p className="text-[#6F809B] text-[10px] leading-[1.6]">
+              Engines are found automatically in the app's benchmarks folder and the
+              engines folder in your data directory.
+            </p>
+          )}
         </section>
 
         <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-backups-title">

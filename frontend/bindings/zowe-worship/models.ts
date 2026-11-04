@@ -165,6 +165,15 @@ export interface EditorView {
     "title": string;
 }
 
+/**
+ * EngineOption is one speech engine discovered on this computer, ready to be
+ * selected in Settings without typing a path.
+ */
+export interface EngineOption {
+    "label": string;
+    "spec": string;
+}
+
 export interface LyricHitView {
     "songId": string;
     "songTitle": string;

@@ -202,6 +202,15 @@ export function ListBooks(): $CancellablePromise<$models.BibleBookView[] | null>
 }
 
 /**
+ * ListDetectionEngines scans the usual engine locations — the benchmarks
+ * folder beside the app in development and an engines folder under the data
+ * root — and returns every engine/model pair found there.
+ */
+export function ListDetectionEngines(): $CancellablePromise<$models.EngineOption[] | null> {
+    return $Call.ByID(3213204963);
+}
+
+/**
  * ListDetections returns the candidates waiting for a decision.
  */
 export function ListDetections(): $CancellablePromise<$models.DetectionView[] | null> {

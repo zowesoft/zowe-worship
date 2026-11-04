@@ -23,6 +23,7 @@ export type {
     DisplayView,
     EditSongRequest,
     EditorView,
+    EngineOption,
     LyricHitView,
     MediaImportResult,
     MediaView,
