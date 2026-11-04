@@ -15,6 +15,10 @@ export function SettingsWindow() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [versesPerSlide, setVersesPerSlide] = useState('one');
+  const [engineSpec, setEngineSpec] = useState('');
+  const [engineDraft, setEngineDraft] = useState('');
+  const [detectionDisabled, setDetectionDisabled] = useState(false);
+  const [engineSaved, setEngineSaved] = useState(false);
 
   useEffect(() => {
     App.GetStorage()
@@ -28,6 +32,16 @@ export function SettingsWindow() {
       .catch(() => {
         // An unreadable setting falls back to one verse per slide, which is what
         // the app uses when nothing has ever been written.
+      });
+
+    App.GetDetectionConfig()
+      .then((config) => {
+        setEngineSpec(config.engineSpec);
+        setEngineDraft(config.engineSpec);
+        setDetectionDisabled(config.disabled);
+      })
+      .catch(() => {
+        // Without the bridge the detection card simply shows its empty state.
       });
   }, []);
 
@@ -62,6 +76,35 @@ export function SettingsWindow() {
       setStorage(await App.SetDefaultTranslation(id));
     } catch (error: unknown) {
       setProblem(errorMessage(error));
+    }
+  }
+
+  async function saveEngine() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      await App.SetDetectionEngine(engineDraft);
+      setEngineSpec(engineDraft);
+      setEngineSaved(true);
+      window.setTimeout(() => setEngineSaved(false), 2500);
+    } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleDetectionDisabled() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const next = !detectionDisabled;
+      await App.SetDetectionDisabled(next);
+      setDetectionDisabled(next);
+    } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -171,6 +214,53 @@ export function SettingsWindow() {
             >
               Whole passage
             </button>
+          </div>
+        </section>
+
+        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-detection-title">
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="settings-detection-title">Live detection</h3>
+            <button
+              type="button"
+              className={`min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! ${detectionDisabled ? 'border-[#35445C] bg-elevated' : 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!'}`}
+              disabled={busy}
+              onClick={() => void toggleDetectionDisabled()}
+              title="F12 in the studio does the same thing without touching the live display"
+            >
+              {detectionDisabled ? 'Disabled (F12)' : 'Enabled'}
+            </button>
+          </div>
+          <p className="text-[#6F809B] text-[10.5px] leading-[1.6]">
+            The speech engine transcribes what the microphone hears and the detector pulls
+            out scripture references. Nothing is ever projected on its own — every
+            detection waits for your approval in the studio panel.
+          </p>
+          <label className="grid gap-1.5">
+            <span className="text-[10.5px] text-secondary">Engine command</span>
+            <input
+              type="text"
+              className="min-h-8 px-2.5 border border-[#35445C] rounded-md bg-app font-mono text-[11px] text-text select-text"
+              value={engineDraft}
+              spellCheck={false}
+              onChange={(event) => setEngineDraft(event.target.value)}
+              placeholder="whisper.tiny=C:\path\whisper-cli.exe -m model.bin -np -f {audio}"
+              aria-label="Speech engine command"
+            />
+          </label>
+          <p className="text-[#6F809B] text-[10px] leading-[1.6]">
+            Format: <code className="font-mono">name=binary args… {'{audio}'}</code> — the
+            placeholder receives a 16 kHz mono WAV of the chunk being analyzed.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-blue! bg-blue! text-white! rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
+              disabled={busy || engineDraft === engineSpec}
+              onClick={() => void saveEngine()}
+            >
+              Save engine
+            </button>
+            {engineSaved && <span className="text-[#6EE7C0] text-[10px]">Saved</span>}
           </div>
         </section>
 

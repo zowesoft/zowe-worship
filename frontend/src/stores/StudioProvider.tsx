@@ -57,6 +57,7 @@ type StudioValue = {
   previewItem: (itemID: string) => Promise<models.PresentationView>;
   previewScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
   projectScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
+  approveDetection: (id: string) => Promise<models.PresentationView>;
   deleteSong: (songID: string) => Promise<models.SongsView>;
   duplicateSong: (songID: string) => Promise<models.SongsView>;
   previewSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
@@ -236,6 +237,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     previewItem: (itemID) => run(() => App.PreviewServiceItem(itemID), setPresentationState),
     previewScripture: (input) => run(() => App.PreviewScripture(toRequest(input)), setPresentationState),
     projectScripture: (input) => run(() => App.ProjectScripture(toRequest(input)), setPresentationState),
+    approveDetection: (id) => run(() => App.ApproveDetection(id), setPresentationState),
     deleteSong: (songID) => run(() => App.DeleteSong(songID), setSongs),
     duplicateSong: (songID) => run(() => App.DuplicateSong(songID), setSongs),
     previewSongSection: (input) => run(() => App.PreviewSongSection(toSectionRequest(input)), setPresentationState),

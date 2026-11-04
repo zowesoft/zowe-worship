@@ -8,6 +8,7 @@ import type { IconName } from '../components/Icon';
 import { SlideMedia } from '../components/SlideMedia';
 import { ThemedSlide } from '../components/ThemedSlide';
 import { useStudio } from '../stores/StudioProvider';
+import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import { App } from '../../bindings/zowe-worship';
 import * as models from '../../bindings/zowe-worship/models';
@@ -601,58 +602,156 @@ function PresentationPanes() {
 }
 
 function DetectionPanel() {
+  const detection = useDetection();
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function run(action: () => Promise<unknown>) {
+    setProblem(null);
+    try {
+      await action();
+    } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    }
+  }
+
+  const status = detection.disabled
+    ? 'Emergency disabled'
+    : detection.listening
+      ? 'Listening'
+      : detection.engineConfigured
+        ? 'Ready'
+        : 'No engine';
+
+  const statusTone = detection.disabled
+    ? 'border-[#4D3F1E]! bg-[#2B2413]! text-amber!'
+    : detection.listening
+      ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!'
+      : 'border-[#2A3950]! bg-elevated! text-secondary!';
+
+  const deviceLabel = detection.listening
+    ? (detection.devices.find((device) => device.deviceId === detection.deviceId)?.label
+      || detection.devices[0]?.label
+      || 'Default microphone')
+    : 'Not listening';
+
   return (
     <aside className="min-w-0 bg-panel border border-border rounded-[10px]" aria-labelledby="detection-panel-title">
       <div className="min-h-11 px-3.5 py-2.5 flex items-center justify-between gap-2.5 border-b border-border">
         <h2 id="detection-panel-title" className="text-[11px] flex items-center gap-[7px] uppercase tracking-[0.7px] text-secondary [&_svg]:text-secondary"><Icon name="detection" size={16} />AI Scripture Detection</h2>
-        <span className="inline-flex px-2 py-[3px] border border-[#2A3950]! rounded-[5px] bg-elevated! text-secondary! text-[9.5px] font-medium whitespace-nowrap">Scaffold</span>
+        <span className={`inline-flex px-2 py-[3px] border rounded-[5px] text-[9.5px] font-medium whitespace-nowrap ${statusTone}`}>{status}</span>
       </div>
 
       <div className="grid gap-3 p-3.5">
         <div className="flex items-center gap-2 text-secondary">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-secondary shrink-0" />
-          <strong className="text-text text-[10.5px] font-medium">Not listening</strong>
-          <Icon name="detection" size={22} className="ml-auto text-teal opacity-[.65]" />
+          <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${detection.listening ? 'bg-[#6EE7C0]' : 'bg-secondary'}`} />
+          <strong className="text-text text-[10.5px] font-medium">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered` : 'Not listening'}</strong>
+          <Icon name="detection" size={22} className={`ml-auto ${detection.listening ? 'text-teal' : 'text-teal opacity-[.65]'}`} />
         </div>
 
-        <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30]">
-          <span className="inline-grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg"><Icon name="mic" size={18} /></span>
-          <div className="flex flex-col gap-px min-w-0"><span className="text-secondary text-[9.5px]">Audio input</span><strong className="text-[11px] font-medium">Not configured</strong></div>
-          <Icon name="chevron" size={14} className="ml-auto text-secondary" />
+        <div className="grid gap-2">
+          <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30]">
+            <span className="inline-grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg"><Icon name="mic" size={18} /></span>
+            <div className="flex flex-col gap-px min-w-0">
+              <span className="text-secondary text-[9.5px]">Audio input</span>
+              <strong className="text-[11px] font-medium truncate">{deviceLabel}</strong>
+            </div>
+            <span className="ml-auto inline-grid place-items-center w-14 h-1.5 rounded-full bg-[#1A2740] overflow-hidden" aria-hidden="true">
+              <span className="h-full rounded-full bg-[#6EE7C0] transition-[width] duration-100" style={{ width: `${Math.round(detection.level * 100)}%` }} />
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`min-h-7 inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1 border rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! ${detection.listening ? 'border-[#35445C] bg-elevated' : 'border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!'}`}
+              onClick={() => void run(detection.toggleListening)}
+            >
+              <Icon name={detection.listening ? 'pause' : 'mic'} size={13} />
+              {detection.listening ? 'Stop listening' : 'Listen (F8)'}
+            </button>
+            <button
+              type="button"
+              className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]!"
+              disabled={!detection.listening || detection.analyzing || detection.disabled}
+              onClick={() => void run(detection.analyze)}
+            >
+              {detection.analyzing ? 'Analyzing…' : `Analyze last ${ANALYZE_SECONDS} s`}
+            </button>
+          </div>
+          {detection.devices.length > 1 && (
+            <select
+              className="min-h-7 px-2 border border-[#35445C] rounded-md bg-app text-[10.5px] text-text"
+              value={detection.deviceId}
+              onChange={(event) => detection.setDevice(event.target.value)}
+              aria-label="Audio input device"
+            >
+              <option value="">Default microphone</option>
+              {detection.devices.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="transcript-title">
           <div className="flex items-center justify-between gap-2">
             <h3 id="transcript-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Current transcript</h3>
-            <span className="text-secondary text-[9.5px]">00:00</span>
           </div>
-          <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">No transcript. Audio capture and speech recognition are not implemented.</p>
-        </section>
-
-        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="candidate-title">
-          <div className="flex items-center justify-between gap-2"><h3 id="candidate-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Candidate</h3></div>
-          <div className="grid justify-items-center gap-1.5 p-[18px] px-3 border border-dashed border-border rounded-[7px] bg-app text-secondary text-center [&_svg]:opacity-65 [&_p]:text-[10px] [&_p]:leading-[1.6] [&_p]:max-w-[230px]">
-            <Icon name="bible" size={22} />
-            <p>No scripture candidates. Detected references will be reviewed here.</p>
-          </div>
+          {detection.transcript ? (
+            <p className="p-2.5 border border-border rounded-md bg-app text-text text-[10px] leading-[1.6] select-text">{detection.transcript}</p>
+          ) : (
+            <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">
+              {detection.listening ? 'Nothing analyzed yet. Let the preacher name a verse, then analyze.' : 'Start listening, then analyze a chunk to transcribe it.'}
+            </p>
+          )}
         </section>
 
         <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="queue-title">
           <div className="flex items-center justify-between gap-2">
             <h3 id="queue-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Pending queue</h3>
-            <span className="inline-grid place-items-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-elevated text-[9.5px]">0</span>
+            <span className="inline-grid place-items-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-elevated text-[9.5px]">{detection.candidates.length}</span>
+            {detection.candidates.length > 0 && (
+              <button type="button" className="text-secondary text-[9.5px] hover:text-text" onClick={() => void run(detection.clear)}>Clear all</button>
+            )}
           </div>
-          <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">Nothing waiting for confirmation.</p>
+          {detection.candidates.length === 0 ? (
+            <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">Nothing waiting for confirmation.</p>
+          ) : (
+            <ul className="m-0 p-0 list-none grid gap-1.5">
+              {detection.candidates.map((candidate) => (
+                <li key={candidate.id} className="grid gap-1.5 p-2.5 border border-border rounded-[7px] bg-app">
+                  <div className="flex items-baseline gap-2 min-w-0">
+                    <Icon name="bible" size={14} className="text-[#B3A4FF] shrink-0 translate-y-px" />
+                    <strong className="text-[11.5px] font-semibold truncate">{candidate.reference}</strong>
+                    <span className="ml-auto text-secondary text-[9.5px] whitespace-nowrap">{candidate.createdAt}</span>
+                  </div>
+                  <p className="text-secondary text-[9.5px] leading-[1.5] line-clamp-2">“{candidate.transcript}”</p>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      className="min-h-7 inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1 border border-blue! bg-blue! text-white! rounded-md text-[10.5px] font-medium whitespace-nowrap not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
+                      onClick={() => void run(() => detection.approve(candidate.id))}
+                    >
+                      <Icon name="check" size={12} />Approve to preview
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-7 inline-flex items-center justify-center px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap"
+                      onClick={() => void run(() => detection.dismiss(candidate.id))}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
-        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="recent-title">
-          <div className="flex items-center justify-between gap-2"><h3 id="recent-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Recent detections</h3></div>
-          <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">No detections yet.</p>
-        </section>
+        {problem !== null && <p className="text-error text-[10.5px] leading-[1.5]" role="alert">{problem}</p>}
 
         <div className="flex items-start gap-2 text-secondary">
           <Icon name="bible" size={16} className="text-[#B3A4FF] mt-0.5" />
-          <p className="text-[10px] leading-[1.6]">Scripture first. Nothing is detected or projected automatically in this build.</p>
+          <p className="text-[10px] leading-[1.6]">Scripture first. A candidate is a suggestion: approving it fills the preview, and you send it live yourself.</p>
         </div>
       </div>
     </aside>
@@ -762,6 +861,11 @@ function WorkspaceTabs({ activePage, onNavigate }: {
   );
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 function isTextInput(element: Element | null): boolean {
   if (!element) return false;
   const tagName = element.tagName.toLowerCase();
@@ -782,6 +886,7 @@ export function AppShell({ activePage, onNavigate, children }: {
   const activeLabel = navigation.find((item) => item.id === activePage)?.label ?? 'Bible';
   const workspaceRef = useRef<HTMLDivElement>(null);
   const studio = useStudio();
+  const detection = useDetection();
   const [shortcutNotice, setShortcutNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
@@ -789,6 +894,17 @@ export function AppShell({ activePage, onNavigate, children }: {
     if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
     setShortcutNotice(msg);
     noticeTimer.current = window.setTimeout(() => setShortcutNotice(null), 3000);
+  }
+
+  // Shortcut actions report their failure through the same notice bar, since
+  // there is no panel under the operator's fingers when a key is pressed.
+  async function run(action: () => Promise<unknown>, ok?: () => void) {
+    try {
+      await action();
+      ok?.();
+    } catch (error: unknown) {
+      flashNotice(errorMessage(error));
+    }
   }
 
   useEffect(() => {
@@ -823,21 +939,33 @@ export function AppShell({ activePage, onNavigate, children }: {
       // F8: Start/stop scripture listening
       if (event.key === 'F8') {
         event.preventDefault();
-        flashNotice('Scripture listening is offline (speech model pending)');
+        if (detection.disabled) {
+          flashNotice('Detection is disabled — re-enable it in Settings');
+          return;
+        }
+        if (detection.listening) {
+          void detection.toggleListening();
+          flashNotice('Stopped listening for scripture');
+        } else {
+          void run(() => detection.toggleListening(), () => flashNotice('Listening for scripture references'));
+        }
         return;
       }
 
       // F9: Pause/resume automatic projection
       if (event.key === 'F9') {
         event.preventDefault();
-        flashNotice('Automatic projection is paused');
+        flashNotice('Automatic projection is not implemented — nothing to pause');
         return;
       }
 
-      // F12: Emergency disable automatic projection (per PRD: must not blank audience display)
+      // F12: Emergency disable detection (per PRD: must not blank audience display)
       if (event.key === 'F12') {
         event.preventDefault();
-        flashNotice('Emergency auto-projection disabled (live display preserved)');
+        void run(() => App.SetDetectionDisabled(true), () => {
+          void detection.refresh();
+          flashNotice('Emergency: detection disabled (live display preserved)');
+        });
         return;
       }
 
@@ -865,7 +993,7 @@ export function AppShell({ activePage, onNavigate, children }: {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [studio, onNavigate]);
+  }, [studio, detection, onNavigate]);
 
   useEffect(() => {
     workspaceRef.current?.scrollTo({ top: 0 });
