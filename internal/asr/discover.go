@@ -55,7 +55,10 @@ func DiscoverEngines(roots ...string) []DiscoveredEngine {
 			switch {
 			case name == "whisper-cli.exe" || name == "whisper-cli":
 				whisperBins = append(whisperBins, path)
-			case strings.HasPrefix(name, "sherpa-onnx-offline"):
+			// Exact names only: the sherpa-onnx bin folder also holds
+			// sherpa-onnx-offline-audio-tagging, -tts, -punctuation and
+			// friends, which accept entirely different flags.
+			case name == "sherpa-onnx-offline.exe" || name == "sherpa-onnx-offline":
 				sherpaBins = append(sherpaBins, path)
 			case strings.HasPrefix(name, "ggml-") && strings.HasSuffix(name, ".bin"),
 				strings.HasSuffix(name, ".ggml"):
