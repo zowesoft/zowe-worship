@@ -22,7 +22,17 @@ type fakeScripture struct {
 
 func (f *fakeScripture) Passage(_ context.Context, _ string, _, _, startVerse, endVerse int) ([]bible.SearchResult, error) {
 	f.lastStart, f.lastEnd = startVerse, endVerse
-	return f.verses, f.err
+	if f.err != nil {
+		return nil, f.err
+	}
+	// Mirror the real repository: only the requested range comes back.
+	var filtered []bible.SearchResult
+	for _, verse := range f.verses {
+		if verse.Verse >= startVerse && verse.Verse <= endVerse {
+			filtered = append(filtered, verse)
+		}
+	}
+	return filtered, nil
 }
 
 func (f *fakeScripture) Translation(context.Context, string) (bible.Translation, error) {
@@ -578,7 +588,11 @@ func TestCustomSlideKinds(t *testing.T) {
 func TestOneVersePerSlideWalksThePassage(t *testing.T) {
 	ctx := context.Background()
 	scripture := &fakeScripture{
-		verses:      []bible.SearchResult{johnVerse()},
+		verses: []bible.SearchResult{
+			{Book: bible.Book{ID: 43, Name: "John", Abbreviation: "John", Testament: bible.NewTestament}, Chapter: 3, Verse: 16, Text: "For God so loved the world."},
+			{Book: bible.Book{ID: 43, Name: "John", Abbreviation: "John", Testament: bible.NewTestament}, Chapter: 3, Verse: 17, Text: "For God sent not his Son into the world to condemn the world."},
+			{Book: bible.Book{ID: 43, Name: "John", Abbreviation: "John", Testament: bible.NewTestament}, Chapter: 3, Verse: 18, Text: "He that believeth on him is not condemned."},
+		},
 		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
 	}
 	controller := New(scripture, &fakeSchedule{}, nil, nil, bright())
