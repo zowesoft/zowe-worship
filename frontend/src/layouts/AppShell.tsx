@@ -677,6 +677,21 @@ function DetectionPanel() {
               {detection.analyzing ? 'Analyzing…' : `Analyze last ${ANALYZE_SECONDS} s`}
             </button>
           </div>
+          <label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV">
+            <Icon name="play" size={13} />
+            {detection.analyzing ? 'Analyzing…' : 'Test audio file…'}
+            <input
+              type="file"
+              accept="audio/*,.mp3,.m4a,.wav,.ogg"
+              className="sr-only"
+              disabled={detection.analyzing || detection.disabled}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (file) void run(() => detection.analyzeFile(file));
+              }}
+            />
+          </label>
           {detection.devices.length > 1 && (
             <select
               className="min-h-7 w-full min-w-0 px-2 border border-[#35445C] rounded-md bg-app text-[10.5px] text-text truncate"

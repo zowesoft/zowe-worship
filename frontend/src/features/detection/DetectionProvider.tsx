@@ -5,6 +5,7 @@ import * as models from '../../../bindings/zowe-worship/models';
 import { useStudio } from '../../stores/StudioProvider';
 import { MicCapture, listAudioInputs, toBase64 } from './mic';
 import type { AudioInput } from './mic';
+import { decodeAudioFile } from './audioFile';
 
 // How much audio one "analyze" request transcribes. Twenty seconds holds a
 // spoken reference plus the sentence around it without making the engine
@@ -25,6 +26,7 @@ type DetectionValue = {
   setDevice: (deviceID: string) => void;
   toggleListening: () => Promise<void>;
   analyze: () => Promise<void>;
+  analyzeFile: (file: File) => Promise<void>;
   approve: (id: string) => Promise<void>;
   dismiss: (id: string) => Promise<void>;
   clear: () => Promise<void>;
@@ -129,6 +131,23 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     }
   }, [analyzing]);
 
+  // analyzeFile runs a recording through the same pipeline as a captured
+  // chunk, so generated or downloaded audio can test detection without a
+  // microphone.
+  const analyzeFile = useCallback(async (file: File) => {
+    if (analyzing) return;
+    setAnalyzing(true);
+    try {
+      const pcm = await decodeAudioFile(file);
+      setBufferedSeconds(pcm.length / 16000);
+      const result = await App.DetectScripture(toBase64(pcm));
+      setTranscript(result.transcript);
+      setCandidates((await App.ListDetections()) ?? []);
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [analyzing]);
+
   const approve = useCallback(async (id: string) => {
     // Approval previews the passage through the studio, exactly like a manual
     // preview; sending it live stays a separate operator action.
@@ -163,6 +182,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     setDevice: setDeviceId,
     toggleListening,
     analyze,
+    analyzeFile,
     approve,
     dismiss,
     clear,
@@ -171,7 +191,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     },
   }), [
     listening, devices, deviceId, level, transcript, candidates, analyzing, disabled,
-    engineConfigured, bufferedSeconds, toggleListening, analyze, approve, dismiss, clear,
+    engineConfigured, bufferedSeconds, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
     refreshConfig, refreshQueue,
   ]);
 
