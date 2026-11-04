@@ -228,6 +228,18 @@ export interface PresentationView {
     "live"?: presentation$0.Content | null;
 }
 
+/**
+ * ProjectionView is one past projection for the history panel.
+ */
+export interface ProjectionView {
+    "id": string;
+    "kind": string;
+    "title": string;
+    "label": string;
+    "source": string;
+    "projectedAt": string;
+}
+
 export interface SaveArrangementRequest {
     "arrangementId": string;
     "songId": string;

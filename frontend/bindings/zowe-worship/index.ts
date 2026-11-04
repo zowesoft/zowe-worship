@@ -30,6 +30,7 @@ export type {
     NewSongRequest,
     NewSongSectionRequest,
     PresentationView,
+    ProjectionView,
     SaveArrangementRequest,
     ScreenOption,
     ScriptureRequest,

@@ -221,7 +221,7 @@ func (a *App) ProjectMedia(mediaID string) (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	return a.applied(a.presentation.ProjectMedia(a.context(), strings.TrimSpace(mediaID)))
+	return a.projected(a.presentation.ProjectMedia(a.context(), strings.TrimSpace(mediaID)))
 }
 
 func (a *App) mediaViews(ctx context.Context) ([]MediaView, error) {

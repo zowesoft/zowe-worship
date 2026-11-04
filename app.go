@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/database"
 	"zowe-worship/internal/detection"
+	"zowe-worship/internal/history"
 	"zowe-worship/internal/media"
 	"zowe-worship/internal/presentation"
 	"zowe-worship/internal/scripture"
@@ -38,6 +40,7 @@ type App struct {
 	settings      *settings.Store
 	presentation  *presentation.Controller
 	detection     *detection.Queue
+	history       *history.Log
 	display       application.Window
 	displayScreen ScreenOption
 }
@@ -144,6 +147,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.settings = settings.New(core)
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
 	a.detection = detection.New(core)
+	a.history = history.New(core)
 	return nil
 }
 
@@ -613,6 +617,44 @@ func (a *App) applied(state presentation.State, err error) (PresentationView, er
 	return presentationView(state), err
 }
 
+// projected is applied for the commands that put something on the wall, so the
+// audit row and the audience update cannot drift apart. Preview commands keep
+// using applied: browsing the schedule must not fill up the history.
+func (a *App) projected(state presentation.State, err error) (PresentationView, error) {
+	if err == nil {
+		a.recordProjection(state)
+	}
+	return a.applied(state, err)
+}
+
+// recordProjection writes one audit row for a live change. Clearing is recorded
+// too: "the screen went dark at 10:14" is as much a part of reconstructing a
+// service as what was on it. A failure is logged and swallowed, because the
+// slide is already live and losing the audit row must not undo the operator's
+// click.
+func (a *App) recordProjection(state presentation.State) {
+	if a.history == nil {
+		return
+	}
+
+	entry := history.Entry{Source: history.SourceManual}
+	if state.Live == nil {
+		entry.Kind = history.KindClear
+		entry.Title = "Screen cleared"
+	} else {
+		entry.Kind = state.Live.Kind
+		entry.Title = state.Live.Title
+		entry.Label = state.Live.Label
+		// Empty for something projected ad hoc from the Bible or media tab; a
+		// later restore slice uses it to put the same schedule item back up.
+		entry.Payload = state.Live.ItemID
+	}
+
+	if err := a.history.Record(a.context(), entry); err != nil {
+		log.Printf("zowe: record projection: %v", err)
+	}
+}
+
 func (a *App) GetPresentationState() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
@@ -641,7 +683,7 @@ func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, erro
 	if err != nil {
 		return PresentationView{}, err
 	}
-	return a.applied(a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
+	return a.projected(a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
 		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd,
 		a.oneVersePerSlide(a.context())))
 }
@@ -657,14 +699,21 @@ func (a *App) SendPreviewLive() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	return a.applied(a.presentation.ProjectPreview())
+	return a.projected(a.presentation.ProjectPreview())
 }
 
 func (a *App) ClearLive() (PresentationView, error) {
 	if a.presentation == nil {
 		return PresentationView{}, errStorageUnavailable
 	}
-	return a.applied(a.presentation.ClearLive(), nil)
+	// Taking an already-dark screen down again changes nothing, so it is not an
+	// event; without this a double-tap reads as the room going dark twice.
+	wasLive := a.presentation.State().Live != nil
+	state := a.presentation.ClearLive()
+	if !wasLive {
+		return a.applied(state, nil)
+	}
+	return a.projected(state, nil)
 }
 
 func (a *App) NextServiceItem() (PresentationView, error) {
@@ -679,6 +728,44 @@ func (a *App) PreviousServiceItem() (PresentationView, error) {
 		return PresentationView{}, errStorageUnavailable
 	}
 	return a.applied(a.presentation.Previous(a.context()))
+}
+
+// ProjectionView is one past projection for the history panel.
+type ProjectionView struct {
+	ID          string `json:"id"`
+	Kind        string `json:"kind"`
+	Title       string `json:"title"`
+	Label       string `json:"label"`
+	Source      string `json:"source"`
+	ProjectedAt string `json:"projectedAt"`
+}
+
+// historyLimit keeps the panel useful without letting a long service pull an
+// unbounded list across the bridge every time it refreshes.
+const historyLimit = 50
+
+func (a *App) RecentProjections() ([]ProjectionView, error) {
+	if a.history == nil {
+		return []ProjectionView{}, errStorageUnavailable
+	}
+
+	entries, err := a.history.Recent(a.context(), historyLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	views := make([]ProjectionView, 0, len(entries))
+	for _, entry := range entries {
+		views = append(views, ProjectionView{
+			ID:          entry.ID,
+			Kind:        entry.Kind,
+			Title:       entry.Title,
+			Label:       entry.Label,
+			Source:      entry.Source,
+			ProjectedAt: entry.ProjectedAt.Format(time.RFC3339),
+		})
+	}
+	return views, nil
 }
 
 func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {
@@ -1048,7 +1135,7 @@ func (a *App) ProjectSongSection(request SongSectionRequest) (PresentationView, 
 		return PresentationView{}, err
 	}
 	state, err := a.presentation.ProjectSongSection(a.context(), songID, sectionID)
-	return a.applied(state, err)
+	return a.projected(state, err)
 }
 
 func (a *App) AddSongSectionToService(request SongSectionRequest) (ServiceOrderView, error) {

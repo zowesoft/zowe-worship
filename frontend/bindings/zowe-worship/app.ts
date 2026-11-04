@@ -376,6 +376,10 @@ export function ProjectSongSection(request: $models.SongSectionRequest): $Cancel
     return $Call.ByID(2112940354, request);
 }
 
+export function RecentProjections(): $CancellablePromise<$models.ProjectionView[] | null> {
+    return $Call.ByID(3667402832);
+}
+
 /**
  * RelinkMedia adopts a new copy of a file the library lost, then returns the
  * whole grid so the tile stops saying Missing.
