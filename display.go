@@ -167,11 +167,22 @@ func (a *App) displayView() DisplayView {
 // are swallowed on purpose: the studio must keep working if a projector is
 // unplugged mid-service.
 func (a *App) publishToDisplay(state presentation.State) {
-	if a.display == nil || a.presentation == nil {
+	if a.presentation == nil {
 		return
 	}
-	a.display.DispatchWailsEvent(&application.CustomEvent{
-		Name: AudienceEvent,
-		Data: PresentationView{Preview: state.Preview, Live: state.Live},
-	})
+	payload := PresentationView{Preview: state.Preview, Live: state.Live}
+
+	// The studio follows the same event as the projector, so a change that did not
+	// come from one of its own buttons — a theme edit in its own window, say —
+	// still appears in the preview pane.
+	if desktop := application.Get(); desktop != nil {
+		if studio, ok := desktop.Window.GetByName(studioWindow); ok {
+			studio.DispatchWailsEvent(&application.CustomEvent{Name: AudienceEvent, Data: payload})
+		}
+	}
+
+	if a.display == nil {
+		return
+	}
+	a.display.DispatchWailsEvent(&application.CustomEvent{Name: AudienceEvent, Data: payload})
 }

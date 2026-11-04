@@ -44,16 +44,16 @@ export function BackendStatus() {
           : { kind: 'connecting' };
 
   return (
-    <section className={`backend-status backend-status--${bridge.kind}`} aria-label="Application environment" aria-live="polite" aria-atomic="true">
-      <div className="status-line"><span className="status-dot" />
-        <strong>
+    <section className="py-3.5 px-2 border-t border-border" aria-label="Application environment" aria-live="polite" aria-atomic="true">
+      <div className={`flex gap-[7px] items-center ${bridge.kind === 'error' ? ' text-error' : ''}`}><span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${bridge.kind === 'connected' ? 'bg-teal' : bridge.kind === 'error' ? 'bg-error' : bridge.kind === 'connecting' ? 'bg-amber' : 'bg-secondary'}`} />
+        <strong className="text-[10.5px] font-medium">
           {bridge.kind === 'browser' && 'Browser preview'}
           {bridge.kind === 'connecting' && 'Connecting to desktop…'}
           {bridge.kind === 'connected' && 'Desktop bridge connected'}
           {bridge.kind === 'error' && 'Desktop bridge error'}
         </strong>
       </div>
-      <p>
+      <p className="mt-[5px] pl-[13px] text-secondary text-[10px] leading-[1.6] wrap-anywhere">
         {bridge.kind === 'browser' && (studio.error ?? 'Desktop bridge unavailable in this browser.')}
         {bridge.kind === 'connecting' && 'Reading application information.'}
         {bridge.kind === 'connected' && `${bridge.name} · v${bridge.version}`}

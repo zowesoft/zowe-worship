@@ -13,6 +13,23 @@ const (
 	// KeyDefaultTranslation is the translation ID shown when no other choice is
 	// active, e.g. "kjv". Empty string means "use the first installed one".
 	KeyDefaultTranslation = "default_translation_id"
+
+	// KeyVersesPerSlide decides how a multi-verse passage becomes slides. "one"
+	// gives every verse its own slide, which is the default because a wall-sized
+	// verse is what an operator projects most often; "all" keeps the passage
+	// together on one slide.
+	KeyVersesPerSlide = "scripture_verses_per_slide"
+
+	// KeyAsrEngine is the engine spec Live Detection transcribes with, in the
+	// same "name=bin args {audio}" form the benchmark harness parses. Empty
+	// means no engine is configured yet and detection reports that instead of
+	// guessing an executable.
+	KeyAsrEngine = "asr_engine_spec"
+
+	// KeyDetectionDisabled is the F12 emergency switch: "true" stops new
+	// detections from being processed. It never touches the audience display —
+	// per the PRD the operator, not the shortcut, decides what is on air.
+	KeyDetectionDisabled = "detection_disabled"
 )
 
 // ErrNotFound is returned when a key has never been written.

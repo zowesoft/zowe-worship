@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Events } from '@wailsio/runtime';
 import { App } from '../../bindings/zowe-worship';
 import * as models from '../../bindings/zowe-worship/models';
 import type { Aspect } from '../../bindings/zowe-worship/internal/media/models';
@@ -56,10 +57,13 @@ type StudioValue = {
   previewItem: (itemID: string) => Promise<models.PresentationView>;
   previewScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
   projectScripture: (input: ScriptureInput) => Promise<models.PresentationView>;
+  approveDetection: (id: string) => Promise<models.PresentationView>;
   deleteSong: (songID: string) => Promise<models.SongsView>;
+  duplicateSong: (songID: string) => Promise<models.SongsView>;
   previewSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
   projectSongSection: (input: SongSectionInput) => Promise<models.PresentationView>;
   addSongSectionToService: (input: SongSectionInput) => Promise<models.ServiceOrderView>;
+  addSongArrangementToService: (songID: string, arrangementID: string) => Promise<models.ServiceOrderView>;
   sendPreviewLive: () => Promise<models.PresentationView>;
   clearLive: () => Promise<models.PresentationView>;
   nextItem: () => Promise<models.PresentationView>;
@@ -145,6 +149,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // The app republishes the slide pair whenever anything changes it, including a
+  // theme edited in its own window, so the studio never shows a stale preview.
+  useEffect(() => Events.On('presentation', (event) => {
+    setPresentationState(event.data as models.PresentationView);
+  }), []);
+
   const run = useCallback(async <T,>(action: () => Promise<T>, apply?: (value: T) => void): Promise<T> => {
     try {
       const value = await action();
@@ -227,10 +237,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     previewItem: (itemID) => run(() => App.PreviewServiceItem(itemID), setPresentationState),
     previewScripture: (input) => run(() => App.PreviewScripture(toRequest(input)), setPresentationState),
     projectScripture: (input) => run(() => App.ProjectScripture(toRequest(input)), setPresentationState),
+    approveDetection: (id) => run(() => App.ApproveDetection(id), setPresentationState),
     deleteSong: (songID) => run(() => App.DeleteSong(songID), setSongs),
+    duplicateSong: (songID) => run(() => App.DuplicateSong(songID), setSongs),
     previewSongSection: (input) => run(() => App.PreviewSongSection(toSectionRequest(input)), setPresentationState),
     projectSongSection: (input) => run(() => App.ProjectSongSection(toSectionRequest(input)), setPresentationState),
     addSongSectionToService: (input) => run(() => App.AddSongSectionToService(toSectionRequest(input)), setOrder),
+    addSongArrangementToService: (songID, arrangementID) => run(
+      () => App.AddSongArrangementToService({ songId: songID, arrangementId: arrangementID }),
+      setOrder,
+    ),
     sendPreviewLive: () => run(App.SendPreviewLive, setPresentationState),
     clearLive: () => run(App.ClearLive, setPresentationState),
     nextItem: () => run(App.NextServiceItem, setPresentationState),

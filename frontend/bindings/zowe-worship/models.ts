@@ -13,6 +13,22 @@ export interface AppInfo {
     "version": string;
 }
 
+export interface ArrangementItemView {
+    "id": string;
+    "sectionId": string;
+    "position": number;
+    "label": string;
+    "text": string;
+}
+
+export interface ArrangementView {
+    "id": string;
+    "songId": string;
+    "name": string;
+    "isDefault": boolean;
+    "items": ArrangementItemView[] | null;
+}
+
 export interface BackupView {
     "name": string;
     "sizeBytes": number;
@@ -90,6 +106,41 @@ export interface CustomItemRequest {
     "duration": number;
 }
 
+/**
+ * DetectionConfigView is the Live Detection settings card: which engine
+ * transcribes and whether the emergency switch is on.
+ */
+export interface DetectionConfigView {
+    "engineSpec": string;
+    "disabled": boolean;
+}
+
+/**
+ * DetectionResult answers one analyze request: what was heard and what the
+ * detector made of it. The transcript is returned even when nothing was
+ * detected, so the panel can show why the queue stayed empty.
+ */
+export interface DetectionResult {
+    "transcript": string;
+    "candidates": DetectionView[] | null;
+}
+
+/**
+ * DetectionView is one candidate in the approval queue. The reference fields
+ * mirror ScriptureRequest so the frontend can preview the passage without a
+ * second lookup.
+ */
+export interface DetectionView {
+    "id": string;
+    "transcript": string;
+    "reference": string;
+    "bookId": number;
+    "chapter": number;
+    "verseStart": number;
+    "verseEnd": number;
+    "createdAt": string;
+}
+
 export interface DisplayView {
     "open": boolean;
     "screenId": string;
@@ -101,6 +152,8 @@ export interface EditSongRequest {
     "title": string;
     "author": string;
     "copyright": string;
+    "ccliNumber": string;
+    "source": string;
     "sections": SongSectionEdit[] | null;
 }
 
@@ -117,6 +170,8 @@ export interface LyricHitView {
     "songTitle": string;
     "author": string;
     "copyright": string;
+    "ccliNumber": string;
+    "source": string;
     "sectionId": string;
     "label": string;
     "text": string;
@@ -149,6 +204,8 @@ export interface NewSongRequest {
     "title": string;
     "author": string;
     "copyright": string;
+    "ccliNumber": string;
+    "source": string;
     "sections": NewSongSectionRequest[] | null;
 }
 
@@ -160,6 +217,14 @@ export interface NewSongSectionRequest {
 export interface PresentationView {
     "preview"?: presentation$0.Content | null;
     "live"?: presentation$0.Content | null;
+}
+
+export interface SaveArrangementRequest {
+    "arrangementId": string;
+    "songId": string;
+    "name": string;
+    "isDefault": boolean;
+    "sectionIds": string[] | null;
 }
 
 export interface ScreenOption {
@@ -214,6 +279,11 @@ export interface ServiceView {
     "name": string;
 }
 
+export interface SongArrangementRequest {
+    "songId": string;
+    "arrangementId": string;
+}
+
 export interface SongSectionEdit {
     "id": string;
     "label": string;
@@ -237,7 +307,10 @@ export interface SongView {
     "title": string;
     "author": string;
     "copyright": string;
+    "ccliNumber": string;
+    "source": string;
     "sections": SongSectionView[] | null;
+    "arrangements": ArrangementView[] | null;
 }
 
 export interface SongsView {

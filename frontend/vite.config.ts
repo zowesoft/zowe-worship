@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import wails from '@wailsio/runtime/plugins/vite'
 
 export default defineConfig({
-  plugins: [react(), wails('./bindings')],
+  plugins: [tailwindcss(), react(), wails('./bindings')],
   clearScreen: false,
   server: {
     host: '127.0.0.1',

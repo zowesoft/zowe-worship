@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Window } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import { Icon } from '../../components/Icon';
-import './song-editor.css';
 
 type Draft = {
   id: string;
@@ -22,6 +21,8 @@ export function SongEditorWindow({ songID }: { songID: string }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [copyright, setCopyright] = useState('');
+  const [ccliNumber, setCcliNumber] = useState('');
+  const [source, setSource] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([emptyDraft()]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -40,6 +41,8 @@ export function SongEditorWindow({ songID }: { songID: string }) {
         setTitle(song.title);
         setAuthor(song.author);
         setCopyright(song.copyright);
+        setCcliNumber(song.ccliNumber ?? '');
+        setSource(song.source ?? '');
         setDrafts((song.sections ?? []).map((section) => ({
           id: section.id, label: section.label, text: section.text,
         })));
@@ -67,10 +70,10 @@ export function SongEditorWindow({ songID }: { songID: string }) {
         label: draft.label, text: draft.text, id: draft.id,
       }));
       if (editing) {
-        await App.UpdateSong({ id: songID, title, author, copyright, sections });
+        await App.UpdateSong({ id: songID, title, author, copyright, ccliNumber, source, sections });
       } else {
         await App.CreateSong({
-          title, author, copyright,
+          title, author, copyright, ccliNumber, source,
           sections: sections.map(({ label, text }) => ({ label, text })),
         });
       }
@@ -90,18 +93,18 @@ export function SongEditorWindow({ songID }: { songID: string }) {
     && drafts.every((draft) => draft.label.trim() !== '' && draft.text.trim() !== '');
 
   return (
-    <main className="song-editor" aria-label={editing ? `Edit ${title || 'song'}` : 'New song'}>
-      <header className="song-editor-header">
+    <main className="grid grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] gap-3.5 h-full pt-3.5 px-4 pb-4 overflow-hidden" aria-label={editing ? `Edit ${title || 'song'}` : 'New song'}>
+      <header className="flex items-start justify-between gap-3 [&_h2]:truncate [&_h2]:text-[17px] [&_h2]:font-semibold [&_h2]:mt-[3px]">
         <div>
-          <p className="eyebrow">{editing ? 'Edit song' : 'New song'}</p>
+          <p className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">{editing ? 'Edit song' : 'New song'}</p>
           <h2>{title.trim() || 'Untitled song'}</h2>
         </div>
-        <button type="button" className="icon-button" onClick={() => Window.Close()} aria-label="Close editor" title="Close">
+        <button type="button" className="inline-grid place-items-center w-[34px] h-[34px] border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50" onClick={() => Window.Close()} aria-label="Close editor" title="Close">
           <Icon name="close" size={16} />
         </button>
       </header>
 
-      <div className="song-editor-fields">
+      <div className="grid grid-cols-[2fr_1fr_1fr] gap-2.5 [&>label]:grid [&>label]:gap-1 [&>label]:min-w-0 [&_span]:text-secondary [&_span]:text-[9.5px] [&_span]:tracking-[1px] [&_span]:uppercase [&_input]:min-w-0 [&_input]:h-8 [&_input]:px-2.5 [&_input]:border [&_input]:border-[#35445C] [&_input]:rounded-md [&_input]:bg-app [&_input]:text-text [&_input]:text-[12px] [&_input]:focus:border-blue [&_input]:focus:outline-none [&_input]:placeholder:text-[#6F809B]">
         <label>
           <span>Title</span>
           <input value={title} onChange={(event) => { setTitle(event.target.value); setSaved(false); }} autoComplete="off" />
@@ -114,13 +117,23 @@ export function SongEditorWindow({ songID }: { songID: string }) {
           <span>Copyright</span>
           <input value={copyright} onChange={(event) => { setCopyright(event.target.value); setSaved(false); }} autoComplete="off" placeholder="Public domain" />
         </label>
+        <label>
+          <span>CCLI #</span>
+          <input value={ccliNumber} onChange={(event) => { setCcliNumber(event.target.value); setSaved(false); }} autoComplete="off" placeholder="1234567" />
+        </label>
+        <label>
+          <span>Source</span>
+          <input value={source} onChange={(event) => { setSource(event.target.value); setSaved(false); }} autoComplete="off" placeholder="Songbook / album" />
+        </label>
       </div>
 
-      <section className="song-editor-sections" aria-label="Sections">
+      <section className="min-h-0 overflow-y-auto grid gap-2.5 content-start pr-1" aria-label="Sections">
         {drafts.map((draft, index) => (
-          <div className="song-editor-section" key={`${draft.id}-${index}`}>
+          <div
+            className="relative grid gap-1.5 p-2.5 border border-border rounded-lg bg-[#0C1626] [&_input]:min-w-0 [&_input]:h-[30px] [&_input]:pl-2.5 [&_input]:pr-10 [&_input]:border [&_input]:border-[#35445C] [&_input]:rounded-md [&_input]:bg-app [&_input]:text-text [&_input]:text-[12px] [&_input]:focus:border-blue [&_input]:focus:outline-none [&_input]:placeholder:text-[#6F809B] [&_textarea]:min-w-0 [&_textarea]:min-h-[92px] [&_textarea]:px-2.5 [&_textarea]:py-2 [&_textarea]:border [&_textarea]:border-[#35445C] [&_textarea]:rounded-md [&_textarea]:bg-app [&_textarea]:text-text [&_textarea]:text-[12px] [&_textarea]:[font-family:inherit] [&_textarea]:resize-y [&_textarea]:leading-[1.6] [&_textarea]:focus:border-blue [&_textarea]:focus:outline-none [&_textarea]:placeholder:text-[#6F809B]"
+            key={`${draft.id}-${index}`}
+          >
             <input
-              className="song-editor-label"
               value={draft.label}
               placeholder="Verse 1"
               aria-label={`Section ${index + 1} label`}
@@ -134,7 +147,7 @@ export function SongEditorWindow({ songID }: { songID: string }) {
             />
             <button
               type="button"
-              className="icon-button icon-button--small song-editor-remove"
+              className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50 absolute right-2 top-[9px]"
               disabled={drafts.length === 1}
               aria-label={`Remove section ${index + 1}`}
               title="Remove section"
@@ -144,21 +157,21 @@ export function SongEditorWindow({ songID }: { songID: string }) {
             </button>
           </div>
         ))}
-        <button type="button" className="button button--small" onClick={() => setDrafts((current) => [...current, emptyDraft()])}>
+        <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap" onClick={() => setDrafts((current) => [...current, emptyDraft()])}>
           <Icon name="plus" size={13} />Add section
         </button>
       </section>
 
-      {problem && <p className="song-editor-error" role="alert">{problem}</p>}
-      {saved && !problem && <p className="song-editor-saved">Saved.</p>}
+      {problem && <p className="text-error text-[11.5px]" role="alert">{problem}</p>}
+      {saved && !problem && <p className="text-teal text-[11.5px]">Saved.</p>}
 
-      <footer className="song-editor-footer">
-        <span className="song-editor-hint">
+      <footer className="flex items-center justify-between gap-3.5">
+        <span className="text-[#6F809B] text-[10.5px]">
           Sections keep their identity, so anything already scheduled stays put.
         </span>
         <button
           type="button"
-          className="button button--primary button--small"
+          className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-blue! rounded-md bg-blue! text-white! text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
           disabled={busy || !canSave}
           onClick={() => void save()}
         >

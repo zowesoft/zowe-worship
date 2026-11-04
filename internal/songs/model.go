@@ -8,18 +8,22 @@ import (
 )
 
 var (
-	ErrSongNotFound    = errors.New("song not found")
-	ErrSectionNotFound = errors.New("song section not found")
-	ErrInvalidSong     = errors.New("invalid song")
+	ErrSongNotFound        = errors.New("song not found")
+	ErrSectionNotFound     = errors.New("song section not found")
+	ErrArrangementNotFound = errors.New("song arrangement not found")
+	ErrInvalidSong         = errors.New("invalid song")
+	ErrInvalidArrangement  = errors.New("invalid song arrangement")
 )
 
 type Song struct {
-	ID        string
-	Title     string
-	Author    string
-	Copyright string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         string
+	Title      string
+	Author     string
+	Copyright  string
+	CCLINumber string
+	Source     string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type Section struct {
@@ -30,9 +34,29 @@ type Section struct {
 	Text     string
 }
 
+type ArrangementItem struct {
+	ID            string
+	ArrangementID string
+	SectionID     string
+	Position      int
+	Label         string
+	Text          string
+}
+
+type Arrangement struct {
+	ID        string
+	SongID    string
+	Name      string
+	IsDefault bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Items     []ArrangementItem
+}
+
 type SongWithSections struct {
 	Song
-	Sections []Section
+	Sections     []Section
+	Arrangements []Arrangement
 }
 
 // SectionUpdate edits a song's sections. An ID that already belongs to the song
@@ -45,10 +69,12 @@ type SectionUpdate struct {
 }
 
 type SongUpdate struct {
-	Title     string
-	Author    string
-	Copyright string
-	Sections  []SectionUpdate
+	Title      string
+	Author     string
+	Copyright  string
+	CCLINumber string
+	Source     string
+	Sections   []SectionUpdate
 }
 
 type NewSection struct {
@@ -57,10 +83,25 @@ type NewSection struct {
 }
 
 type NewSong struct {
-	Title     string
-	Author    string
-	Copyright string
-	Sections  []NewSection
+	Title      string
+	Author     string
+	Copyright  string
+	CCLINumber string
+	Source     string
+	Sections   []NewSection
+}
+
+type NewArrangement struct {
+	SongID     string
+	Name       string
+	IsDefault  bool
+	SectionIDs []string
+}
+
+type ArrangementUpdate struct {
+	Name       string
+	IsDefault  bool
+	SectionIDs []string
 }
 
 type SectionHit struct {
@@ -70,10 +111,12 @@ type SectionHit struct {
 
 func (n NewSong) normalised() (NewSong, error) {
 	result := NewSong{
-		Title:     strings.TrimSpace(n.Title),
-		Author:    strings.TrimSpace(n.Author),
-		Copyright: strings.TrimSpace(n.Copyright),
-		Sections:  make([]NewSection, 0, len(n.Sections)),
+		Title:      strings.TrimSpace(n.Title),
+		Author:     strings.TrimSpace(n.Author),
+		Copyright:  strings.TrimSpace(n.Copyright),
+		CCLINumber: strings.TrimSpace(n.CCLINumber),
+		Source:     strings.TrimSpace(n.Source),
+		Sections:   make([]NewSection, 0, len(n.Sections)),
 	}
 
 	if result.Title == "" {
@@ -95,10 +138,12 @@ func (n NewSong) normalised() (NewSong, error) {
 
 func (u SongUpdate) normalised() (SongUpdate, error) {
 	result := SongUpdate{
-		Title:     strings.TrimSpace(u.Title),
-		Author:    strings.TrimSpace(u.Author),
-		Copyright: strings.TrimSpace(u.Copyright),
-		Sections:  make([]SectionUpdate, 0, len(u.Sections)),
+		Title:      strings.TrimSpace(u.Title),
+		Author:     strings.TrimSpace(u.Author),
+		Copyright:  strings.TrimSpace(u.Copyright),
+		CCLINumber: strings.TrimSpace(u.CCLINumber),
+		Source:     strings.TrimSpace(u.Source),
+		Sections:   make([]SectionUpdate, 0, len(u.Sections)),
 	}
 
 	if result.Title == "" {
@@ -121,6 +166,52 @@ func (u SongUpdate) normalised() (SongUpdate, error) {
 	}
 	if len(result.Sections) == 0 {
 		return SongUpdate{}, fmt.Errorf("%w: add at least one section", ErrInvalidSong)
+	}
+	return result, nil
+}
+
+func (a NewArrangement) normalised() (NewArrangement, error) {
+	result := NewArrangement{
+		SongID:     strings.TrimSpace(a.SongID),
+		Name:       strings.TrimSpace(a.Name),
+		IsDefault:  a.IsDefault,
+		SectionIDs: make([]string, 0, len(a.SectionIDs)),
+	}
+	if result.SongID == "" {
+		return NewArrangement{}, fmt.Errorf("%w: song id is required", ErrInvalidArrangement)
+	}
+	if result.Name == "" {
+		return NewArrangement{}, fmt.Errorf("%w: arrangement name is required", ErrInvalidArrangement)
+	}
+	for _, id := range a.SectionIDs {
+		trimmed := strings.TrimSpace(id)
+		if trimmed != "" {
+			result.SectionIDs = append(result.SectionIDs, trimmed)
+		}
+	}
+	if len(result.SectionIDs) == 0 {
+		return NewArrangement{}, fmt.Errorf("%w: arrangement must have at least one section", ErrInvalidArrangement)
+	}
+	return result, nil
+}
+
+func (u ArrangementUpdate) normalised() (ArrangementUpdate, error) {
+	result := ArrangementUpdate{
+		Name:       strings.TrimSpace(u.Name),
+		IsDefault:  u.IsDefault,
+		SectionIDs: make([]string, 0, len(u.SectionIDs)),
+	}
+	if result.Name == "" {
+		return ArrangementUpdate{}, fmt.Errorf("%w: arrangement name is required", ErrInvalidArrangement)
+	}
+	for _, id := range u.SectionIDs {
+		trimmed := strings.TrimSpace(id)
+		if trimmed != "" {
+			result.SectionIDs = append(result.SectionIDs, trimmed)
+		}
+	}
+	if len(result.SectionIDs) == 0 {
+		return ArrangementUpdate{}, fmt.Errorf("%w: arrangement must have at least one section", ErrInvalidArrangement)
 	}
 	return result, nil
 }

@@ -32,8 +32,21 @@ export function AddScriptureToService(request: $models.ScriptureRequest): $Cance
     return $Call.ByID(3832875437, request);
 }
 
+export function AddSongArrangementToService(request: $models.SongArrangementRequest): $CancellablePromise<$models.ServiceOrderView> {
+    return $Call.ByID(3389470005, request);
+}
+
 export function AddSongSectionToService(request: $models.SongSectionRequest): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(1958429116, request);
+}
+
+/**
+ * ApproveDetection previews the candidate's passage in the default
+ * translation. Per the PRD the operator still sends it live by hand, so
+ * approval alone never changes what the audience sees.
+ */
+export function ApproveDetection(id: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(1190351181, id);
 }
 
 /**
@@ -50,6 +63,14 @@ export function BackupNow(): $CancellablePromise<$models.StorageView> {
  */
 export function BrowsePassage(req: $models.BrowsePassageRequest): $CancellablePromise<$models.BibleSearchResponse> {
     return $Call.ByID(1549292557, req);
+}
+
+/**
+ * ClearDetections empties the queue and returns the empty list, so the
+ * frontend can adopt the result directly.
+ */
+export function ClearDetections(): $CancellablePromise<$models.DetectionView[] | null> {
+    return $Call.ByID(2358866802);
 }
 
 export function ClearLive(): $CancellablePromise<$models.PresentationView> {
@@ -84,12 +105,36 @@ export function DeleteSong(songID: string): $CancellablePromise<$models.SongsVie
     return $Call.ByID(348664795, songID);
 }
 
+export function DeleteSongArrangement(arrangementID: string): $CancellablePromise<void> {
+    return $Call.ByID(2012676801, arrangementID);
+}
+
 export function DeleteTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
     return $Call.ByID(3148838931, id);
 }
 
+/**
+ * DetectScripture transcribes one chunk of captured audio and queues every
+ * reference the detector finds. Nothing is projected here: the operator
+ * approves a candidate first, per the PRD.
+ */
+export function DetectScripture(pcm: string | null): $CancellablePromise<$models.DetectionResult> {
+    return $Call.ByID(4119490829, pcm);
+}
+
+/**
+ * DismissDetection drops one candidate and returns the queue that remains.
+ */
+export function DismissDetection(id: string): $CancellablePromise<$models.DetectionView[] | null> {
+    return $Call.ByID(881939450, id);
+}
+
 export function DuplicateService(serviceID: string, newName: string): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(472481605, serviceID, newName);
+}
+
+export function DuplicateSong(songID: string): $CancellablePromise<$models.SongsView> {
+    return $Call.ByID(229380479, songID);
 }
 
 /**
@@ -106,6 +151,13 @@ export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
 
 export function GetAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
     return $Call.ByID(733832149);
+}
+
+/**
+ * GetDetectionConfig reads the Live Detection settings card.
+ */
+export function GetDetectionConfig(): $CancellablePromise<$models.DetectionConfigView> {
+    return $Call.ByID(3689408216);
 }
 
 export function GetMediaPresentation(mediaID: string): $CancellablePromise<media$0.Presentation> {
@@ -147,6 +199,13 @@ export function ImportMedia(paths: string[] | null): $CancellablePromise<$models
  */
 export function ListBooks(): $CancellablePromise<$models.BibleBookView[] | null> {
     return $Call.ByID(635303021);
+}
+
+/**
+ * ListDetections returns the candidates waiting for a decision.
+ */
+export function ListDetections(): $CancellablePromise<$models.DetectionView[] | null> {
+    return $Call.ByID(2091494841);
 }
 
 export function ListMedia(): $CancellablePromise<$models.MediaView[] | null> {
@@ -340,6 +399,10 @@ export function SaveMediaPresentation(mediaID: string, presentation: media$0.Pre
     return $Call.ByID(2615786972, mediaID, presentation);
 }
 
+export function SaveSongArrangement(request: $models.SaveArrangementRequest): $CancellablePromise<$models.ArrangementView> {
+    return $Call.ByID(4127006175, request);
+}
+
 export function SearchBible(request: $models.BibleSearchRequest): $CancellablePromise<$models.BibleSearchResponse> {
     return $Call.ByID(1580433009, request);
 }
@@ -353,6 +416,22 @@ export function SendPreviewLive(): $CancellablePromise<$models.PresentationView>
  */
 export function SetDefaultTranslation(id: string): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(1460585431, id);
+}
+
+/**
+ * SetDetectionDisabled writes the F12 emergency switch. It only stops new
+ * detections; the audience display is left exactly as it is.
+ */
+export function SetDetectionDisabled(disabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3818048626, disabled);
+}
+
+/**
+ * SetDetectionEngine stores the engine spec after parsing it, so a typo is
+ * rejected here instead of failing mid-service.
+ */
+export function SetDetectionEngine(spec: string): $CancellablePromise<void> {
+    return $Call.ByID(1383556960, spec);
 }
 
 /**

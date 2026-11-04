@@ -1,7 +1,14 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { CSSProperties, Ref } from 'react';
 import type { Theme } from '../../bindings/zowe-worship/internal/themes/models';
 import { BackgroundKind, TextCase } from '../../bindings/zowe-worship/internal/themes/models';
-import './themed-slide.css';
+
+// How far a slide may shrink before we accept that it will not fit. A theme's
+// text size is a ceiling: a single verse wants to fill the wall, but a long
+// passage at that size runs off the slide, so we step the size down until the
+// words fit. Below this the words stop being readable across a room, so we leave
+// them at the floor rather than shrinking to nothing.
+const minScale = 0.3;
 
 // The readable look the app falls back to, matching themes.DefaultTheme on the
 // Go side. A slide built by an older build, or before any theme existed, still
@@ -80,30 +87,88 @@ export function themeVars(theme: Theme | undefined, urlFor?: (mediaID: string) =
   } as CSSProperties;
 }
 
+// fitScale finds the largest fraction of the theme's text size at which the
+// whole passage still fits inside the slide body, measured on the real box so
+// every surface that draws the slide lands on the same answer. It writes the
+// result to --fit on the stage, the node every length in the slide is measured
+// against, so the text size, the gap and the reference all shrink together.
+function fitScale(stage: HTMLElement, element: HTMLElement, box: HTMLElement): number {
+  const setScale = (scale: number) => stage.style.setProperty('--fit', String(scale));
+
+  // Start at the theme's own size. A passage that fits is drawn full size.
+  for (let scale = 1; scale >= minScale - 1e-6; scale -= 0.05) {
+    setScale(scale);
+    if (element.scrollHeight <= box.clientHeight + 1) return scale;
+  }
+  // Nothing fit, so take the smallest readable size we allow.
+  setScale(minScale);
+  return minScale;
+}
+
 type ThemedSlideProps = {
   theme?: Theme;
   lines: string[];
   reference: string;
-  // Only the editor needs to measure the text; the surfaces just draw it.
+  // The editor hands in its own ref so it can measure overflow; every other
+  // surface lets the component own the node it fits.
   linesRef?: Ref<HTMLParagraphElement>;
   urlFor?: (mediaID: string) => string;
   className?: string;
+  // Reports the scale the words were drawn at, so a caller that wants to explain
+  // auto-sizing (the editor) can tell when a passage was shrunk to fit.
+  onFit?: (scale: number) => void;
 };
 
-export function ThemedSlide({ theme, lines, reference, linesRef, urlFor, className }: ThemedSlideProps) {
+// The reference label shares one look wherever it is placed; only its row in
+// the slide's grid differs between the top and bottom placements.
+const refClasses = 'm-0 [font-family:var(--rff)] [font-size:calc(var(--rfs)*var(--fit,1))] [color:var(--rfg)] [text-align:var(--rta)] [text-transform:var(--rtransform)] [font-variant:var(--rvariant)] [font-weight:var(--rweight)] [font-style:var(--rslant)] [text-shadow:var(--lift)]';
+
+export function ThemedSlide({ theme, lines, reference, linesRef, urlFor, className, onFit }: ThemedSlideProps) {
   const placement = theme?.reference.placement || 'bottom';
+  const stageRef = useRef<HTMLDivElement>(null);
+  const ownLines = useRef<HTMLParagraphElement>(null);
+  const linesNode = linesRef ?? ownLines;
+
+  // Re-fit whenever the words, the reference or the theme change. The theme text
+  // size is the ceiling the fit shrinks from, so a bigger theme still gives a
+  // bigger slide until the words stop fitting.
+  const fitKey = `${lines.join('\n')}\u0000${reference}\u0000${JSON.stringify(theme?.style ?? null)}\u0000${JSON.stringify(theme?.reference ?? null)}`;
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    const element = ownLines.current ?? (linesRef && typeof linesRef !== 'function' ? linesRef.current : null);
+    const box = element?.parentElement;
+    if (!stage || !element || !box) return;
+
+    // The fit itself must always run; only the report back to the caller is
+    // optional, so the studio panes and the audience display fit themselves
+    // even though nothing is listening for the scale.
+    const apply = () => {
+      const scale = fitScale(stage, element, box);
+      onFit?.(scale);
+    };
+    apply();
+
+    // A resize can change the shape of the box, and the audience display follows
+    // whatever monitor it is on, so refit when the stage changes size. The stage
+    // is sized by its container, never by the words, so the fit cannot re-trigger
+    // the observer and loop.
+    const observer = new ResizeObserver(apply);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [fitKey, linesRef, onFit]);
 
   return (
-    <div className={`themed-stage${className ? ` ${className}` : ''}`} style={themeVars(theme, urlFor)}>
-      <div className="themed-slide">
-        {placement === 'top' && <p className="themed-ref themed-ref--top">{reference}</p>}
-        <div className="themed-slide-body">
-          <p ref={linesRef} className="themed-lines">
+    <div ref={stageRef} className={`[container-type:size] relative overflow-hidden ${className ? ` ${className}` : ''}`} style={themeVars(theme, urlFor)}>
+      <div className="absolute inset-0 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-[calc(var(--fs)*var(--fit,1)*.4)] py-[calc(var(--mg)*1cqh)] px-[calc(var(--mg)*1cqw)] [background:var(--bg)] [color:var(--fg)] [font-family:var(--ff)] [font-size:calc(var(--fs)*var(--fit,1))] leading-[var(--lh)] [font-weight:var(--weight)] [font-style:var(--slant)] [text-align:var(--ta)]">
+        {placement === 'top' && <p className={`${refClasses} [grid-row:1]`}>{reference}</p>}
+        <div className="[grid-row:2] min-h-0 grid content-center overflow-hidden">
+          <p ref={linesNode} className="m-0 [text-transform:var(--ttransform)] [font-variant:var(--tvariant)] [&>span]:block [&>span]:[text-shadow:var(--lift)]">
             {lines.map((line, index) => <span key={index}>{line}</span>)}
           </p>
         </div>
         {placement !== 'top' && placement !== 'none' && (
-          <p className="themed-ref themed-ref--bottom">{reference}</p>
+          <p className={`${refClasses} [grid-row:3]`}>{reference}</p>
         )}
       </div>
     </div>

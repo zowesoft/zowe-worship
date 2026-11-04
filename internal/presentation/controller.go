@@ -74,6 +74,26 @@ type ThemeReader interface {
 	Default(ctx context.Context, kind themes.Kind) (themes.Theme, error)
 }
 
+// previewSource remembers what the previewed slide was built from, so a theme
+// edit can rebuild the same slide rather than leave the operator looking at the
+// old colours until they happen to click the item again.
+type previewSource struct {
+	itemID        string
+	translationID string
+	bookID        int
+	chapter       int
+	verseStart    int
+	verseEnd      int
+	// verse is the one currently shown when a passage is displayed one verse at a
+	// time; the whole range stays in verseStart and verseEnd so Next and Previous
+	// know how far they may walk.
+	verse    int
+	oneVerse bool
+	songID   string
+	sectionID string
+	mediaID   string
+}
+
 // Controller owns preview and live output. Recognition and UI code never write
 // live state directly; only the explicit projection commands here do.
 type Controller struct {
@@ -86,6 +106,7 @@ type Controller struct {
 
 	preview *Content
 	live    *Content
+	source  previewSource
 }
 
 func New(
@@ -110,73 +131,161 @@ func (c *Controller) stateLocked() State {
 	return State{Preview: clone(c.preview), Live: clone(c.live)}
 }
 
-func (c *Controller) PreviewScripture(
-	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
+// previewScripture builds the slide for a passage. With oneVerse the operator
+// sees a single verse at a time and walks the range with Next and Previous; the
+// full range is remembered so the stepping knows where the passage ends.
+func (c *Controller) previewScripture(
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int, oneVerse bool,
 ) (State, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	return c.showVerse(ctx, previewSource{
+		translationID: translationID, bookID: bookID, chapter: chapter,
+		verseStart: startVerse, verseEnd: endVerse, oneVerse: oneVerse,
+	}, startVerse)
+}
 
-	content, err := c.scriptureContent(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
+func (c *Controller) showVerse(ctx context.Context, source previewSource, verse int) (State, error) {
+	from, to := source.verseStart, source.verseEnd
+	if source.oneVerse {
+		from, to = verse, verse
+	}
+
+	content, err := c.scriptureContent(ctx, "", "", source.translationID, source.bookID, source.chapter, from, to)
 	if err != nil {
 		return c.stateLocked(), err
 	}
+	source.verse = verse
 	c.preview = content
+	c.source = source
 	return c.stateLocked(), nil
 }
 
-func (c *Controller) PreviewSongSection(ctx context.Context, songID, sectionID string) (State, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+func (c *Controller) previewSongSection(ctx context.Context, songID, sectionID string) (State, error) {
 	content, err := c.songContent(ctx, "", "", songID, sectionID)
 	if err != nil {
 		return c.stateLocked(), err
 	}
 	c.preview = content
+	c.source = previewSource{songID: songID, sectionID: sectionID}
 	return c.stateLocked(), nil
+}
+
+func (c *Controller) previewMedia(ctx context.Context, mediaID string) (State, error) {
+	content, err := c.mediaContent(ctx, "", mediaID)
+	if err != nil {
+		return c.stateLocked(), err
+	}
+	c.preview = content
+	c.source = previewSource{mediaID: mediaID}
+	return c.stateLocked(), nil
+}
+
+func (c *Controller) previewItem(ctx context.Context, itemID string) (State, error) {
+	content, err := c.itemContent(ctx, itemID)
+	if err != nil {
+		return c.stateLocked(), err
+	}
+	c.preview = content
+	return c.stateLocked(), nil
+}
+
+// sendLive promotes whatever the preview helper just built. A failed preview
+// leaves live output alone, so a missing file never blanks the room.
+func (c *Controller) sendLive(state State, err error) (State, error) {
+	if err != nil || c.preview == nil {
+		return state, err
+	}
+	c.live = clone(c.preview)
+	return c.stateLocked(), nil
+}
+
+func (c *Controller) PreviewScripture(
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int, oneVerse bool,
+) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.previewScripture(ctx, translationID, bookID, chapter, startVerse, endVerse, oneVerse)
+}
+
+func (c *Controller) PreviewSongSection(ctx context.Context, songID, sectionID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.previewSongSection(ctx, songID, sectionID)
 }
 
 func (c *Controller) PreviewItem(ctx context.Context, itemID string) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	item, err := c.schedule.Item(ctx, itemID)
-	if err != nil {
-		return c.stateLocked(), err
-	}
-	content, err := c.itemContent(ctx, item)
-	if err != nil {
-		return c.stateLocked(), err
-	}
-	c.preview = content
-	return c.stateLocked(), nil
+	return c.previewItem(ctx, itemID)
 }
 
 func (c *Controller) PreviewMedia(ctx context.Context, mediaID string) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	content, err := c.mediaContent(ctx, "", mediaID)
-	if err != nil {
-		return c.stateLocked(), err
-	}
-	c.preview = content
-	return c.stateLocked(), nil
+	return c.previewMedia(ctx, mediaID)
 }
 
-// ProjectMedia leaves live output untouched when the asset cannot be shown, so a
-// missing file never blanks the room.
 func (c *Controller) ProjectMedia(ctx context.Context, mediaID string) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.sendLive(c.previewMedia(ctx, mediaID))
+}
 
-	content, err := c.mediaContent(ctx, "", mediaID)
-	if err != nil {
-		return c.stateLocked(), err
+func (c *Controller) ProjectScripture(
+	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int, oneVerse bool,
+) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.sendLive(c.previewScripture(ctx, translationID, bookID, chapter, startVerse, endVerse, oneVerse))
+}
+
+func (c *Controller) ProjectSongSection(ctx context.Context, songID, sectionID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.sendLive(c.previewSongSection(ctx, songID, sectionID))
+}
+
+// RefreshPreview rebuilds the previewed slide from whatever it was made of, so a
+// theme edit appears without the operator hunting for the item again. Live output
+// is never touched: a slide already on the wall keeps the look it was projected
+// with until something else is sent.
+func (c *Controller) RefreshPreview(ctx context.Context) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.preview == nil {
+		return c.stateLocked(), ErrNoPreview
 	}
-	c.preview = content
-	c.live = clone(content)
-	return c.stateLocked(), nil
+
+	source := c.source
+	switch {
+	case source.itemID != "":
+		return c.previewItem(ctx, source.itemID)
+	case source.mediaID != "":
+		return c.previewMedia(ctx, source.mediaID)
+	case source.songID != "":
+		return c.previewSongSection(ctx, source.songID, source.sectionID)
+	case source.translationID != "":
+		return c.showVerse(ctx, source, source.verse)
+	}
+	return c.stateLocked(), ErrNoPreview
+}
+
+// stepVerse walks a passage that is shown one verse at a time. It reports false
+// when the preview is not such a passage, or the range is spent, and the caller
+// then moves through the schedule as it always has.
+func (c *Controller) stepVerse(ctx context.Context, direction int) (bool, State, error) {
+	source := c.source
+	if !source.oneVerse || source.translationID == "" {
+		return false, c.stateLocked(), nil
+	}
+
+	verse := source.verse + direction
+	if verse < source.verseStart || verse > source.verseEnd {
+		return false, c.stateLocked(), nil
+	}
+
+	state, err := c.showVerse(ctx, source, verse)
+	return true, state, err
 }
 
 func (c *Controller) ProjectPreview() (State, error) {
@@ -187,34 +296,6 @@ func (c *Controller) ProjectPreview() (State, error) {
 		return c.stateLocked(), ErrNoPreview
 	}
 	c.live = clone(c.preview)
-	return c.stateLocked(), nil
-}
-
-func (c *Controller) ProjectScripture(
-	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
-) (State, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	content, err := c.scriptureContent(ctx, "", "", translationID, bookID, chapter, startVerse, endVerse)
-	if err != nil {
-		return c.stateLocked(), err
-	}
-	c.preview = content
-	c.live = clone(content)
-	return c.stateLocked(), nil
-}
-
-func (c *Controller) ProjectSongSection(ctx context.Context, songID, sectionID string) (State, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	content, err := c.songContent(ctx, "", "", songID, sectionID)
-	if err != nil {
-		return c.stateLocked(), err
-	}
-	c.preview = content
-	c.live = clone(content)
 	return c.stateLocked(), nil
 }
 
@@ -229,12 +310,20 @@ func (c *Controller) ClearLive() State {
 func (c *Controller) Next(ctx context.Context) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if done, state, err := c.stepVerse(ctx, 1); done {
+		return state, err
+	}
 	return c.move(ctx, 1)
 }
 
 func (c *Controller) Previous(ctx context.Context) (State, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if done, state, err := c.stepVerse(ctx, -1); done {
+		return state, err
+	}
 	return c.move(ctx, -1)
 }
 
@@ -287,15 +376,31 @@ func (c *Controller) move(ctx context.Context, direction int) (State, error) {
 		target = len(items) - 1
 	}
 
-	content, err := c.itemContent(ctx, items[target])
+	content, err := c.contentForItem(ctx, items[target])
 	if err != nil {
 		return c.stateLocked(), err
 	}
 	c.preview = content
+	c.source = previewSource{itemID: items[target].ID}
 	return c.stateLocked(), nil
 }
 
-func (c *Controller) itemContent(ctx context.Context, item serviceorder.Item) (*Content, error) {
+// itemContent builds the slide for one schedule item and remembers the item, so
+// a later theme edit rebuilds this same slide rather than the last one clicked.
+func (c *Controller) itemContent(ctx context.Context, itemID string) (*Content, error) {
+	item, err := c.schedule.Item(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	content, err := c.contentForItem(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+	c.source = previewSource{itemID: itemID}
+	return content, nil
+}
+
+func (c *Controller) contentForItem(ctx context.Context, item serviceorder.Item) (*Content, error) {
 	switch item.Kind {
 	case serviceorder.KindSong:
 		return c.songContent(ctx, item.ID, item.ThemeID, item.SongID, item.SectionID)

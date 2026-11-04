@@ -12,6 +12,7 @@ import { ThemesWindow } from '../features/themes/ThemesWindow';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
 import { StudioProvider } from '../stores/StudioProvider';
+import { DetectionProvider } from '../features/detection/DetectionProvider';
 
 // Secondary windows are the same bundle loaded at a different address. They have
 // no studio to talk to, so they skip the provider and the shell entirely.
@@ -39,17 +40,19 @@ export default function App() {
 
   return (
     <StudioProvider>
-      <AppShell activePage={activePage} onNavigate={setActivePage}>
-        {activePage === 'home'
-          ? <HomeWorkspace onNavigate={setActivePage} />
-          : activePage === 'bible'
-            ? <BibleWorkspace />
-            : activePage === 'songs'
-              ? <SongsWorkspace />
-              : activePage === 'media'
-                ? <MediaWorkspace />
-                : <ServiceOrderWorkspace />}
-      </AppShell>
+      <DetectionProvider>
+        <AppShell activePage={activePage} onNavigate={setActivePage}>
+          {activePage === 'home'
+            ? <HomeWorkspace onNavigate={setActivePage} />
+            : activePage === 'bible'
+              ? <BibleWorkspace />
+              : activePage === 'songs'
+                ? <SongsWorkspace />
+                : activePage === 'media'
+                  ? <MediaWorkspace />
+                  : <ServiceOrderWorkspace />}
+        </AppShell>
+      </DetectionProvider>
     </StudioProvider>
   );
 }

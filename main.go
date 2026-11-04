@@ -21,7 +21,7 @@ func main() {
 		Windows: application.WindowsOptions{
 			// The audience display is never clicked, so Chromium's autoplay rule
 			// would refuse to start a projected clip with sound.
-			AdditionalBrowserArgs: []string{"--autoplay-policy=no-user-gesture-required"},
+			AdditionalBrowserArgs: []string{"--autoplay-policy=no-user-gesture-required", "--remote-debugging-port=9333"},
 		},
 		Services: []application.Service{
 			application.NewService(studio),

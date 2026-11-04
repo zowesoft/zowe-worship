@@ -16,9 +16,12 @@ type fakeScripture struct {
 	verses      []bible.SearchResult
 	translation bible.Translation
 	err         error
+	lastStart   int
+	lastEnd     int
 }
 
-func (f *fakeScripture) Passage(context.Context, string, int, int, int, int) ([]bible.SearchResult, error) {
+func (f *fakeScripture) Passage(_ context.Context, _ string, _, _, startVerse, endVerse int) ([]bible.SearchResult, error) {
+	f.lastStart, f.lastEnd = startVerse, endVerse
 	return f.verses, f.err
 }
 
@@ -131,7 +134,7 @@ func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
 	ctx := context.Background()
 	controller, scripture := newController()
 
-	state, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	state, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("preview: %v", err)
 	}
@@ -153,7 +156,7 @@ func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
 	scripture.verses = []bible.SearchResult{{
 		Book: johnVerse().Book, Chapter: 3, Verse: 16, Text: "A different rendering.",
 	}}
-	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("second preview: %v", err)
 	}
@@ -182,7 +185,7 @@ func TestEmptyPassageIsRejected(t *testing.T) {
 	controller, scripture := newController()
 	scripture.verses = nil
 
-	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16); !errors.Is(err, ErrEmptyPassage) {
+	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false); !errors.Is(err, ErrEmptyPassage) {
 		t.Fatalf("err = %v, want ErrEmptyPassage", err)
 	}
 	if controller.State().Preview != nil {
@@ -448,12 +451,55 @@ func TestNoThemesStillDrawsReadableSlides(t *testing.T) {
 	}
 }
 
+// An operator who edits a theme is looking at the preview pane, not at the
+// schedule, so the preview has to rebuild itself while the slide already on the
+// wall keeps the look it went out with.
+func TestRefreshPreviewPicksUpAnEditedTheme(t *testing.T) {
+	ctx := context.Background()
+	reader := bright()
+	controller := themedController(reader, "")
+
+	if _, err := controller.PreviewItem(ctx, "one"); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	projected, err := controller.ProjectPreview()
+	if err != nil {
+		t.Fatalf("project: %v", err)
+	}
+	if projected.Live.Theme.Reference.Color != "" {
+		t.Fatalf("live started with an edited colour: %+v", projected.Live.Reference)
+	}
+
+	edited := reader.defaults[themes.KindScripture]
+	edited.Reference.Color = "#FF0000"
+	reader.defaults[themes.KindScripture] = edited
+	reader.byID[edited.ID] = edited
+
+	refreshed, err := controller.RefreshPreview(ctx)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if refreshed.Preview.Theme.Reference.Color != "#FF0000" {
+		t.Fatalf("preview kept the old reference colour: %+v", refreshed.Preview.Reference)
+	}
+	if refreshed.Live.Theme.Reference.Color != "" {
+		t.Fatalf("a theme edit restyled live output: %+v", refreshed.Live.Reference)
+	}
+}
+
+func TestRefreshPreviewWithoutAPreviewReports(t *testing.T) {
+	controller := themedController(bright(), "")
+	if _, err := controller.RefreshPreview(context.Background()); !errors.Is(err, ErrNoPreview) {
+		t.Fatalf("err = %v, want ErrNoPreview", err)
+	}
+}
+
 func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
 	ctx := context.Background()
 	reader := bright()
 	controller := themedController(reader, "")
 
-	first, err := controller.ProjectScripture(ctx, "kjv", 43, 3, 16, 16)
+	first, err := controller.ProjectScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("project: %v", err)
 	}
@@ -468,7 +514,7 @@ func TestLiveKeepsTheThemeItWasProjectedWith(t *testing.T) {
 	reader.byID["theme-evening"] = evening
 	reader.defaults[themes.KindScripture] = evening
 
-	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16)
+	updated, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 16, false)
 	if err != nil {
 		t.Fatalf("preview after the default changed: %v", err)
 	}
@@ -526,5 +572,70 @@ func TestCustomSlideKinds(t *testing.T) {
 	}
 	if liveState.Live == nil || liveState.Live.Kind != "blank" {
 		t.Fatalf("live blank failed: %+v", liveState.Live)
+	}
+}
+
+func TestOneVersePerSlideWalksThePassage(t *testing.T) {
+	ctx := context.Background()
+	scripture := &fakeScripture{
+		verses:      []bible.SearchResult{johnVerse()},
+		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
+	}
+	controller := New(scripture, &fakeSchedule{}, nil, nil, bright())
+
+	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 18, true); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if scripture.lastStart != 16 || scripture.lastEnd != 16 {
+		t.Fatalf("first slide = verses %d-%d, want 16-16", scripture.lastStart, scripture.lastEnd)
+	}
+
+	for _, want := range []int{17, 18} {
+		if _, err := controller.Next(ctx); err != nil {
+			t.Fatalf("next to verse %d: %v", want, err)
+		}
+		if scripture.lastStart != want || scripture.lastEnd != want {
+			t.Fatalf("slide = verses %d-%d, want %d-%d", scripture.lastStart, scripture.lastEnd, want, want)
+		}
+	}
+
+	// Past the last verse the passage is spent, so navigation returns to the
+	// schedule instead of repeating the final verse forever.
+	if _, err := controller.Next(ctx); !errors.Is(err, ErrNoSchedule) {
+		t.Fatalf("next past the passage = %v, want ErrNoSchedule", err)
+	}
+	if scripture.lastStart != 18 {
+		t.Fatalf("walking past the end moved the verse to %d", scripture.lastStart)
+	}
+
+	if _, err := controller.Previous(ctx); err != nil {
+		t.Fatalf("previous: %v", err)
+	}
+	if scripture.lastStart != 17 || scripture.lastEnd != 17 {
+		t.Fatalf("previous = verses %d-%d, want 17-17", scripture.lastStart, scripture.lastEnd)
+	}
+}
+
+func TestWholePassageStaysOnOneSlide(t *testing.T) {
+	ctx := context.Background()
+	scripture := &fakeScripture{
+		verses:      []bible.SearchResult{johnVerse()},
+		translation: bible.Translation{TranslationMeta: bible.TranslationMeta{ID: "kjv", Abbreviation: "KJV"}},
+	}
+	controller := New(scripture, &fakeSchedule{}, nil, nil, bright())
+
+	if _, err := controller.PreviewScripture(ctx, "kjv", 43, 3, 16, 18, false); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if scripture.lastStart != 16 || scripture.lastEnd != 18 {
+		t.Fatalf("passage slide = verses %d-%d, want 16-18", scripture.lastStart, scripture.lastEnd)
+	}
+
+	// With the passage on one slide, Next is schedule navigation again.
+	if _, err := controller.Next(ctx); !errors.Is(err, ErrNoSchedule) {
+		t.Fatalf("next = %v, want ErrNoSchedule", err)
+	}
+	if scripture.lastStart != 16 || scripture.lastEnd != 18 {
+		t.Fatalf("next rebuilt the passage slide: %d-%d", scripture.lastStart, scripture.lastEnd)
 	}
 }

@@ -1,8 +1,13 @@
 /build/bin/
 /bin/
 /.task/
-# The v3 icons task always writes a macOS icon even on a Windows-only build.
+# macOS icon generation hook currently assumes a Windows-only build; revisit
+# when macOS/Linux packaging tasks land.
 /build/darwin/
+/benchmarks/models/
+/benchmarks/tools/
+/benchmarks/dumps/
+/benchmarks/sermon-set/
 /frontend/node_modules/
 /frontend/package.json.md5
 /frontend/dist/*

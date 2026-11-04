@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -111,6 +112,17 @@ func (a *App) SetSetting(key, value string) error {
 		return errStorageUnavailable
 	}
 	return a.settings.Set(a.context(), key, value)
+}
+
+// oneVersePerSlide reports how a multi-verse passage becomes slides. Anything
+// other than "all" keeps the default of one verse per slide, so a setting that
+// was never written — or written badly — still gives the operator the readable
+// wall-sized verse rather than a paragraph.
+func (a *App) oneVersePerSlide(ctx context.Context) bool {
+	if a.settings == nil {
+		return true
+	}
+	return a.settings.GetDefault(ctx, settings.KeyVersesPerSlide, "one") != "all"
 }
 
 // SetDefaultTranslation updates the default translation setting and returns the refreshed storage view.

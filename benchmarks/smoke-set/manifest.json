@@ -1,0 +1,16 @@
+{
+  "name": "engine-smoke",
+  "clips": [
+    {
+      "id": "tone",
+      "file": "smoke-tone.wav",
+      "references": []
+    },
+    {
+      "id": "speech",
+      "file": "smoke-speech.wav",
+      "transcript": "Let us turn tonight to Romans chapter eight, verse twenty eight.",
+      "references": ["Romans 8:28"]
+    }
+  ]
+}

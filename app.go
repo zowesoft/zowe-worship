@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/database"
+	"zowe-worship/internal/detection"
 	"zowe-worship/internal/media"
 	"zowe-worship/internal/presentation"
 	"zowe-worship/internal/scripture"
@@ -36,6 +37,7 @@ type App struct {
 	themes        *themes.SQLiteRepository
 	settings      *settings.Store
 	presentation  *presentation.Controller
+	detection     *detection.Queue
 	display       application.Window
 	displayScreen ScreenOption
 }
@@ -141,6 +143,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.themes = themes.NewSQLiteRepository(core)
 	a.settings = settings.New(core)
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
+	a.detection = detection.New(core)
 	return nil
 }
 
@@ -475,6 +478,26 @@ func (a *App) AddScriptureToService(request ScriptureRequest) (ServiceOrderView,
 	if err != nil {
 		return ServiceOrderView{}, err
 	}
+
+	// One verse per slide turns a passage into one row per verse, so the operator
+	// sees every verse in the order, can drop the ones they do not want, and steps
+	// through the rest with Next and Previous like any other item.
+	if a.oneVersePerSlide(ctx) && len(verses) > 1 {
+		for _, verse := range verses {
+			if _, err := a.order.AddScripture(ctx, service.ID, serviceorder.ScriptureInput{
+				Title:         verse.Reference(),
+				TranslationID: normalized.TranslationID,
+				BookID:        normalized.BookID,
+				Chapter:       verse.Chapter,
+				VerseStart:    verse.Verse,
+				VerseEnd:      verse.Verse,
+			}); err != nil {
+				return ServiceOrderView{}, err
+			}
+		}
+		return a.serviceOrderView(ctx)
+	}
+
 	if _, err := a.order.AddScripture(ctx, service.ID, serviceorder.ScriptureInput{
 		Title:         title,
 		TranslationID: normalized.TranslationID,
@@ -606,7 +629,8 @@ func (a *App) PreviewScripture(request ScriptureRequest) (PresentationView, erro
 		return PresentationView{}, err
 	}
 	return a.applied(a.presentation.PreviewScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd))
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd,
+		a.oneVersePerSlide(a.context())))
 }
 
 func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, error) {
@@ -618,7 +642,8 @@ func (a *App) ProjectScripture(request ScriptureRequest) (PresentationView, erro
 		return PresentationView{}, err
 	}
 	return a.applied(a.presentation.ProjectScripture(a.context(), normalized.TranslationID,
-		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd))
+		normalized.BookID, normalized.Chapter, normalized.VerseStart, normalized.VerseEnd,
+		a.oneVersePerSlide(a.context())))
 }
 
 func (a *App) PreviewServiceItem(itemID string) (PresentationView, error) {
@@ -774,23 +799,44 @@ type SongSectionView struct {
 	Position int    `json:"position"`
 }
 
+type ArrangementItemView struct {
+	ID        string `json:"id"`
+	SectionID string `json:"sectionId"`
+	Position  int    `json:"position"`
+	Label     string `json:"label"`
+	Text      string `json:"text"`
+}
+
+type ArrangementView struct {
+	ID        string                `json:"id"`
+	SongID    string                `json:"songId"`
+	Name      string                `json:"name"`
+	IsDefault bool                  `json:"isDefault"`
+	Items     []ArrangementItemView `json:"items"`
+}
+
 type SongView struct {
-	ID        string            `json:"id"`
-	Title     string            `json:"title"`
-	Author    string            `json:"author"`
-	Copyright string            `json:"copyright"`
-	Sections  []SongSectionView `json:"sections"`
+	ID           string            `json:"id"`
+	Title        string            `json:"title"`
+	Author       string            `json:"author"`
+	Copyright    string            `json:"copyright"`
+	CCLINumber   string            `json:"ccliNumber"`
+	Source       string            `json:"source"`
+	Sections     []SongSectionView `json:"sections"`
+	Arrangements []ArrangementView `json:"arrangements"`
 }
 
 type LyricHitView struct {
-	SongID    string `json:"songId"`
-	SongTitle string `json:"songTitle"`
-	Author    string `json:"author"`
-	Copyright string `json:"copyright"`
-	SectionID string `json:"sectionId"`
-	Label     string `json:"label"`
-	Text      string `json:"text"`
-	Position  int    `json:"position"`
+	SongID     string `json:"songId"`
+	SongTitle  string `json:"songTitle"`
+	Author     string `json:"author"`
+	Copyright  string `json:"copyright"`
+	CCLINumber string `json:"ccliNumber"`
+	Source     string `json:"source"`
+	SectionID  string `json:"sectionId"`
+	Label      string `json:"label"`
+	Text       string `json:"text"`
+	Position   int    `json:"position"`
 }
 
 type SongsView struct {
@@ -804,15 +850,30 @@ type NewSongSectionRequest struct {
 }
 
 type NewSongRequest struct {
-	Title     string                  `json:"title"`
-	Author    string                  `json:"author"`
-	Copyright string                  `json:"copyright"`
-	Sections  []NewSongSectionRequest `json:"sections"`
+	Title      string                  `json:"title"`
+	Author     string                  `json:"author"`
+	Copyright  string                  `json:"copyright"`
+	CCLINumber string                  `json:"ccliNumber"`
+	Source     string                  `json:"source"`
+	Sections   []NewSongSectionRequest `json:"sections"`
 }
 
 type SongSectionRequest struct {
 	SongID    string `json:"songId"`
 	SectionID string `json:"sectionId"`
+}
+
+type SongArrangementRequest struct {
+	SongID        string `json:"songId"`
+	ArrangementID string `json:"arrangementId"`
+}
+
+type SaveArrangementRequest struct {
+	ArrangementID string   `json:"arrangementId"`
+	SongID        string   `json:"songId"`
+	Name          string   `json:"name"`
+	IsDefault     bool     `json:"isDefault"`
+	SectionIDs    []string `json:"sectionIds"`
 }
 
 func (a *App) ListSongs(query string) (SongsView, error) {
@@ -836,14 +897,16 @@ func (a *App) ListSongs(query string) (SongsView, error) {
 	views := make([]LyricHitView, 0, len(hits))
 	for _, hit := range hits {
 		views = append(views, LyricHitView{
-			SongID:    hit.Song.ID,
-			SongTitle: hit.Song.Title,
-			Author:    hit.Song.Author,
-			Copyright: hit.Song.Copyright,
-			SectionID: hit.Section.ID,
-			Label:     hit.Section.Label,
-			Text:      hit.Section.Text,
-			Position:  hit.Section.Position,
+			SongID:     hit.Song.ID,
+			SongTitle:  hit.Song.Title,
+			Author:     hit.Song.Author,
+			Copyright:  hit.Song.Copyright,
+			CCLINumber: hit.Song.CCLINumber,
+			Source:     hit.Song.Source,
+			SectionID:  hit.Section.ID,
+			Label:      hit.Section.Label,
+			Text:       hit.Section.Text,
+			Position:   hit.Section.Position,
 		})
 	}
 	return SongsView{Hits: views}, nil
@@ -860,10 +923,12 @@ func (a *App) CreateSong(request NewSongRequest) (SongsView, error) {
 	}
 
 	if _, err := a.songs.Create(a.context(), songs.NewSong{
-		Title:     request.Title,
-		Author:    request.Author,
-		Copyright: request.Copyright,
-		Sections:  sections,
+		Title:      request.Title,
+		Author:     request.Author,
+		Copyright:  request.Copyright,
+		CCLINumber: request.CCLINumber,
+		Source:     request.Source,
+		Sections:   sections,
 	}); err != nil {
 		return SongsView{}, err
 	}
@@ -880,6 +945,17 @@ func (a *App) DeleteSong(songID string) (SongsView, error) {
 	return a.listSongs(a.context())
 }
 
+func (a *App) DuplicateSong(songID string) (SongsView, error) {
+	if a.songs == nil {
+		return SongsView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if _, err := a.songs.Duplicate(ctx, strings.TrimSpace(songID), ""); err != nil {
+		return SongsView{}, err
+	}
+	return a.listSongs(ctx)
+}
+
 type SongSectionEdit struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
@@ -887,11 +963,13 @@ type SongSectionEdit struct {
 }
 
 type EditSongRequest struct {
-	ID        string            `json:"id"`
-	Title     string            `json:"title"`
-	Author    string            `json:"author"`
-	Copyright string            `json:"copyright"`
-	Sections  []SongSectionEdit `json:"sections"`
+	ID         string            `json:"id"`
+	Title      string            `json:"title"`
+	Author     string            `json:"author"`
+	Copyright  string            `json:"copyright"`
+	CCLINumber string            `json:"ccliNumber"`
+	Source     string            `json:"source"`
+	Sections   []SongSectionEdit `json:"sections"`
 }
 
 // songEditorWindow names the song editor so reopening it for another song moves
@@ -937,10 +1015,12 @@ func (a *App) UpdateSong(request EditSongRequest) (SongsView, error) {
 	}
 
 	if _, err := a.songs.Update(ctx, strings.TrimSpace(request.ID), songs.SongUpdate{
-		Title:     request.Title,
-		Author:    request.Author,
-		Copyright: request.Copyright,
-		Sections:  sections,
+		Title:      request.Title,
+		Author:     request.Author,
+		Copyright:  request.Copyright,
+		CCLINumber: request.CCLINumber,
+		Source:     request.Source,
+		Sections:   sections,
 	}); err != nil {
 		return SongsView{}, err
 	}
@@ -1004,6 +1084,103 @@ func (a *App) AddSongSectionToService(request SongSectionRequest) (ServiceOrderV
 	return a.serviceOrderView(ctx)
 }
 
+func (a *App) AddSongArrangementToService(request SongArrangementRequest) (ServiceOrderView, error) {
+	if a.songs == nil || a.order == nil {
+		return ServiceOrderView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	songID := strings.TrimSpace(request.SongID)
+	arrID := strings.TrimSpace(request.ArrangementID)
+	if songID == "" || arrID == "" {
+		return ServiceOrderView{}, errors.New("song id and arrangement id are required")
+	}
+
+	song, err := a.songs.Get(ctx, songID)
+	if err != nil {
+		return ServiceOrderView{}, err
+	}
+	arr, err := a.songs.GetArrangement(ctx, arrID)
+	if err != nil {
+		return ServiceOrderView{}, err
+	}
+
+	service, err := a.ensureService(ctx)
+	if err != nil {
+		return ServiceOrderView{}, err
+	}
+
+	for _, item := range arr.Items {
+		title := song.Title
+		if item.Label != "" {
+			title = song.Title + " · " + item.Label
+		}
+		if _, err := a.order.AddSong(ctx, service.ID, serviceorder.SongInput{
+			Title:     title,
+			SongID:    song.ID,
+			SectionID: item.SectionID,
+		}); err != nil {
+			return ServiceOrderView{}, err
+		}
+	}
+	return a.serviceOrderView(ctx)
+}
+
+func (a *App) SaveSongArrangement(request SaveArrangementRequest) (ArrangementView, error) {
+	if a.songs == nil {
+		return ArrangementView{}, errStorageUnavailable
+	}
+	ctx := a.context()
+	if strings.TrimSpace(request.ArrangementID) == "" {
+		created, err := a.songs.CreateArrangement(ctx, songs.NewArrangement{
+			SongID:     strings.TrimSpace(request.SongID),
+			Name:       request.Name,
+			IsDefault:  request.IsDefault,
+			SectionIDs: request.SectionIDs,
+		})
+		if err != nil {
+			return ArrangementView{}, err
+		}
+		return toArrangementView(created), nil
+	}
+
+	updated, err := a.songs.UpdateArrangement(ctx, strings.TrimSpace(request.ArrangementID), songs.ArrangementUpdate{
+		Name:       request.Name,
+		IsDefault:  request.IsDefault,
+		SectionIDs: request.SectionIDs,
+	})
+	if err != nil {
+		return ArrangementView{}, err
+	}
+	return toArrangementView(updated), nil
+}
+
+func (a *App) DeleteSongArrangement(arrangementID string) error {
+	if a.songs == nil {
+		return errStorageUnavailable
+	}
+	return a.songs.DeleteArrangement(a.context(), strings.TrimSpace(arrangementID))
+}
+
+func toArrangementView(arr songs.Arrangement) ArrangementView {
+	items := make([]ArrangementItemView, 0, len(arr.Items))
+	for _, item := range arr.Items {
+		items = append(items, ArrangementItemView{
+			ID:        item.ID,
+			SectionID: item.SectionID,
+			Position:  item.Position,
+			Label:     item.Label,
+			Text:      item.Text,
+		})
+	}
+	return ArrangementView{
+		ID:        arr.ID,
+		SongID:    arr.SongID,
+		Name:      arr.Name,
+		IsDefault: arr.IsDefault,
+		Items:     items,
+	}
+}
+
 func (a *App) listSongs(ctx context.Context) (SongsView, error) {
 	list, err := a.songs.List(ctx)
 	if err != nil {
@@ -1021,12 +1198,19 @@ func (a *App) listSongs(ctx context.Context) (SongsView, error) {
 				Position: section.Position,
 			})
 		}
+		arrangements := make([]ArrangementView, 0, len(entry.Arrangements))
+		for _, arr := range entry.Arrangements {
+			arrangements = append(arrangements, toArrangementView(arr))
+		}
 		songsView = append(songsView, SongView{
-			ID:        entry.ID,
-			Title:     entry.Title,
-			Author:    entry.Author,
-			Copyright: entry.Copyright,
-			Sections:  sections,
+			ID:           entry.ID,
+			Title:        entry.Title,
+			Author:       entry.Author,
+			Copyright:    entry.Copyright,
+			CCLINumber:   entry.CCLINumber,
+			Source:       entry.Source,
+			Sections:     sections,
+			Arrangements: arrangements,
 		})
 	}
 	return SongsView{Songs: songsView}, nil

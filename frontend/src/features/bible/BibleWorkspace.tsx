@@ -4,7 +4,38 @@ import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
-import './bible.css';
+
+// ─── styles ──────────────────────────────────────────────────────────────────
+
+// Shared with the Songs screen, which reuses the same row/action look. Kept as
+// constants because the string repeats on every row; everything else is inline.
+const ROW_ACTION =
+  'inline-flex items-center gap-[5px] px-[7px] py-1.5 border border-transparent ' +
+  'rounded-[5px] bg-transparent text-secondary text-[10px] whitespace-nowrap ' +
+  'disabled:text-[#6F809B] max-[1279px]:[&_span]:hidden';
+
+const STATUS_PANEL =
+  'min-h-[210px] flex flex-col items-center justify-center gap-2 p-6 border ' +
+  'border-dashed border-border rounded-lg bg-app text-secondary text-center ' +
+  '[&>svg]:opacity-70 [&_strong]:text-text [&_strong]:text-[12px] ' +
+  '[&_strong]:font-medium [&_p]:max-w-[440px] [&_p]:text-[11px] [&_p]:leading-[1.7]';
+
+const SEARCH_FIELD =
+  'flex-1 min-w-0 flex items-center gap-2 min-h-[38px] px-3 border border-[#35445C] ' +
+  'rounded-[7px] bg-app [&>svg]:text-secondary ' +
+  'focus-within:border-blue focus-within:shadow-[0_0_0_2px_rgba(71,120,255,0.18)]';
+
+const SEARCH_INPUT =
+  'flex-1 min-w-0 h-9 border-0 outline-none bg-transparent text-text text-[12px] ' +
+  'placeholder:text-[#6F809B] disabled:text-secondary';
+
+const FILTER =
+  'min-h-[30px] px-2 border border-[#2A3950] rounded-md bg-elevated text-secondary ' +
+  'text-[10px] disabled:opacity-[0.65]';
+
+const BADGE =
+  'inline-flex justify-center px-1 py-px border border-border rounded-[4px] ' +
+  'text-secondary text-[9px] tracking-[0.4px]';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -29,18 +60,25 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
+// The row is a click target for preview/send-live; a click that lands on the
+// action buttons must not also fire the row handler.
 function fromActionArea(event: ReactMouseEvent<HTMLElement>): boolean {
-  return (event.target as HTMLElement).closest('.bible-result-actions') !== null;
+  return (event.target as HTMLElement).closest('[data-row-actions]') !== null;
 }
 
 /** Render a snippet that may contain <mark> tags safely. */
-function SnippetText({ snippet, text }: { snippet?: string; text: string }) {
+function SnippetText({ snippet, text, selected }: { snippet?: string; text: string; selected?: boolean }) {
+  // A selected row reads its snippet in full-strength text instead of the muted
+  // secondary colour used for the rest of the list.
+  const cls =
+    'min-w-0 truncate text-[11px] [&_mark]:text-blue [&_mark]:font-semibold [&_mark]:rounded-[2px] [&_mark]:px-px '
+    + (selected ? 'text-text' : 'text-secondary');
   if (snippet) {
     // snippet uses <mark> tags from FTS5; we trust the backend to only emit those.
     const safe = snippet.replace(/<(?!\/?mark>)[^>]+>/gi, '');
-    return <span className="bible-text" dangerouslySetInnerHTML={{ __html: safe }} />;
+    return <span className={cls} dangerouslySetInnerHTML={{ __html: safe }} />;
   }
-  return <span className="bible-text">{text}</span>;
+  return <span className={cls}>{text}</span>;
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -50,11 +88,16 @@ type SearchState =
   | { kind: 'error'; message: string }
   | { kind: 'results'; results: models.BibleVerse[]; hasMore: boolean };
 
+// A chapter block is one chapter's verses. Reading straight through the Bible
+// means several blocks stacked in order, so the list grows downward instead of
+// swapping the chapter out from under the operator's scroll wheel.
+type ChapterBlock = { bookId: number; chapter: number; results: models.BibleVerse[] };
+
 type BrowseState =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'results'; results: models.BibleVerse[]; bookId: number; chapter: number };
+  | { kind: 'results'; chapters: ChapterBlock[]; bookId: number; chapter: number };
 
 type ActionState = {
   busy: string | null;
@@ -79,7 +122,7 @@ export function BibleWorkspace() {
   const [books, setBooks] = useState<models.BibleBookView[]>([]);
 
   // — tabs ——————————————————————————————————————————————————————
-  const [activeTab, setActiveTab] = useState<ActiveTab>('search');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('browse');
 
   // — search state ——————————————————————————————————————————————
   const [query, setQuery] = useState('');
@@ -96,11 +139,15 @@ export function BibleWorkspace() {
   const requestId = useRef(0);
   const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Where the reading pane was before a search moved it, so clearing the search
+  // can put it back.
+  const browseReturn = useRef<{ bookId: number; chapter: number } | null>(null);
 
   // — browse state ——————————————————————————————————————————————
   const [browseBookId, setBrowseBookId] = useState(1);
   const [browseChapter, setBrowseChapter] = useState(1);
   const [browseState, setBrowseState] = useState<BrowseState>({ kind: 'idle' });
+  const [browseMore, setBrowseMore] = useState(false);
 
   // ─── load translations + books on mount ──────────────────────────────────
 
@@ -256,6 +303,14 @@ export function BibleWorkspace() {
     setPending(false);
     setQuery('');
     setSearch({ kind: 'idle' });
+
+    const back = browseReturn.current;
+    if (back) {
+      browseReturn.current = null;
+      setBrowseBookId(back.bookId);
+      setBrowseChapter(back.chapter);
+      void loadChapter(back.bookId, back.chapter);
+    }
     setSelectedReference(null);
     setOffset(0);
     inputRef.current?.focus();
@@ -303,9 +358,11 @@ export function BibleWorkspace() {
 
   // ─── browse ───────────────────────────────────────────────────────────────
 
-  async function loadChapter(bookId: number, chapter: number) {
+  async function loadChapter(bookId: number, chapter: number, append = false) {
     if (!bridgeAvailable || translationId === '') return;
-    setBrowseState({ kind: 'loading' });
+    if (append) setBrowseMore(true);
+    else setBrowseState({ kind: 'loading' });
+
     try {
       const response = await App.BrowsePassage({
         translationId,
@@ -314,15 +371,47 @@ export function BibleWorkspace() {
         verseStart: 0,
         verseEnd: 0,
       });
-      setBrowseState({
-        kind: 'results',
-        results: response.results ?? [],
-        bookId,
-        chapter,
-      });
+      const block: ChapterBlock = { bookId, chapter, results: response.results ?? [] };
+      setBrowseState((current) => (
+        append && current.kind === 'results'
+          ? { ...current, chapters: [...current.chapters, block] }
+          : { kind: 'results', chapters: [block], bookId, chapter }
+      ));
     } catch (error: unknown) {
-      setBrowseState({ kind: 'error', message: errorMessage(error) });
+      // A failed top-up leaves the chapters already on screen alone; only a
+      // first load can leave the pane with nothing to show.
+      if (!append) setBrowseState({ kind: 'error', message: errorMessage(error) });
+    } finally {
+      setBrowseMore(false);
     }
+  }
+
+  // nextChapter is the chapter after this one, rolling into the next book at the
+  // end. It stops at the last chapter of the last book, which is the end of the
+  // translation rather than a page that has not loaded yet.
+  function nextChapter(bookId: number, chapter: number): { bookId: number; chapter: number } | null {
+    const book = books.find((candidate) => candidate.id === bookId);
+    const chapters = book?.chapters ?? 1;
+    if (chapter < chapters) return { bookId, chapter: chapter + 1 };
+
+    const index = books.findIndex((candidate) => candidate.id === bookId);
+    const following = books[index + 1];
+    if (!following) return null;
+    return { bookId: following.id, chapter: 1 };
+  }
+
+  function handleBrowseScroll(event: React.UIEvent<HTMLDivElement>) {
+    const box = event.currentTarget;
+    if (activeTab !== 'browse' || browseMore || browseState.kind !== 'results') return;
+    if (box.scrollHeight - box.scrollTop - box.clientHeight > 260) return;
+
+    const last = browseState.chapters[browseState.chapters.length - 1];
+    const next = nextChapter(last.bookId, last.chapter);
+    if (!next) return;
+
+    setBrowseBookId(next.bookId);
+    setBrowseChapter(next.chapter);
+    void loadChapter(next.bookId, next.chapter, true);
   }
 
   function handleBrowseBookChange(id: number) {
@@ -336,6 +425,32 @@ export function BibleWorkspace() {
     void loadChapter(browseBookId, chapter);
   }
 
+  // The Bible tab never opens on an empty pane. Genesis 1 is what a person
+  // expects to find there, and they can scroll forward from it.
+  useEffect(() => {
+    if (!bridgeAvailable || translationId === '') return;
+    setBrowseBookId(1);
+    setBrowseChapter(1);
+    void loadChapter(1, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bridgeAvailable, translationId]);
+
+  // Searching moves that same reading pane to the book that was searched, and
+  // clearing the search puts it back where the operator had been reading.
+  useEffect(() => {
+    if (search.kind !== 'results' || search.results.length === 0) return;
+    const first = search.results[0];
+    if (browseReturn.current === null) {
+      browseReturn.current = { bookId: browseBookId, chapter: browseChapter };
+    }
+    if (first.bookId === browseBookId && first.chapter === browseChapter) return;
+
+    setBrowseBookId(first.bookId);
+    setBrowseChapter(first.chapter);
+    void loadChapter(first.bookId, first.chapter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
   // ─── renderers ────────────────────────────────────────────────────────────
 
   function renderVerseRow(result: models.BibleVerse, showRef = true) {
@@ -343,7 +458,12 @@ export function BibleWorkspace() {
     return (
       <li
         key={`${result.bookId}-${result.chapter}-${result.verse}`}
-        className={`bible-result${selected ? ' bible-result--selected' : ''}`}
+        className={
+          'flex items-center gap-2 px-2 py-px border rounded-[7px] cursor-pointer select-none '
+          + (selected
+            ? 'bg-selected border-[#304C80] shadow-[inset_3px_0_var(--color-blue)]'
+            : 'bg-app border-transparent hover:bg-[#0C1523]')
+        }
         title={`Click to preview ${result.reference} · double-click to send live`}
         onClick={(event) => {
           if (fromActionArea(event) || !canAct) return;
@@ -354,20 +474,30 @@ export function BibleWorkspace() {
           void perform('live', result);
         }}
       >
-        <button type="button" className="bible-result-main" aria-pressed={selected}>
-          {showRef && <span className="bible-reference">{result.reference}</span>}
+        <button
+          type="button"
+          className={
+            'flex-1 min-w-0 grid items-center gap-2 py-[9px] px-1 border-0 bg-transparent text-left text-inherit '
+            + (showRef ? 'grid-cols-[84px_36px_minmax(0,1fr)] max-[1279px]:grid-cols-[78px_32px_minmax(0,1fr)] max-[959px]:grid-cols-[72px_30px_minmax(0,1fr)] max-[959px]:pl-0.5'
+                       : 'grid-cols-[28px_36px_minmax(0,1fr)]')
+          }
+          aria-pressed={selected}
+        >
+          {showRef && <span className="text-[11px] font-semibold whitespace-nowrap text-text">{result.reference}</span>}
           {!showRef && (
-            <span className="bible-reference">
-              <span className="bible-verse-num">{result.verse}</span>
+            <span className="text-[11px] font-semibold whitespace-nowrap text-text">
+              <span className="text-[11px] font-bold text-secondary">{result.verse}</span>
             </span>
           )}
-          <span className="bible-badge">{activeTranslation?.abbreviation ?? ''}</span>
-          <SnippetText snippet={result.snippet} text={result.text} />
+          <span className="inline-flex justify-center px-1 py-px border border-border rounded-[4px] text-secondary text-[9px] tracking-[0.4px]">
+            {activeTranslation?.abbreviation ?? ''}
+          </span>
+          <SnippetText snippet={result.snippet} text={result.text} selected={selected} />
         </button>
-        <div className="bible-result-actions">
+        <div data-row-actions className="flex items-center gap-0.5">
           <button
             type="button"
-            className="bible-action"
+            className={ROW_ACTION}
             disabled={!canAct}
             onClick={(e) => { e.stopPropagation(); void perform('preview', result); }}
             aria-label={`Preview ${result.reference}`}
@@ -377,7 +507,7 @@ export function BibleWorkspace() {
           </button>
           <button
             type="button"
-            className="bible-action"
+            className={ROW_ACTION}
             disabled={!canAct}
             onClick={(e) => { e.stopPropagation(); void perform('live', result); }}
             aria-label={`Send ${result.reference} live`}
@@ -387,7 +517,7 @@ export function BibleWorkspace() {
           </button>
           <button
             type="button"
-            className="bible-action"
+            className={ROW_ACTION}
             disabled={!canAct}
             onClick={(e) => { e.stopPropagation(); void perform('add', result); }}
             aria-label={`Add ${result.reference} to the service`}
@@ -403,7 +533,7 @@ export function BibleWorkspace() {
   function renderSearchResults() {
     if (translationError) {
       return (
-        <div className="bible-message" role="status">
+        <div className={STATUS_PANEL} role="status">
           <Icon name="bible" size={30} />
           <strong>Bible search unavailable</strong>
           <p>{translationError}</p>
@@ -412,7 +542,7 @@ export function BibleWorkspace() {
     }
     if (loadingTranslations) {
       return (
-        <div className="bible-message" role="status">
+        <div className={STATUS_PANEL} role="status">
           <strong>Loading translations…</strong>
           <p>Reading installed scripture packages.</p>
         </div>
@@ -420,7 +550,7 @@ export function BibleWorkspace() {
     }
     if (translations.length === 0) {
       return (
-        <div className="bible-message" role="status">
+        <div className={STATUS_PANEL} role="status">
           <Icon name="bible" size={30} />
           <strong>No translations installed</strong>
           <p>Install a Bible translation package to search scripture.</p>
@@ -429,7 +559,7 @@ export function BibleWorkspace() {
     }
     if (search.kind === 'error') {
       return (
-        <div className="bible-message bible-message--error" role="alert">
+        <div className={`${STATUS_PANEL} border-[#5A2B35]! [&_strong]:text-error!`} role="alert">
           <strong>Search failed</strong>
           <p>{search.message}</p>
         </div>
@@ -437,7 +567,7 @@ export function BibleWorkspace() {
     }
     if (pending) {
       return (
-        <div className="bible-message" role="status">
+        <div className={STATUS_PANEL} role="status">
           <strong>Searching {activeTranslation?.abbreviation ?? ''}…</strong>
           <p>Reading the local translation package.</p>
         </div>
@@ -447,7 +577,7 @@ export function BibleWorkspace() {
       const { results, hasMore } = search;
       if (results.length === 0) {
         return (
-          <div className="bible-message" role="status">
+          <div className={STATUS_PANEL} role="status">
             <strong>No verses found</strong>
             <p>
               Nothing in {activeTranslation?.abbreviation ?? 'this translation'} matches "
@@ -458,14 +588,14 @@ export function BibleWorkspace() {
       }
       return (
         <>
-          <ul className="bible-results" aria-label="Search results">
+          <ul className="list-none grid gap-1 m-0 p-0" aria-label="Search results">
             {results.map((r) => renderVerseRow(r))}
           </ul>
           {hasMore && (
-            <div className="bible-load-more">
+            <div className="flex justify-center pt-2.5 pb-1">
               <button
                 type="button"
-                className="button"
+                className="min-h-8 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#35445C] rounded-md bg-elevated text-[11px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950] min-w-[160px]"
                 disabled={loadingMore}
                 onClick={loadMore}
               >
@@ -477,7 +607,7 @@ export function BibleWorkspace() {
       );
     }
     return (
-      <div className="bible-message" role="status">
+      <div className={STATUS_PANEL} role="status">
         <Icon name="search" size={30} />
         <strong>Search the Bible</strong>
         <p>
@@ -491,7 +621,7 @@ export function BibleWorkspace() {
   function renderBrowse() {
     if (!bridgeAvailable || translations.length === 0) {
       return (
-        <div className="bible-message" role="status">
+        <div className={STATUS_PANEL} role="status">
           <Icon name="bible" size={30} />
           <strong>No translations installed</strong>
           <p>Install a Bible translation package to browse chapters.</p>
@@ -499,11 +629,11 @@ export function BibleWorkspace() {
       );
     }
     return (
-      <div className="bible-browse">
+      <div className="grid gap-3">
         {/* Book + chapter selectors */}
-        <div className="bible-browse-nav">
+        <div className="flex items-center gap-2 px-2.5 py-2 border border-border rounded-lg bg-app">
           <select
-            className="bible-filter bible-filter--grow"
+            className={`${FILTER} flex-1 min-w-0`}
             aria-label="Select book"
             value={browseBookId}
             onChange={(e) => handleBrowseBookChange(Number(e.target.value))}
@@ -515,7 +645,7 @@ export function BibleWorkspace() {
             ))}
           </select>
           <select
-            className="bible-filter"
+            className={FILTER}
             aria-label="Select chapter"
             value={browseChapter}
             onChange={(e) => handleBrowseChapterChange(Number(e.target.value))}
@@ -528,7 +658,7 @@ export function BibleWorkspace() {
           </select>
           <button
             type="button"
-            className="button button--primary"
+            className="min-h-8 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#35445C] rounded-md bg-elevated text-[11px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
             disabled={!bridgeAvailable || translationId === ''}
             onClick={() => void loadChapter(browseBookId, browseChapter)}
             aria-label="Load chapter"
@@ -538,36 +668,43 @@ export function BibleWorkspace() {
         </div>
 
         {/* Browse results */}
-        <div className="bible-results-region">
+        <div>
           {browseState.kind === 'idle' && (
-            <div className="bible-message" role="status">
+            <div className={STATUS_PANEL} role="status">
               <Icon name="bible" size={28} />
               <strong>Select a chapter to read</strong>
               <p>Choose a book and chapter above, then press Go.</p>
             </div>
           )}
           {browseState.kind === 'loading' && (
-            <div className="bible-message" role="status">
+            <div className={STATUS_PANEL} role="status">
               <strong>Loading chapter…</strong>
             </div>
           )}
           {browseState.kind === 'error' && (
-            <div className="bible-message bible-message--error" role="alert">
+            <div className={`${STATUS_PANEL} border-[#5A2B35]! [&_strong]:text-error!`} role="alert">
               <strong>Could not load chapter</strong>
               <p>{browseState.message}</p>
             </div>
           )}
           {browseState.kind === 'results' && (
             <>
-              <div className="bible-browse-heading">
-                <strong>
-                  {books.find((b) => b.id === browseState.bookId)?.name} {browseState.chapter}
-                </strong>
-                <span className="bible-badge">{activeTranslation?.abbreviation ?? ''}</span>
-              </div>
-              <ul className="bible-results bible-results--chapter" aria-label="Chapter verses">
-                {browseState.results.map((r) => renderVerseRow(r, false))}
-              </ul>
+              {browseState.chapters.map((block) => (
+                <section key={`${block.bookId}-${block.chapter}`} className="grid gap-1.5">
+                  <div className="flex items-center gap-2 px-1.5 pt-1 pb-2 text-[12px] font-semibold text-text">
+                    <strong>
+                      {books.find((b) => b.id === block.bookId)?.name} {block.chapter}
+                    </strong>
+                    <span className={BADGE}>{activeTranslation?.abbreviation ?? ''}</span>
+                  </div>
+                  <ul className="list-none grid gap-1 m-0 p-0" aria-label="Chapter verses">
+                    {block.results.map((r) => renderVerseRow(r, false))}
+                  </ul>
+                </section>
+              ))}
+              {browseMore && (
+                <p className={STATUS_PANEL} role="status">Loading the next chapter…</p>
+              )}
             </>
           )}
         </div>
@@ -581,20 +718,27 @@ export function BibleWorkspace() {
 
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
+  const tabCls = (active: boolean) =>
+    'inline-flex items-center gap-1.5 min-h-[30px] px-2.5 py-[5px] border rounded-md '
+    + 'bg-transparent text-[11px] font-medium '
+    + (active
+      ? 'bg-selected border-[#304C80] text-text [&>svg]:text-[#8CABFF]'
+      : 'border-transparent text-secondary hover:not-disabled:text-text hover:not-disabled:bg-elevated disabled:opacity-[0.65]');
+
   return (
-    <section className="panel bible-workspace" aria-labelledby="bible-workspace-title">
-      <header className="bible-header">
-        <div className="bible-heading">
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden" aria-labelledby="bible-workspace-title">
+      <header className="flex items-center gap-[18px] flex-wrap min-h-[54px] px-3.5 py-2.5 border-b border-border max-[1279px]:gap-3 max-[959px]:p-2.5">
+        <div className="flex items-center gap-2 [&>svg]:text-secondary [&_h2]:text-[14px] [&_h2]:tracking-[-0.2px] max-[959px]:[&_h2]:text-[13px]">
           <Icon name="bible" size={18} />
           <h2 id="bible-workspace-title">Bible</h2>
         </div>
 
-        <div className="bible-tabs" role="tablist" aria-label="Bible views">
+        <div className="flex items-center gap-1 max-[959px]:order-3 max-[959px]:w-full" role="tablist" aria-label="Bible views">
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'search'}
-            className={`bible-tab${activeTab === 'search' ? ' bible-tab--active' : ''}`}
+            className={tabCls(activeTab === 'search')}
             onClick={() => setActiveTab('search')}
           >
             <Icon name="search" size={14} />Search
@@ -603,7 +747,7 @@ export function BibleWorkspace() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'browse'}
-            className={`bible-tab${activeTab === 'browse' ? ' bible-tab--active' : ''}`}
+            className={tabCls(activeTab === 'browse')}
             onClick={() => setActiveTab('browse')}
           >
             <Icon name="bible" size={14} />Browse
@@ -612,7 +756,7 @@ export function BibleWorkspace() {
             type="button"
             role="tab"
             aria-selected={false}
-            className="bible-tab"
+            className={tabCls(false)}
             disabled
             title="Cross references are not implemented."
           >
@@ -620,9 +764,9 @@ export function BibleWorkspace() {
           </button>
         </div>
 
-        <div className="bible-header-actions">
+        <div className="flex items-center gap-2 ml-auto">
           <select
-            className="bible-translation"
+            className="min-h-8 px-2 border border-[#35445C] rounded-md bg-elevated text-text text-[11px] disabled:text-secondary"
             aria-label="Bible translation"
             value={translationId}
             onChange={(event) => setTranslationId(event.target.value)}
@@ -638,12 +782,12 @@ export function BibleWorkspace() {
         </div>
       </header>
 
-      <div className="bible-body">
+      <div className="grid gap-3 p-3.5 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
         {/* ── SEARCH TAB ────────────────────────────────────────────── */}
         {activeTab === 'search' && (
           <>
-            <form className="bible-search" onSubmit={handleSubmit} role="search">
-              <div className="bible-search-field">
+            <form className="flex items-stretch gap-2.5 max-[959px]:gap-2" onSubmit={handleSubmit} role="search">
+              <div className={SEARCH_FIELD}>
                 <Icon name="search" size={16} />
                 <input
                   id="bible-search-input"
@@ -656,11 +800,12 @@ export function BibleWorkspace() {
                   autoComplete="off"
                   spellCheck={false}
                   disabled={Boolean(translationError) || loadingTranslations}
+                  className={SEARCH_INPUT}
                 />
                 {query !== '' && (
                   <button
                     type="button"
-                    className="bible-search-clear"
+                    className="grid place-items-center w-6 h-6 border-0 rounded-[4px] bg-transparent text-secondary hover:bg-elevated hover:text-text"
                     onClick={clearSearch}
                     aria-label="Clear search"
                     title="Clear search"
@@ -671,17 +816,17 @@ export function BibleWorkspace() {
               </div>
               <button
                 type="submit"
-                className="button button--primary bible-submit"
+                className="min-h-8 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#35445C] rounded-md bg-elevated text-[11px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]! min-w-[88px] max-[959px]:min-w-[72px] max-[959px]:px-2.5"
                 disabled={!canSearch}
               >
                 Search
               </button>
             </form>
 
-            <div className="bible-filters">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Testament filter */}
               <select
-                className="bible-filter"
+                className={FILTER}
                 aria-label="Filter by testament"
                 value={testament}
                 onChange={(e) => {
@@ -697,7 +842,7 @@ export function BibleWorkspace() {
 
               {/* Book filter */}
               <select
-                className="bible-filter"
+                className={FILTER}
                 aria-label="Filter by book"
                 value={bookFilter}
                 onChange={(e) => setBookFilter(Number(e.target.value))}
@@ -713,7 +858,7 @@ export function BibleWorkspace() {
 
               {/* Mode filter */}
               <select
-                className="bible-filter"
+                className={FILTER}
                 aria-label="Search mode"
                 value={mode}
                 onChange={(event) => setMode(event.target.value as Mode)}
@@ -725,7 +870,7 @@ export function BibleWorkspace() {
                 ))}
               </select>
 
-              <span className="bible-result-count" aria-live="polite">
+              <span className="text-secondary text-[10px] ml-0.5" aria-live="polite">
                 {pending
                   ? 'Searching…'
                   : resultCount !== null
@@ -734,7 +879,7 @@ export function BibleWorkspace() {
               </span>
             </div>
 
-            <div className="bible-results-region" aria-busy={pending}>
+            <div aria-busy={pending}>
               {renderSearchResults()}
             </div>
           </>
@@ -744,7 +889,10 @@ export function BibleWorkspace() {
         {activeTab === 'browse' && renderBrowse()}
 
         <p
-          className={`bible-note${action.status?.kind === 'error' ? ' bible-note--error' : ''}`}
+          className={
+            'pt-2.5 border-t border-border text-[10px] '
+            + (action.status?.kind === 'error' ? 'text-error' : 'text-secondary')
+          }
           aria-live="polite"
         >
           {action.status?.text ??
