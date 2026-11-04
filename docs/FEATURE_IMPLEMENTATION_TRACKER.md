@@ -99,6 +99,17 @@ Done:
         Mark 16:16 on top.
       - "God loved shepherd" (no verse has all three): stage 1 empty, stage 2
         widens and every top hit carries two of the three words.
+- [x] Guided reference entry as inline autocomplete
+      (`frontend/src/features/bible/referenceGuide.ts` + `BibleWorkspace.tsx`).
+      While the operator is still naming a book in "auto" mode, the field ghosts
+      the rest of the matching book name in muted text right after the caret
+      (no dropdown). Tab / Enter / Right-at-end accept the ghost into the
+      canonical name plus a trailing space, moving the caret to the chapter
+      position; a whole typed book name + Enter steps to the chapter, and
+      "book chapter" + Enter inserts the colon and steps to the verse.
+      Numbered books are reached through their number ("1 jo" ghosts "1 John").
+      Words that match no book show no ghost, so Enter still submits a plain
+      word search.
 
 Open:
 - [ ] `NIV`, `ESV`, `NLT`, `NASB` packages — only `KJV` (+ `AMP` in fixtures) are
@@ -321,13 +332,10 @@ The bindings under `frontend/bindings/**` were regenerated with `-i`
 
 In dependency order:
 
-1. **Guided reference entry** (F02) — as the operator types, suggest matching
-   books (including numbered books via their number, e.g. "J" → "1 John"), then
-   step the cursor book → chapter → verse with Tab/Enter, inserting the colon.
-2. **Configured shortcuts + settings UI** (F01/F03).
-3. **Reopen/restore past output** (F03) — `presentation_history` now has rows and
+1. **Configured shortcuts + settings UI** (F01/F03).
+2. **Reopen/restore past output** (F03) — `presentation_history` now has rows and
    carries the item id in `payload`, so this is the natural follow-on.
-4. **F07 offline detection, next slice** — continuous listening with automatic
+3. **F07 offline detection, next slice** — continuous listening with automatic
    segmentation (silence-based), Whisper model lifecycle behind
    `internal/speech`, confidence bands.
 

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import type { FormEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import type { FormEvent, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
+import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter } from './referenceGuide';
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,11 @@ export function BibleWorkspace() {
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
   const [action, setAction] = useState<ActionState>({ busy: null, status: null });
 
+  // — guided reference entry ————————————————————————————————————
+  // Whether the field has focus; the inline book-name ghost only shows while
+  // focused and while the operator is still typing the book portion in "auto".
+  const [fieldFocused, setFieldFocused] = useState(false);
+
   const requestId = useRef(0);
   const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +204,96 @@ export function BibleWorkspace() {
   // Chapter count for currently selected browse book
   const browseBook = books.find((b) => b.id === browseBookId);
   const browseChapters = browseBook?.chapters ?? 1;
+
+  // — guided reference entry ————————————————————————————————————————————————
+  // The operator is still naming a book while the text after the book portion
+  // holds no chapter digit or colon and the mode resolves references ("auto").
+  // Keying off the chapter position (not "any digit") lets a leading book number
+  // like the "1" in "1 John" stay part of the book stage. Once a whole book name
+  // is committed (it resolves and the field ends in the space we add on accept),
+  // there is nothing left to complete.
+  const bookText = bookPortion(query);
+  const bookCommitted = Boolean(resolveBook(query, books)) && /\s$/.test(query);
+  const inBookStage =
+    mode === 'auto' &&
+    query !== '' &&
+    !bookCommitted &&
+    !/[0-9:]/.test(query.slice(bookText.length));
+
+  // The one book the typed prefix completes to, and the remainder to ghost after
+  // the caret. Only while focused and still in the book stage, and only when a
+  // remainder is actually left to show.
+  const completion = useMemo(
+    () => (inBookStage ? inlineBookCompletion(query, books) : undefined),
+    [inBookStage, query, books],
+  );
+  const ghost = fieldFocused && completion && completion.remainder !== '' ? completion.remainder : '';
+
+  // Put the caret at the end of the field on the next frame, after React has
+  // committed the new value — setting it synchronously would be overwritten.
+  function caretToEnd(value: string) {
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(value.length, value.length);
+    });
+  }
+
+  function acceptBook(book: models.BibleBookView) {
+    const next = `${book.name} `;
+    setQuery(next);
+    caretToEnd(next);
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    const el = event.currentTarget;
+    const caretAtEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
+
+    // Accept the ghosted book name. Tab and Enter always accept; Right and End
+    // accept only when the caret already sits at the end, so ordinary caret
+    // movement through the typed text still behaves normally.
+    if (completion && completion.remainder !== '') {
+      const accepts =
+        event.key === 'Tab' ||
+        event.key === 'Enter' ||
+        ((event.key === 'ArrowRight' || event.key === 'End') && caretAtEnd);
+      if (accepts) {
+        event.preventDefault();
+        acceptBook(completion.book);
+        return;
+      }
+    }
+
+    // Escape dismisses the ghost by dropping focus from the field.
+    if (event.key === 'Escape') {
+      setFieldFocused(false);
+      el.blur();
+      return;
+    }
+
+    if (event.key !== 'Enter') return;
+
+    // A whole book name with nothing left to ghost jumps to the chapter stage.
+    if (inBookStage) {
+      const book = resolveBook(query, books);
+      if (book) {
+        event.preventDefault();
+        acceptBook(book);
+        return;
+      }
+    }
+    // "John 3" becomes "John 3:" and the caret moves to the verse.
+    const pending = pendingChapter(query, books);
+    if (pending) {
+      event.preventDefault();
+      const next = `${pending.book.name} ${pending.chapter}:`;
+      setQuery(next);
+      caretToEnd(next);
+      return;
+    }
+    // Otherwise let the form submit and run the search.
+  }
 
   // ─── search helpers ───────────────────────────────────────────────────────
 
@@ -789,19 +885,41 @@ export function BibleWorkspace() {
             <form className="flex items-stretch gap-2.5 max-[959px]:gap-2" onSubmit={handleSubmit} role="search">
               <div className={SEARCH_FIELD}>
                 <Icon name="search" size={16} />
-                <input
-                  id="bible-search-input"
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  aria-label="Search the Bible"
-                  placeholder="Search references or words, e.g. John 3:16 or living water"
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={Boolean(translationError) || loadingTranslations}
-                  className={SEARCH_INPUT}
-                />
+                {/* The input and its ghost share this box: an invisible copy of
+                    the typed text pushes the muted completion to start exactly
+                    where the caret sits, so the book name completes inline. */}
+                <div className="relative flex-1 min-w-0 flex items-center">
+                  <input
+                    id="bible-search-input"
+                    ref={inputRef}
+                    type="text"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    onFocus={() => setFieldFocused(true)}
+                    onBlur={() => setFieldFocused(false)}
+                    aria-label="Search the Bible"
+                    placeholder="Search references or words, e.g. John 3:16 or living water"
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={Boolean(translationError) || loadingTranslations}
+                    className={SEARCH_INPUT + ' relative z-10'}
+                    role="combobox"
+                    aria-autocomplete="inline"
+                    aria-expanded={false}
+                    aria-controls="bible-search-ghost"
+                  />
+                  {ghost !== '' && (
+                    <span
+                      id="bible-search-ghost"
+                      aria-hidden="true"
+                      className="absolute inset-0 z-0 flex items-center pointer-events-none whitespace-pre text-[12px] text-[#6F809B]"
+                    >
+                      <span className="invisible">{query}</span>
+                      {ghost}
+                    </span>
+                  )}
+                </div>
                 {query !== '' && (
                   <button
                     type="button"
