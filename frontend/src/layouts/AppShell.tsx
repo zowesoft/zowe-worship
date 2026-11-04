@@ -760,9 +760,13 @@ function DetectionPanel() {
 
 function ProductionCard() {
   const studio = useStudio();
+  const detection = useDetection();
   const preview = studio.presentation?.preview ?? null;
   const live = studio.presentation?.live ?? null;
   const scheduleCount = studio.order?.items?.length ?? 0;
+  const deviceLabel = detection.devices.find((device) => device.deviceId === detection.deviceId)?.label
+    || detection.devices[0]?.label
+    || 'Default microphone';
 
   async function run(action: () => Promise<unknown>) {
     try {
@@ -782,11 +786,21 @@ function ProductionCard() {
       </div>
 
       <div className="grid gap-2.5 p-3">
-        <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30]">
+        <button
+          type="button"
+          className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30] text-left w-full"
+          onClick={() => void run(detection.toggleListening)}
+          title={detection.listening ? 'Stop listening (F8)' : 'Listen for scripture references (F8)'}
+        >
           <span className="grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg shrink-0"><Icon name="mic" size={18} /></span>
-          <div className="flex flex-col gap-px min-w-0"><span className="text-secondary text-[9.5px]">Audio input</span><strong className="text-[11px] font-medium">Not configured</strong></div>
-          <Icon name="chevron" size={14} className="ml-auto text-secondary" />
-        </div>
+          <div className="flex flex-col gap-px min-w-0">
+            <span className="text-secondary text-[9.5px]">Audio input</span>
+            <strong className="text-[11px] font-medium truncate">{detection.listening ? deviceLabel : 'Not listening'}</strong>
+          </div>
+          <span className="ml-auto inline-grid place-items-center w-14 h-1.5 rounded-full bg-[#1A2740] overflow-hidden" aria-hidden="true">
+            <span className="h-full rounded-full bg-[#6EE7C0] transition-[width] duration-100" style={{ width: `${Math.round(detection.level * 100)}%` }} />
+          </span>
+        </button>
 
         <div className="grid gap-1.5">
           <div className="flex items-center gap-2 px-[9px] py-[7px] border border-border rounded-[7px] bg-[#111D30] [&>svg]:text-secondary [&>div]:min-w-0 [&_strong]:block [&_strong]:text-[10.5px] [&_strong]:font-medium [&_strong]:leading-[1.5] [&_div>span]:block [&_div>span]:text-secondary [&_div>span]:text-[9.5px] [&_div>span]:mt-px">
