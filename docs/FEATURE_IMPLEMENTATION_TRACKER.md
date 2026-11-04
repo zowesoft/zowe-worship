@@ -103,13 +103,17 @@ Done:
       (`frontend/src/features/bible/referenceGuide.ts` + `BibleWorkspace.tsx`).
       While the operator is still naming a book in "auto" mode, the field ghosts
       the rest of the matching book name in muted text right after the caret
-      (no dropdown). Tab / Enter / Right-at-end accept the ghost into the
-      canonical name plus a trailing space, moving the caret to the chapter
-      position; a whole typed book name + Enter steps to the chapter, and
-      "book chapter" + Enter inserts the colon and steps to the verse.
+      (no dropdown). Tab, Enter, or Right-at-end accepts the ghost into the
+      canonical name plus a trailing space; a space typed right after a chapter
+      number immediately becomes the colon ("John 3" + space → "John 3:"), so
+      the operator types book → chapter → verse without reaching for a key.
       Numbered books are reached through their number ("1 jo" ghosts "1 John").
-      Words that match no book show no ghost, so Enter still submits a plain
-      word search.
+- [x] One keypress to air scripture. With results on screen and nothing still
+      in flight, Enter sends the top result straight to the live output; double
+      clicking a row sends that specific row live. Single click still previews.
+      The live path ignores the in-flight "busy" gate, because the first click
+      of a double-click has already started a preview by the time the dblclick
+      lands (that gate is what previously swallowed the double-click).
 
 Open:
 - [ ] `NIV`, `ESV`, `NLT`, `NASB` packages — only `KJV` (+ `AMP` in fixtures) are

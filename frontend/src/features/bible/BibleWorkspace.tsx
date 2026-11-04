@@ -196,6 +196,10 @@ export function BibleWorkspace() {
   const canSearch =
     bridgeAvailable && translationId !== '' && trimmedQuery.length >= MIN_QUERY_LENGTH;
   const canAct = bridgeAvailable && translationId !== '' && action.busy === null;
+  // Going live must not wait for an in-flight action to settle: the first click
+  // of a double-click starts a preview (which sets busy), and Enter can arrive
+  // while a previous send is still resolving. Only the bridge gate applies.
+  const canGoLive = bridgeAvailable && translationId !== '';
 
   // Books filtered by current testament selection (for "All Books" dropdown)
   const filteredBooks =
@@ -252,7 +256,9 @@ export function BibleWorkspace() {
 
     // Accept the ghosted book name. Tab and Enter always accept; Right and End
     // accept only when the caret already sits at the end, so ordinary caret
-    // movement through the typed text still behaves normally.
+    // movement through the typed text still behaves normally. Enter accepting
+    // here also keeps a half-typed book from sending its partial query's top
+    // hit live before the operator has finished the reference.
     if (completion && completion.remainder !== '') {
       const accepts =
         event.key === 'Tab' ||
@@ -272,24 +278,28 @@ export function BibleWorkspace() {
       return;
     }
 
-    if (event.key !== 'Enter') return;
-
-    // A whole book name with nothing left to ghost jumps to the chapter stage.
-    if (inBookStage) {
-      const book = resolveBook(query, books);
-      if (book) {
+    // Space right after a chapter number becomes the colon, so the operator can
+    // keep typing the verse without reaching for another key.
+    if (event.key === ' ') {
+      const pendingChapterRef = pendingChapter(query, books);
+      if (pendingChapterRef) {
         event.preventDefault();
-        acceptBook(book);
+        const next = `${pendingChapterRef.book.name} ${pendingChapterRef.chapter}:`;
+        setQuery(next);
+        caretToEnd(next);
         return;
       }
     }
-    // "John 3" becomes "John 3:" and the caret moves to the verse.
-    const pending = pendingChapter(query, books);
-    if (pending) {
+
+    if (event.key !== 'Enter') return;
+
+    // Once a search has landed for what is actually typed, Enter sends the top
+    // result straight to the audience; double-clicking a row sends that row
+    // instead. Guarding on !pending avoids sending the previous query's stale
+    // top hit while the current search is still in flight.
+    if (canGoLive && !pending && search.kind === 'results' && search.results.length > 0) {
       event.preventDefault();
-      const next = `${pending.book.name} ${pending.chapter}:`;
-      setQuery(next);
-      caretToEnd(next);
+      void perform('live', search.results[0]);
       return;
     }
     // Otherwise let the form submit and run the search.
@@ -566,7 +576,9 @@ export function BibleWorkspace() {
           void perform('preview', result);
         }}
         onDoubleClick={(event) => {
-          if (fromActionArea(event) || !canAct) return;
+          // The first click of the double-click already started a preview, so
+          // action.busy is set by now; gate on the bridge only, not on busy.
+          if (fromActionArea(event) || !canGoLive) return;
           void perform('live', result);
         }}
       >
