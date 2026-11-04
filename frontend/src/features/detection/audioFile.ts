@@ -2,9 +2,11 @@
 // any format the webview supports (MP3, M4A, WAV, OGG…) and resample it to
 // the 16 kHz mono Int16 PCM the Go pipeline expects.
 
-// Cap how much of a file gets analyzed: the engine runs on CPU and a full
-// sermon would take minutes per chunk. Long enough for any generated clip.
-const MAX_FILE_SECONDS = 300;
+// Cap how much of a file gets analyzed. Long inputs can send autoregressive
+// engines (Moonshine in particular) into a decode loop that pins the CPU and
+// exhausts memory on small machines — 30 s is the proven-safe zone, and it
+// matches what the live mic loop analyzes anyway.
+const MAX_FILE_SECONDS = 30;
 const TARGET_RATE = 16000;
 
 export async function decodeAudioFile(file: File | Blob): Promise<Int16Array> {

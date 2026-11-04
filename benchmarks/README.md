@@ -120,6 +120,11 @@ before scoring; engine log noise on stdout is removed automatically.
 Notes:
 - Any single bundle stays below an 800 MB disk budget; the three tiers
   together cost ~870 MB, so models can be deleted after benchmarking.
+- **Moonshine degenerates on long inputs**: beyond roughly 20–30 s its decoder
+  can fall into a repetition loop ("I'm a little bit more than a," ×400),
+  pinning the CPU and growing memory until a small machine thrashes. Keep it
+  to short chunks (the live pipeline analyzes ~20 s); use whisper.cpp or
+  Parakeet for whole-clip transcription.
 - `whisper.cpp` also has `small.en` (~466 MB) as a middle option via the same
   CLI — add the model file if you want it scored.
 - Parakeet v3 is multilingual (25 European languages) and reports ~6.3% WER

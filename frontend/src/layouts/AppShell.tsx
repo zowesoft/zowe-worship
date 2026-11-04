@@ -9,6 +9,7 @@ import { SlideMedia } from '../components/SlideMedia';
 import { ThemedSlide } from '../components/ThemedSlide';
 import { useStudio } from '../stores/StudioProvider';
 import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
+import { HistoryPanel } from '../features/presentation/HistoryPanel';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import { App } from '../../bindings/zowe-worship';
 import * as models from '../../bindings/zowe-worship/models';
@@ -677,7 +678,7 @@ function DetectionPanel() {
               {detection.analyzing ? 'Analyzing…' : `Analyze last ${ANALYZE_SECONDS} s`}
             </button>
           </div>
-          <label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV">
+          <label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV (first 30 seconds)">
             <Icon name="play" size={13} />
             {detection.analyzing ? 'Analyzing…' : 'Test audio file…'}
             <input
@@ -1055,6 +1056,7 @@ export function AppShell({ activePage, onNavigate, children }: {
         </div>
         <div className="grid gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
           <DetectionPanel />
+          <HistoryPanel />
           <ProductionCard />
         </div>
       </main>

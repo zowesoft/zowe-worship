@@ -16,6 +16,11 @@ import (
 // PCM, the format every supported engine wants.
 const detectionAudioRate = 16000
 
+// maxDetectionAudioBytes caps one analysis request at 30 s of 16 kHz mono
+// 16-bit PCM. Longer inputs can push autoregressive engines like Moonshine
+// into a decode loop that pins the CPU and starves small machines of memory.
+const maxDetectionAudioBytes = 30 * detectionAudioRate * 2
+
 // DetectionView is one candidate in the approval queue. The reference fields
 // mirror ScriptureRequest so the frontend can preview the passage without a
 // second lookup.
@@ -54,6 +59,9 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	}
 	if len(pcm) == 0 {
 		return DetectionResult{}, errors.New("no audio was captured")
+	}
+	if len(pcm) > maxDetectionAudioBytes {
+		return DetectionResult{}, errors.New("audio chunk is too long — analyze at most 30 seconds at a time")
 	}
 	if a.detectionDisabled() {
 		return DetectionResult{}, errors.New("detection is disabled (F12)")
