@@ -679,7 +679,7 @@ function DetectionPanel() {
           </div>
           {detection.devices.length > 1 && (
             <select
-              className="min-h-7 px-2 border border-[#35445C] rounded-md bg-app text-[10.5px] text-text"
+              className="min-h-7 w-full min-w-0 px-2 border border-[#35445C] rounded-md bg-app text-[10.5px] text-text truncate"
               value={detection.deviceId}
               onChange={(event) => detection.setDevice(event.target.value)}
               aria-label="Audio input device"
