@@ -865,10 +865,10 @@ export function BibleWorkspace() {
     <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden" aria-label="Bible">
       <div className="grid gap-2.5 p-3 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
         {/* ── SEARCH FIELD ROW ─────────────────────────────────────────
-            Always visible in both modes: the leading icon toggles between the
-            results pane and the chapter reading pane, and the translation
-            selector sits where a submit button would have been — typing is
-            enough, there is no button to hit. */}
+            Always visible in both modes: the leading icon names the current
+            mode and toggles to the other one, and the translation selector
+            sits where a submit button would have been — typing is enough,
+            there is no button to hit. */}
         <form className="flex items-stretch gap-2.5 max-[959px]:gap-2" onSubmit={handleSubmit} role="search">
           <div className={SEARCH_FIELD}>
             <button
@@ -889,10 +889,20 @@ export function BibleWorkspace() {
                 // leaving the field they were typing in.
                 inputRef.current?.focus();
               }}
-              aria-label={activeTab === 'search' ? 'Switch to browse' : 'Switch to search'}
-              title={activeTab === 'search' ? 'Browse chapters' : 'Search the Bible'}
+              aria-label={
+                activeTab === 'search'
+                  ? 'Search mode — switch to browse'
+                  : 'Browse mode — switch to search'
+              }
+              title={
+                activeTab === 'search'
+                  ? 'Search mode — click to browse chapters'
+                  : 'Browse mode — click to search the Bible'
+              }
             >
-              <Icon name={activeTab === 'search' ? 'bible' : 'search'} size={15} />
+              {/* The icon names the mode you are IN, matching the placeholder
+                  and what typing does; clicking it switches to the other one. */}
+              <Icon name={activeTab === 'search' ? 'search' : 'bible'} size={15} />
             </button>
             {/* The input and its ghost share this box: an invisible copy of
                 the typed text pushes the muted completion to start exactly
