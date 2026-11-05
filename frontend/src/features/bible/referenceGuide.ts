@@ -69,24 +69,26 @@ export function pendingChapter(
 
 // A typed reference resolved against the installed books, for the browse pane
 // to jump to: the book, the chapter it names (null while only the book is
-// typed so the caller decides whether a book alone should move the pane) and
-// the verse when one was given ("John 3:16" -> chapter 3, verse 16). Returns
-// undefined when the text names no book or carries anything besides a
+// typed so the caller decides whether a book alone should move the pane), the
+// verse when one was given ("John 3:16" -> chapter 3, verse 16) and the end of
+// a named range ("John 3:16-18" -> verseEnd 18, null when no range was typed).
+// Returns undefined when the text names no book or carries anything besides a
 // reference after it - "living water" and "John 3 somewhere" are not jumps.
 export function parseReference(
   text: string,
   books: Book[],
-): { book: Book; chapter: number | null; verse: number | null } | undefined {
+): { book: Book; chapter: number | null; verse: number | null; verseEnd: number | null } | undefined {
   const book = resolveBook(text, books);
   if (!book) return undefined;
   const rest = text.slice(bookPortion(text).length).trim();
-  if (rest === '') return { book, chapter: null, verse: null };
+  if (rest === '') return { book, chapter: null, verse: null, verseEnd: null };
   const match = rest.match(/^(\d+)(?:\s*[:.]\s*(\d+))?(?:\s*-\s*(\d+))?$/);
   if (!match) return undefined;
   return {
     book,
     chapter: Number(match[1]),
     verse: match[2] ? Number(match[2]) : null,
+    verseEnd: match[3] ? Number(match[3]) : null,
   };
 }
 

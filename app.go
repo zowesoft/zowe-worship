@@ -78,6 +78,10 @@ type BibleSearchResponse struct {
 	Reference string       `json:"reference,omitempty"`
 	Results   []BibleVerse `json:"results"`
 	Total     int          `json:"total"`
+	// The verse span the query named (0, 0 for a whole chapter or a text
+	// search), so the frontend can highlight exactly what was searched.
+	VerseStart int `json:"verseStart"`
+	VerseEnd   int `json:"verseEnd"`
 }
 
 // BibleBookView is a lightweight description of one canonical book exposed to
@@ -274,20 +278,34 @@ func (a *App) SearchBible(request BibleSearchRequest) (BibleSearchResponse, erro
 		reference, err := scripture.Parse(query)
 		switch {
 		case err == nil:
-			verses, err := a.bible.Passage(ctx, translationID,
-				reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd)
+			// A reference reads on: the named verse (or range) leads the list
+			// and the verses after it in the chapter queue behind, so searching
+			// Job 29:15 shows verse 15 first with 16 and the rest following.
+			chapter, err := a.bible.Passage(ctx, translationID,
+				reference.Book.ID, reference.Chapter, 0, 0)
 			if err != nil {
 				return BibleSearchResponse{}, err
+			}
+			verses := chapter
+			if reference.VerseStart > 0 {
+				verses = nil
+				for _, verse := range chapter {
+					if verse.Verse >= reference.VerseStart {
+						verses = append(verses, verse)
+					}
+				}
 			}
 			if len(verses) == 0 {
 				return BibleSearchResponse{}, fmt.Errorf("%s was not found in %s", reference.String(), translationID)
 			}
 			views := toBibleVerses(verses)
 			return BibleSearchResponse{
-				Kind:      "reference",
-				Reference: reference.String(),
-				Results:   views,
-				Total:     len(views),
+				Kind:       "reference",
+				Reference:  reference.String(),
+				Results:    views,
+				Total:      len(views),
+				VerseStart: reference.VerseStart,
+				VerseEnd:   reference.VerseEnd,
 			}, nil
 		case errors.Is(err, scripture.ErrNotReference):
 			mode = "words"

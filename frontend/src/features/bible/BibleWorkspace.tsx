@@ -105,6 +105,10 @@ type BrowseState =
   | { kind: 'error'; message: string }
   | { kind: 'results'; chapters: ChapterBlock[]; bookId: number; chapter: number };
 
+// The selection an action operates on: a single verse, or the range a
+// reference search or browse jump named ("Job 29:15-20" selects 15-20).
+type Selection = { bookId: number; chapter: number; start: number; end: number };
+
 type ActionState = {
   busy: string | null;
   status: { kind: 'message' | 'error'; text: string } | null;
@@ -139,7 +143,9 @@ export function BibleWorkspace() {
   const [pending, setPending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  // The selection an action operates on: one verse, or the range the search or
+  // jump named. Rows inside it highlight together and act together.
+  const [selection, setSelection] = useState<Selection | null>(null);
   const [action, setAction] = useState<ActionState>({ busy: null, status: null });
 
   // — guided reference entry ————————————————————————————————————
@@ -346,11 +352,28 @@ export function BibleWorkspace() {
         if (currentRequest !== requestId.current) return;
 
         const incoming = response.results ?? [];
-        const hasMore = incoming.length === PAGE_SIZE;
+        // A reference search returns the whole reading, so there is never a
+        // next page to load for it.
+        const hasMore = response.kind !== 'reference' && incoming.length === PAGE_SIZE;
 
         if (replace) {
           setSearch({ kind: 'results', results: incoming, hasMore });
-          setSelectedReference(incoming[0]?.reference ?? null);
+          // The selection is what the query named: the verse range of a
+          // reference search (highlighted and acted on as one block), or the
+          // top result's own row for text and whole-chapter searches.
+          const first = incoming[0];
+          setSelection(
+            first === undefined
+              ? null
+              : response.verseStart > 0
+                ? {
+                    bookId: first.bookId,
+                    chapter: first.chapter,
+                    start: response.verseStart,
+                    end: response.verseEnd || response.verseStart,
+                  }
+                : { bookId: first.bookId, chapter: first.chapter, start: first.verse, end: first.verse },
+          );
           setOffset(off + incoming.length);
         } else {
           setSearch((prev) => {
@@ -381,7 +404,7 @@ export function BibleWorkspace() {
       requestId.current += 1;
       setPending(false);
       setSearch({ kind: 'idle' });
-      setSelectedReference(null);
+      setSelection(null);
       setOffset(0);
       // An empty field means reading again: put the pane back where it was
       // before a search or a reference jump moved it (Genesis on a fresh
@@ -459,7 +482,7 @@ export function BibleWorkspace() {
     setSearch({ kind: 'idle' });
     // The empty-query branch of the search effect restores the reading
     // position (browseReturn), so clearing and backspacing behave the same.
-    setSelectedReference(null);
+    setSelection(null);
     setOffset(0);
     // Clearing the search returns to reading: the pane goes back to where the
     // operator had been browsing.
@@ -469,29 +492,57 @@ export function BibleWorkspace() {
 
   // ─── action handler ───────────────────────────────────────────────────────
 
+  // The address an action on this row operates on: inside the selection the
+  // whole range (Job 29:15-20 sends all six verses to the schedule), outside
+  // it just the row's own verse. The label names what will be sent.
+  function actionTarget(result: models.BibleVerse): {
+    start: number;
+    end: number;
+    label: string;
+    inRange: boolean;
+  } {
+    const inRange =
+      selection !== null &&
+      selection.bookId === result.bookId &&
+      selection.chapter === result.chapter &&
+      result.verse >= selection.start &&
+      result.verse <= selection.end;
+    const start = inRange && selection !== null ? selection.start : result.verse;
+    const end = inRange && selection !== null ? selection.end : result.verse;
+    const label =
+      end > start ? `${result.book} ${result.chapter}:${start}-${end}` : result.reference;
+    return { start, end, label, inRange };
+  }
+
   async function perform(kind: 'preview' | 'live' | 'add', result: models.BibleVerse) {
-    const key = `${kind}:${result.reference}`;
+    const target = actionTarget(result);
+    const key = `${kind}:${target.label}`;
     setAction({ busy: key, status: null });
+
+    // Acting on a verse outside the selected range collapses the selection to
+    // that verse - the range was what the search named, the click is the
+    // operator's decision. Acting inside keeps the whole range selected.
+    if (!target.inRange && kind !== 'add') {
+      setSelection({ bookId: result.bookId, chapter: result.chapter, start: result.verse, end: result.verse });
+    }
 
     const input = {
       translationId,
       bookId: result.bookId,
       chapter: result.chapter,
-      verseStart: result.verse,
-      verseEnd: result.verse,
+      verseStart: target.start,
+      verseEnd: target.end,
     };
 
     try {
       if (kind === 'preview') {
         await studio.previewScripture(input);
-        setSelectedReference(result.reference);
-        setAction({ busy: null, status: { kind: 'message', text: `Previewing ${result.reference}.` } });
+        setAction({ busy: null, status: { kind: 'message', text: `Previewing ${target.label}.` } });
         return;
       }
       if (kind === 'live') {
         await studio.projectScripture(input);
-        setSelectedReference(result.reference);
-        setAction({ busy: null, status: { kind: 'message', text: `${result.reference} is live.` } });
+        setAction({ busy: null, status: { kind: 'message', text: `${target.label} is live.` } });
         return;
       }
       const order = await studio.addScripture(input);
@@ -499,7 +550,7 @@ export function BibleWorkspace() {
         busy: null,
         status: {
           kind: 'message',
-          text: `Added ${result.reference} to ${order.service?.name ?? 'the service'}.`,
+          text: `Added ${target.label} to ${order.service?.name ?? 'the service'}.`,
         },
       });
     } catch (error: unknown) {
@@ -521,13 +572,13 @@ export function BibleWorkspace() {
   async function jumpToReference(
     text: string,
     options: { bookOnly: boolean },
-  ): Promise<{ book: models.BibleBookView; chapter: number; verse: number | null } | null> {
+  ): Promise<{ book: models.BibleBookView; chapter: number; verse: number | null; verseEnd: number | null } | null> {
     const target = parseReference(text, books);
     if (!target) return null;
     if (target.chapter === null && !options.bookOnly) return null;
     const chapter = target.chapter ?? 1;
     if (chapter < 1 || chapter > target.book.chapters) return null;
-    const resolved = { book: target.book, chapter, verse: target.verse };
+    const resolved = { book: target.book, chapter, verse: target.verse, verseEnd: target.verseEnd };
 
     const alreadyThere =
       target.book.id === browseBookId && chapter === browseChapter && browseState.kind === 'results';
@@ -542,14 +593,21 @@ export function BibleWorkspace() {
       await loadChapter(target.book.id, chapter);
     }
 
-    const reference =
-      target.verse !== null ? `${target.book.name} ${chapter}:${target.verse}` : null;
-    setSelectedReference(reference);
-    if (reference !== null) {
+    if (target.verse !== null) {
+      // A named verse (or range, "Joshua 1:8-10") is the selection: its rows
+      // highlight together and act together.
+      setSelection({
+        bookId: target.book.id,
+        chapter,
+        start: target.verse,
+        end: target.verseEnd ?? target.verse,
+      });
       const key = `${target.book.id}:${chapter}:${target.verse}`;
       requestAnimationFrame(() => {
         document.querySelector(`[data-verse="${key}"]`)?.scrollIntoView({ block: 'center' });
       });
+    } else {
+      setSelection(null);
     }
     return resolved;
   }
@@ -563,10 +621,13 @@ export function BibleWorkspace() {
       setAction({ busy: null, status: { kind: 'message', text: browseJumpHint() } });
       return;
     }
+    const verseEnd = target.verse !== null ? (target.verseEnd ?? target.verse) : null;
     const reference =
-      target.verse !== null
-        ? `${target.book.name} ${target.chapter}:${target.verse}`
-        : `${target.book.name} ${target.chapter}`;
+      target.verse === null
+        ? `${target.book.name} ${target.chapter}`
+        : verseEnd !== null && verseEnd > target.verse
+          ? `${target.book.name} ${target.chapter}:${target.verse}-${verseEnd}`
+          : `${target.book.name} ${target.chapter}:${target.verse}`;
     if (!canGoLive) return; // the pane moved, but there is no audience to send to
 
     setAction({ busy: `live:${reference}`, status: null });
@@ -576,7 +637,7 @@ export function BibleWorkspace() {
         bookId: target.book.id,
         chapter: target.chapter,
         verseStart: target.verse ?? 0,
-        verseEnd: target.verse ?? 0,
+        verseEnd: verseEnd ?? 0,
       });
       setAction({ busy: null, status: { kind: 'message', text: `${reference} is live.` } });
     } catch (error: unknown) {
@@ -681,7 +742,8 @@ export function BibleWorkspace() {
   // ─── renderers ────────────────────────────────────────────────────────────
 
   function renderVerseRow(result: models.BibleVerse, showRef = true) {
-    const selected = selectedReference === result.reference;
+    const target = actionTarget(result);
+    const selected = target.inRange;
     return (
       <li
         key={`${result.bookId}-${result.chapter}-${result.verse}`}
@@ -692,7 +754,7 @@ export function BibleWorkspace() {
             ? 'bg-selected border-[#304C80] shadow-[inset_3px_0_var(--color-blue)]'
             : 'bg-app border-transparent hover:bg-[#0C1523]')
         }
-        title={`Click to preview ${result.reference} · double-click to send live`}
+        title={`Click to preview ${target.label} · double-click to send live`}
         onClick={(event) => {
           if (fromActionArea(event) || !canAct) return;
           void perform('preview', result);
@@ -730,8 +792,8 @@ export function BibleWorkspace() {
             className={ROW_ACTION}
             disabled={!canAct}
             onClick={(e) => { e.stopPropagation(); void perform('preview', result); }}
-            aria-label={`Preview ${result.reference}`}
-            title={`Preview ${result.reference}`}
+            aria-label={`Preview ${target.label}`}
+            title={`Preview ${target.label}`}
           >
             <Icon name="preview" size={13} /><span>Preview</span>
           </button>
@@ -740,8 +802,8 @@ export function BibleWorkspace() {
             className={ROW_ACTION}
             disabled={!canAct}
             onClick={(e) => { e.stopPropagation(); void perform('live', result); }}
-            aria-label={`Send ${result.reference} live`}
-            title={`Send ${result.reference} live`}
+            aria-label={`Send ${target.label} live`}
+            title={`Send ${target.label} live`}
           >
             <Icon name="display" size={13} /><span>Send Live</span>
           </button>
@@ -750,8 +812,8 @@ export function BibleWorkspace() {
             className={ROW_ACTION}
             disabled={!canAct}
             onClick={(e) => { e.stopPropagation(); void perform('add', result); }}
-            aria-label={`Add ${result.reference} to the service`}
-            title={`Add ${result.reference} to the service`}
+            aria-label={`Add ${target.label} to the service`}
+            title={`Add ${target.label} to the service`}
           >
             <Icon name="plus" size={13} /><span>Add to Service</span>
           </button>

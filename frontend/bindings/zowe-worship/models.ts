@@ -71,6 +71,8 @@ export interface BibleSearchResponse {
     "reference"?: string;
     "results": BibleVerse[] | null;
     "total": number;
+    "verseStart": number;
+    "verseEnd": number;
 }
 
 export interface BibleVerse {
@@ -337,6 +339,37 @@ export interface SongView {
 export interface SongsView {
     "songs": SongView[] | null;
     "hits": LyricHitView[] | null;
+}
+
+/**
+ * SpeechEngineView is one row in the Settings engine list: what it is, whether
+ * it is already on disk, and whether it is the one currently selected.
+ */
+export interface SpeechEngineView {
+    "id": string;
+    "name": string;
+    "description": string;
+
+    /**
+     * Installed is true when the engine's files are present.
+     */
+    "installed": boolean;
+
+    /**
+     * Bundled is true when the engine's files come from beside the app rather
+     * than a download.
+     */
+    "bundled": boolean;
+
+    /**
+     * Active is true when this engine is the one Live Detection uses.
+     */
+    "active": boolean;
+
+    /**
+     * Supported is false when no runtime exists for this machine's platform.
+     */
+    "supported": boolean;
 }
 
 /**

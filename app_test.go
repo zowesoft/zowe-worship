@@ -45,6 +45,9 @@ func installTestBible(t *testing.T, app *App) {
 			{BookID: 43, Chapter: 3, Number: 16, Text: "For God so loved the world, that he gave his only begotten Son."},
 			{BookID: 43, Chapter: 4, Number: 24, Text: "God is a Spirit: and they that worship him must worship him in spirit and in truth."},
 			{BookID: 58, Chapter: 11, Number: 1, Text: "Now faith is the substance of things hoped for."},
+			{BookID: 18, Chapter: 29, Number: 15, Text: "I put on righteousness, and it clothed me."},
+			{BookID: 18, Chapter: 29, Number: 16, Text: "I was a father to the poor: and the cause which I knew not I searched out."},
+			{BookID: 18, Chapter: 29, Number: 17, Text: "And I brake the jaws of the wicked, and plucked the spoil out of his teeth."},
 		},
 	})
 	if err != nil {
@@ -163,7 +166,7 @@ func TestListTranslationsBinding(t *testing.T) {
 		t.Fatalf("translations = %d, want 1", len(views))
 	}
 	view := views[0]
-	if view.ID != "kjv" || view.Abbreviation != "KJV" || view.VerseCount != 5 {
+	if view.ID != "kjv" || view.Abbreviation != "KJV" || view.VerseCount != 8 {
 		t.Fatalf("unexpected translation view: %+v", view)
 	}
 }
@@ -231,6 +234,47 @@ func TestSearchBibleExplicitModes(t *testing.T) {
 		TranslationID: "kjv", Query: "grace", Mode: "fuzzy",
 	}); err == nil {
 		t.Fatal("unknown mode was accepted")
+	}
+}
+
+func TestSearchBibleReferenceQueuesFollowingVerses(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	// A single verse leads the results and the verses after it in the chapter
+	// queue behind, so the operator can send the next verses without another
+	// search.
+	resp, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "Job 29:15"})
+	if err != nil {
+		t.Fatalf("single verse search: %v", err)
+	}
+	if resp.Kind != "reference" || resp.VerseStart != 15 || resp.VerseEnd != 15 {
+		t.Fatalf("unexpected reference response: %+v", resp)
+	}
+	if len(resp.Results) != 3 {
+		t.Fatalf("results = %+v, want verses 15-17", resp.Results)
+	}
+	for i, verse := range resp.Results {
+		if verse.Verse != 15+i {
+			t.Fatalf("result %d is verse %d, want %d", i, verse.Verse, 15+i)
+		}
+	}
+
+	// A named range is the highlighted block; the rest still queues behind.
+	respRange, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "Job 29:15-16"})
+	if err != nil {
+		t.Fatalf("range search: %v", err)
+	}
+	if respRange.VerseStart != 15 || respRange.VerseEnd != 16 {
+		t.Fatalf("range span = %d-%d, want 15-16", respRange.VerseStart, respRange.VerseEnd)
+	}
+	if len(respRange.Results) != 3 || respRange.Results[0].Verse != 15 {
+		t.Fatalf("range results = %+v", respRange.Results)
+	}
+
+	// A verse past the chapter's text still reports not found.
+	if _, err := app.SearchBible(BibleSearchRequest{TranslationID: "kjv", Query: "Job 29:40"}); err == nil || !strings.Contains(err.Error(), "was not found") {
+		t.Fatalf("missing verse err = %v", err)
 	}
 }
 
