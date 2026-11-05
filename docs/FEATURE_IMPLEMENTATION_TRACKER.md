@@ -249,6 +249,58 @@ safety checklist, and the remaining `internal/audio` / `internal/speech` /
 `F9` (pause auto-projection) remains a placeholder notice because nothing
 auto-projects yet.
 
+### Engine provisioning (next F07 slice — scoped)
+
+Today the engine is only *discovered* if it already sits on disk
+(`ListDetectionEngines` scans `<cwd>/benchmarks`, `<exe dir>/benchmarks`, and
+`<data root>/engines`). Nothing downloads or bundles one and the installer
+ships none, so a fresh install is permanently "No engine". Verified against
+the on-disk engines: the smoke clip transcribes and detects Romans 8:28 on
+both whisper (`ggml-tiny.en`) and Moonshine (`moonshine-tiny-en-int8`), and
+the app's own pipeline handles both specs end to end
+(`app_detection_e2e_test.go`).
+
+Bundle target — Moonshine via sherpa-onnx (the natural first bundle: no
+per-model license gate, small, ~16× realtime):
+
+- Runtime, 2 files (~21 MB), proven by running from a clean temp dir:
+  `sherpa-onnx-offline.exe` + `onnxruntime.dll`.
+  `onnxruntime_providers_shared.dll` is NOT needed on the CPU path.
+- Model, 5 files (~119 MB), all required:
+  `preprocess.onnx`, `encode.int8.onnx`, `uncached_decode.int8.onnx`,
+  `cached_decode.int8.onnx`, `tokens.txt`.
+- Total ≈ 140 MB.
+
+Layout the discovery scanner already accepts, so nothing in Go changes to
+find it:
+
+```
+engines/
+  bin/sherpa-onnx-offline.exe
+  bin/onnxruntime.dll
+  models/moonshine-tiny-en-int8/{the 5 model files}
+```
+
+(the scanner keys on a file named exactly `sherpa-onnx-offline.exe` and a
+model dir holding `tokens.txt`; the walk is depth-capped at 5.)
+
+Source URLs (mirroring `benchmarks/fetch.ps1`): the sherpa-onnx
+`v2.0.1-win-x64-shared-MT-Release.tar.bz2` release asset for the two binaries,
+and the per-file HuggingFace repo
+`csukuangfj/sherpa-onnx-moonshine-tiny-en-int8` for the model.
+
+Decisions still to make before building:
+
+- Download vs bundle. Download favours installer size and lets us pin a
+  version; bundle favours a zero-network first run. Suggested: bundle nothing,
+  ship a "Get speech engine" action in Settings that downloads to
+  `<data root>/engines`, with progress and resume.
+- Integrity: pin SHA-256 per file (the release + HuggingFace blobs are large
+  and can change URL), verify before the engine is registered.
+- Licensing: sherpa-onnx is Apache-2.0, Moonshine MIT. No license text ships
+  with the current binaries; the bundle and the app's attributions must carry
+  both.
+
 ## F08 — Semantic scripture and song search (Planned)
 
 `internal/search` is empty. No embedding model, no versioned index, no
@@ -339,7 +391,11 @@ In dependency order:
 1. **Configured shortcuts + settings UI** (F01/F03).
 2. **Reopen/restore past output** (F03) — `presentation_history` now has rows and
    carries the item id in `payload`, so this is the natural follow-on.
-3. **F07 offline detection, next slice** — continuous listening with automatic
+3. **F07 engine provisioning** — ship a speech engine so a fresh install is not
+   permanently "No engine": download-to-`<data root>/engines` of the Moonshine
+   bundle (≈140 MB), with pinned hashes and license text. Layout and decisions
+   are recorded under F07 above.
+4. **F07 offline detection, later slices** — continuous listening with automatic
    segmentation (silence-based), Whisper model lifecycle behind
    `internal/speech`, confidence bands.
 
