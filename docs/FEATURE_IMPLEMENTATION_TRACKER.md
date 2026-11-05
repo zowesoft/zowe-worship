@@ -249,25 +249,44 @@ safety checklist, and the remaining `internal/audio` / `internal/speech` /
 `F9` (pause auto-projection) remains a placeholder notice because nothing
 auto-projects yet.
 
-### Engine provisioning (next F07 slice — scoped)
+### Engine provisioning (F07 slice — in progress)
 
-Today the engine is only *discovered* if it already sits on disk
-(`ListDetectionEngines` scans `<cwd>/benchmarks`, `<exe dir>/benchmarks`, and
-`<data root>/engines`). Nothing ships or fetches one, so a fresh install is
-permanently "No engine". Verified against the on-disk engines: the smoke clip
-transcribes and detects Romans 8:28 on both whisper (`ggml-tiny.en`) and
-Moonshine (`moonshine-tiny-en-int8`), and the app's own pipeline handles both
-specs end to end (`app_detection_e2e_test.go`).
+The engine is only *discovered* if it already sits on disk. Discovery now scans
+four roots: `<cwd>/benchmarks`, `<exe dir>/benchmarks`, `<exe dir>/engines`,
+and `<data root>/engines` (the last two are the bundled and downloaded homes).
+Verified against the on-disk engines: the smoke clip transcribes and detects
+Romans 8:28 on both whisper (`ggml-tiny.en`) and Moonshine
+(`moonshine-tiny-en-int8`), and the app's own pipeline handles both specs end
+to end (`app_detection_e2e_test.go`).
 
 **Decision: bundle Moonshine in the installer; other engines are downloaded.**
 Moonshine via sherpa-onnx is the one to ship — no per-model license gate,
 small, ~16× realtime, and it is the only engine a first run needs.
 
-#### The cross-platform shape
+#### Built: `internal/speech`
 
-The model is **platform-independent** (plain ONNX) — one 119 MB download works
-on every OS/arch. The **runtime is per-OS/arch** and is what differs. So the
-on-disk layout splits cleanly:
+- `catalog.go` — the engine catalogue and the platform matrix. `Moonshine()`
+  carries the five model files (one hash each, identical on every OS) and a
+  runtime entry per GOOS/GOARCH with pinned archive + binary + library hashes.
+  All six platform runtimes are pinned from the real v2.0.1 assets.
+- `installer.go` — `Verify(root, engine)` hashes every file before an engine is
+  trusted; `Install(root, engine)` downloads only what is missing or fails its
+  hash, extracts the runtime archive, and re-verifies end to end. Progress is
+  reported at most once per whole percent so a 53 MB model cannot flood a
+  listener.
+- `archive.go` — tar.bz2 extraction with a zip-slip guard: entry names are
+  cleaned and resolved under the destination, and anything escaping it (via
+  `..` or an absolute path) is refused. Symlinks/devices are skipped.
+
+Proven end to end from the real releases: a fresh install fetched all seven
+files from GitHub + HuggingFace, verified every hash, extracted the win-x64
+runtime, and the installed engine transcribed the smoke clip and detected
+**Romans 8:28**.
+
+#### Cross-platform shape
+
+The model is **platform-independent** (plain ONNX) — one 119 MB set works on
+every OS/arch. The **runtime is per-OS/arch**. So the on-disk layout splits:
 
 ```
 engines/
@@ -277,53 +296,47 @@ engines/
     uncached_decode.int8.onnx cached_decode.int8.onnx tokens.txt
 ```
 
-The discovery scanner already accepts this (keys on a file named exactly
-`sherpa-onnx-offline[.exe]` and a model dir holding `tokens.txt`; walk depth ≤ 5),
-so nothing in Go needs to change to *find* it — only the layout has to match.
-
 Runtime per platform, from the sherpa-onnx `v2.0.1` release. Use the
-`shared-no-tts` asset (we never synthesise speech) and extract only the
-offline binary plus its two libraries:
+`shared-no-tts` asset (we never synthesise speech) and extract only the offline
+binary plus its library:
 
-| Platform        | Release asset (`…-v2.0.1-…`)            | Extract                                  |
-|-----------------|------------------------------------------|------------------------------------------|
-| Windows x64     | `win-x64-shared-MT-Release-no-tts`       | `sherpa-onnx-offline.exe`, `onnxruntime.dll` |
-| Windows arm64   | `win-arm64-shared-MT-Release-no-tts`     | same two names                           |
-| Linux x64       | `linux-x64-shared-no-tts`                | `sherpa-onnx-offline`, `libonnxruntime.so*` |
-| Linux arm64     | `linux-aarch64-shared-no-tts`            | same                                     |
-| macOS arm64     | `osx-arm64-shared-no-tts`                | `sherpa-onnx-offline`, `libonnxruntime*.dylib` |
-| macOS x64       | `osx-x64-shared-no-tts`                  | same                                     |
-
-Asset sizes (compressed): win-x64 25.6 MB, win-arm64 24.6 MB, linux-x64
-25.3 MB, osx-arm64 18.7 MB, osx-x64 21.1 MB — i.e. the per-platform runtime we
-actually ship is ~19–26 MB, not the ~140 MB the whole tree suggests.
+| Platform        | Release asset (`…-v2.0.1-…`)            | Extract                                  | Compressed |
+|-----------------|------------------------------------------|------------------------------------------|-----------|
+| Windows x64     | `win-x64-shared-MT-Release-no-tts`       | `sherpa-onnx-offline.exe`, `onnxruntime.dll` | 25.6 MB |
+| Windows arm64   | `win-arm64-shared-MT-Release-no-tts`     | same two names                           | 24.6 MB |
+| Linux x64       | `linux-x64-shared-no-tts`                | `sherpa-onnx-offline`, `libonnxruntime.so` | 25.3 MB |
+| Linux arm64     | `linux-aarch64-shared-cpu`               | same                                     | 27.9 MB |
+| macOS arm64     | `osx-arm64-shared-no-tts`                | `sherpa-onnx-offline`, `libonnxruntime.dylib` | 18.7 MB |
+| macOS x64       | `osx-x64-shared-no-tts`                  | same                                     | 21.1 MB |
 
 Why not the `static` builds: they are self-contained (no lib to ship) but huge
 — win-x64 241 MB, osx-universal2 506 MB compressed — because they bundle every
 model family. Shared + two files is far smaller for one engine.
 
-Consequences for the build:
+#### Two roots — who may write them
 
-- The **Windows installer** stages the win runtime under `engines/bin/` and the
-  model under `engines/models/moonshine-tiny-en-int8/` beside the installed exe
-  (or under `<data root>/engines` — see the open question below). Every other OS
-  gets the same layout from its own package (`.dmg`, `.AppImage`/`.deb`).
-- A **second engine** (whisper `ggml-*`, or Parakeet) is the download path:
-  Settings → Live detection → "Get speech engine", fetching the model + the
-  matching runtime into the same `engines/` tree, with progress and resume.
+| Root                 | Written by                        | Holds        |
+|----------------------|-----------------------------------|--------------|
+| `<exe dir>/engines`  | Installer (machine scope, admin)  | **Bundled Moonshine** — read-only to a standard user |
+| `<data root>/engines`| The app (the user)                | **Downloaded** engines |
 
-#### Decided / still open
+A per-user data folder is, by construction, readable and writable by the
+person running the app; nothing under `<data root>` can be hidden from them.
+The closest a desktop app gets to a protected engine is the machine-scope
+install, where `<exe dir>` lives in Program Files and a standard user cannot
+replace it without admin. That resists casual tampering, not a local
+administrator or admin-level malware — no desktop app can. Hash-verifying
+before use turns silent replacement into a clear error. Downloaded engines go
+to `<data root>/engines` because that is the writable, per-user location.
 
-- Decided: **bundle Moonshine; download the rest.**
-- Learned: the runtime is per-platform and small; the model is shared. Do not
-  ship the `static` build (huge) and do not ship TTS (unused).
-- Open: integrity — pin SHA-256 per asset and verify before the engine is
-  registered (release + HF blobs are large and URLs/bytes can move).
-- Open: licensing — sherpa-onnx is Apache-2.0, Moonshine MIT; no license text
-  ships with the current binaries, so the installed tree and the app's
-  attributions must carry both.
-- Open: exact discovery root for an installed build (add `<exe dir>/engines`
-  or reuse `<data root>/engines`).
+#### Still open
+
+- Wire the installer to stage `<exe dir>/engines` and set the bundled engine on
+  first run (Windows NSIS first; macOS `.app`, Linux package later).
+- UI: a Settings card listing engines with a "Get" action, driving
+  `Install` with the progress above, plus the license/attribution text.
+- Licensing — sherpa-onnx is Apache-2.0, Moonshine MIT; ship both in the
+  installed tree and the app's attributions.
 
 ## F08 — Semantic scripture and song search (Planned)
 

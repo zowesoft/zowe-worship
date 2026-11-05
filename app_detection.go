@@ -209,27 +209,49 @@ type EngineOption struct {
 	Spec  string `json:"spec"`
 }
 
-// ListDetectionEngines scans the usual engine locations — the benchmarks
-// folder beside the app in development and an engines folder under the data
-// root — and returns every engine/model pair found there.
+// ListDetectionEngines scans the usual engine locations and returns every
+// engine/model pair found there.
 func (a *App) ListDetectionEngines() ([]EngineOption, error) {
-	var roots []string
-	if cwd, err := os.Getwd(); err == nil {
-		roots = append(roots, filepath.Join(cwd, "benchmarks"))
-	}
-	if exe, err := os.Executable(); err == nil {
-		roots = append(roots, filepath.Join(filepath.Dir(exe), "benchmarks"))
-	}
+	cwd, _ := os.Getwd()
+	exe, _ := os.Executable()
+	dataRoot := ""
 	if paths, err := a.paths(); err == nil {
-		roots = append(roots, filepath.Join(paths.Root, "engines"))
+		dataRoot = paths.Root
 	}
 
-	discovered := asr.DiscoverEngines(roots...)
+	discovered := asr.DiscoverEngines(detectionEngineRoots(cwd, exe, dataRoot)...)
 	options := make([]EngineOption, 0, len(discovered))
 	for _, engine := range discovered {
 		options = append(options, EngineOption{Label: engine.Name, Spec: engine.Spec})
 	}
 	return options, nil
+}
+
+// detectionEngineRoots lists where an engine may sit, in the order they are
+// scanned. Kept separate from the binding so the layout — which is what the
+// installer and the downloader must agree on — can be tested without a real
+// installation.
+//
+//   - <cwd>/benchmarks: the repository's fetched toolchain during development.
+//   - <exe dir>/benchmarks: a dev build run from the repo root.
+//   - <exe dir>/engines: the bundled engine installed read-only beside the app.
+//   - <data root>/engines: engines the app downloaded for this user.
+func detectionEngineRoots(cwd, exe, dataRoot string) []string {
+	var roots []string
+	if cwd != "" {
+		roots = append(roots, filepath.Join(cwd, "benchmarks"))
+	}
+	if exe != "" {
+		exeDir := filepath.Dir(exe)
+		roots = append(roots,
+			filepath.Join(exeDir, "benchmarks"),
+			filepath.Join(exeDir, "engines"),
+		)
+	}
+	if dataRoot != "" {
+		roots = append(roots, filepath.Join(dataRoot, "engines"))
+	}
+	return roots
 }
 
 // GetDetectionConfig reads the Live Detection settings card.
