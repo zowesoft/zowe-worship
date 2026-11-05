@@ -664,6 +664,11 @@ function DetectionPanel() {
             <button
               type="button"
               className={`min-h-7 inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1 border rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! ${detection.listening ? 'border-[#35445C] bg-elevated' : 'border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!'}`}
+              // The emergency switch stops new detections, so the button must
+              // refuse to start the same way F8 does — but never block stopping,
+              // or disabling while listening would trap the microphone on.
+              disabled={detection.disabled && !detection.listening}
+              title={detection.disabled ? 'Detection is disabled (F12) — re-enable it in Settings' : undefined}
               onClick={() => void run(detection.toggleListening)}
             >
               <Icon name={detection.listening ? 'pause' : 'mic'} size={13} />
@@ -969,16 +974,18 @@ export function AppShell({ activePage, onNavigate, children }: {
       // F8: Start/stop scripture listening
       if (event.key === 'F8') {
         event.preventDefault();
+        // Stopping always works: if F12 disabled detection while the mic was
+        // live, refusing the toggle would leave it capturing with no way off.
+        if (detection.listening) {
+          void detection.toggleListening();
+          flashNotice('Stopped listening for scripture');
+          return;
+        }
         if (detection.disabled) {
           flashNotice('Detection is disabled — re-enable it in Settings');
           return;
         }
-        if (detection.listening) {
-          void detection.toggleListening();
-          flashNotice('Stopped listening for scripture');
-        } else {
-          void run(() => detection.toggleListening(), () => flashNotice('Listening for scripture references'));
-        }
+        void run(() => detection.toggleListening(), () => flashNotice('Listening for scripture references'));
         return;
       }
 
