@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -205,6 +207,64 @@ func (a *App) SelectSpeechEngine(id string) (string, error) {
 		return "", err
 	}
 	return spec, nil
+}
+
+// SpeechComponentView is one redistributed component and its license, for the
+// attribution list in Settings.
+type SpeechComponentView struct {
+	Name     string `json:"name"`
+	License  string `json:"license"`
+	Homepage string `json:"homepage"`
+	Text     string `json:"text"`
+}
+
+// SpeechAttributionView is the attribution payload: the components the app
+// ships, the license text for each, and where the combined notices file sits
+// in the install so an operator can open it.
+type SpeechAttributionView struct {
+	Components  []SpeechComponentView `json:"components"`
+	NoticesPath string                `json:"noticesPath"`
+}
+
+// GetSpeechAttribution returns the licenses for the speech engine the app
+// redistributes. The installer ships the same text as THIRD-PARTY-NOTICES.txt
+// beside the engine; this surfaces it in-app so it is readable without hunting
+// through the install folder.
+func (a *App) GetSpeechAttribution() SpeechAttributionView {
+	components := speech.Components()
+	views := make([]SpeechComponentView, 0, len(components))
+	for _, c := range components {
+		views = append(views, SpeechComponentView{
+			Name:     c.Name,
+			License:  c.License,
+			Homepage: c.Homepage,
+			Text:     c.Text,
+		})
+	}
+
+	// The notices file lands beside the engine in whichever root holds it.
+	layout := a.speechLayout()
+	noticesPath := filepath.Join(layout.BundledRoot, "THIRD-PARTY-NOTICES.txt")
+	if _, err := os.Stat(noticesPath); err != nil {
+		noticesPath = filepath.Join(layout.DownloadRoot, "THIRD-PARTY-NOTICES.txt")
+		if _, err := os.Stat(noticesPath); err != nil {
+			noticesPath = ""
+		}
+	}
+
+	return SpeechAttributionView{Components: views, NoticesPath: noticesPath}
+}
+
+// OpenPath reveals a file or folder in the OS file manager, so an operator can
+// read the shipped notices without knowing the install path.
+func (a *App) OpenPath(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return errors.New("no path to open")
+	}
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("open %s: %w", path, err)
+	}
+	return application.Get().Env.OpenFileManager(path, false)
 }
 
 // speechLayout is the two engine roots: the bundled, read-only home beside the

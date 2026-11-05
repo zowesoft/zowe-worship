@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
-import type { SpeechEngineView } from '../../../bindings/zowe-worship/models';
+import type { SpeechAttributionView, SpeechEngineView } from '../../../bindings/zowe-worship/models';
 import { Icon } from '../../components/Icon';
 import { formatBytes } from '../../lib/format';
 
@@ -34,6 +34,8 @@ export function SpeechEngineCard({
   const [progress, setProgress] = useState<SpeechProgressView | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [attribution, setAttribution] = useState<SpeechAttributionView | null>(null);
+  const [showLicenses, setShowLicenses] = useState(false);
 
   const refresh = () => {
     App.ListSpeechEngines()
@@ -41,8 +43,19 @@ export function SpeechEngineCard({
       .catch((error: unknown) => setProblem(errorMessage(error)));
   };
 
+  // The notices file only exists once an engine is on disk, so the attribution
+  // must be re-read after an install, not just on mount.
+  const loadAttribution = () => {
+    App.GetSpeechAttribution()
+      .then(setAttribution)
+      .catch(() => {
+        // Attribution is informational; a failure leaves the section hidden.
+      });
+  };
+
   useEffect(() => {
     refresh();
+    loadAttribution();
   }, []);
 
   // Progress arrives per whole percent; the final event (empty file) clears the
@@ -67,6 +80,7 @@ export function SpeechEngineCard({
         onEngineChanged();
       }
       refresh();
+      loadAttribution();
     });
     return () => {
       offProgress();
@@ -165,6 +179,45 @@ export function SpeechEngineCard({
         Engines are found in the app folder and your data folder. Whisper and other
         models can be added later without changing anything here.
       </p>
+
+      {attribution && attribution.components && attribution.components.length > 0 && (
+        <div className="grid gap-1.5 pt-1 border-t border-border">
+          <button
+            type="button"
+            className="justify-self-start inline-flex items-center gap-1.5 text-[10.5px] text-secondary hover:text-text"
+            onClick={() => setShowLicenses((v) => !v)}
+            aria-expanded={showLicenses}
+          >
+            <Icon
+              name="chevron"
+              size={12}
+              className={`transition-transform ${showLicenses ? '' : '-rotate-90'}`}
+            />
+            Bundled engine licenses
+          </button>
+          {showLicenses && (
+            <div className="grid gap-2">
+              <ul className="m-0 p-0 list-none grid gap-1 text-[10.5px] text-secondary">
+                {attribution.components.map((c) => (
+                  <li key={c.name} className="flex items-baseline justify-between gap-3">
+                    <span className="truncate">{c.name}</span>
+                    <span className="shrink-0">{c.license}</span>
+                  </li>
+                ))}
+              </ul>
+              {attribution.noticesPath && (
+                <button
+                  type="button"
+                  className="justify-self-start text-[10.5px] text-blue hover:underline"
+                  onClick={() => void App.OpenPath(attribution.noticesPath!)}
+                >
+                  Open the full notices file
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 

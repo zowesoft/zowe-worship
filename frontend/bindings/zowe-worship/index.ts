@@ -43,6 +43,8 @@ export type {
     SongSectionView,
     SongView,
     SongsView,
+    SpeechAttributionView,
+    SpeechComponentView,
     SpeechEngineView,
     StorageView,
     TranslationView

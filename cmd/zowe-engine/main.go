@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"zowe-worship/internal/speech"
@@ -83,6 +84,14 @@ func run(engineID, out, goos, goarch string, verify bool) error {
 		if err := speech.VerifyFor(out, engine, goos, goarch); err != nil {
 			return fmt.Errorf("staged tree failed verification: %w", err)
 		}
+	}
+
+	// The engines directory sits beside the app in the package; the notices are
+	// written by InstallFor, so they travel with the redistributed binaries
+	// automatically, whichever packager copies the tree in.
+	noticesPath := filepath.Join(out, speech.NoticesFile)
+	if _, err := os.Stat(noticesPath); err != nil {
+		return fmt.Errorf("expected third-party notices at %s: %w", noticesPath, err)
 	}
 
 	fmt.Printf("staged %s for %s/%s into %s\n", engine.Name, goos, goarch, out)

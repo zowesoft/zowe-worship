@@ -124,6 +124,16 @@ func TestInstallDownloadsVerifiesAndPlaces(t *testing.T) {
 		t.Fatal("no progress was reported")
 	}
 
+	// The license terms must travel with the installed bytes, so the notices
+	// file has to be written for a download just as for a packaged install.
+	notices, err := os.ReadFile(filepath.Join(root, NoticesFile))
+	if err != nil {
+		t.Fatalf("install did not write %s: %v", NoticesFile, err)
+	}
+	if !strings.Contains(string(notices), "sherpa-onnx") || !strings.Contains(string(notices), "Apache-2.0") {
+		t.Fatal("notices file does not mention the engine's license")
+	}
+
 	// A second install must be a no-op that still verifies (idempotent).
 	if err := inst.Install(root, engine); err != nil {
 		t.Fatalf("re-install: %v", err)

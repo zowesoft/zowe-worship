@@ -347,6 +347,27 @@ export interface SongsView {
 }
 
 /**
+ * SpeechAttributionView is the attribution payload: the components the app
+ * ships, the license text for each, and where the combined notices file sits
+ * in the install so an operator can open it.
+ */
+export interface SpeechAttributionView {
+    "components": SpeechComponentView[] | null;
+    "noticesPath": string;
+}
+
+/**
+ * SpeechComponentView is one redistributed component and its license, for the
+ * attribution list in Settings.
+ */
+export interface SpeechComponentView {
+    "name": string;
+    "license": string;
+    "homepage": string;
+    "text": string;
+}
+
+/**
  * SpeechEngineView is one row in the Settings engine list: what it is, whether
  * it is already on disk, and whether it is the one currently selected.
  */

@@ -210,8 +210,28 @@ func (i *Installer) InstallFor(root string, engine Engine, goos, goarch string) 
 		return err
 	}
 
+	// The license terms must travel with the bytes we put on disk, whether they
+	// arrived through the installer or a download. Writing here means both paths
+	// end up with the notices beside the engine.
+	if err := writeNotices(root); err != nil {
+		return err
+	}
+
 	// Final gate: the engine is only usable if it verifies end to end.
 	return VerifyFor(root, engine, goos, goarch)
+}
+
+// NoticesFile is the name of the license file placed beside an installed
+// engine.
+const NoticesFile = "THIRD-PARTY-NOTICES.txt"
+
+// writeNotices drops the third-party notices into an engine root.
+func writeNotices(root string) error {
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(root, NoticesFile)
+	return os.WriteFile(path, []byte(Notices()), 0o644)
 }
 
 // installRuntime fetches the platform archive and extracts the transcribe

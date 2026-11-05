@@ -180,6 +180,16 @@ export function GetSetting(key: string): $CancellablePromise<string> {
     return $Call.ByID(48053349, key);
 }
 
+/**
+ * GetSpeechAttribution returns the licenses for the speech engine the app
+ * redistributes. The installer ships the same text as THIRD-PARTY-NOTICES.txt
+ * beside the engine; this surfaces it in-app so it is readable without hunting
+ * through the install folder.
+ */
+export function GetSpeechAttribution(): $CancellablePromise<$models.SpeechAttributionView> {
+    return $Call.ByID(2228566418);
+}
+
 export function GetStorage(): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(25239652);
 }
@@ -318,6 +328,14 @@ export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$mode
  */
 export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(1808648114, mediaID);
+}
+
+/**
+ * OpenPath reveals a file or folder in the OS file manager, so an operator can
+ * read the shipped notices without knowing the install path.
+ */
+export function OpenPath(path: string): $CancellablePromise<void> {
+    return $Call.ByID(1591734570, path);
 }
 
 /**

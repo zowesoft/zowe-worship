@@ -368,14 +368,28 @@ regenerates it, so the installer would have named the app `probe.exe`. The real
 `INFO_*` values are now defined in `project.nsi` ahead of the include, which
 overrides those defaults.
 
+#### Attribution
+
+The redistributed pieces are sherpa-onnx (Apache-2.0), ONNX Runtime (MIT), and
+the Moonshine models (MIT). Their full texts are vendored under
+`internal/speech/notices/` and embedded into the binary, so the app carries the
+licenses whether or not the engine is installed. `InstallFor` writes
+`THIRD-PARTY-NOTICES.txt` into the engine root beside the binaries — the file
+the installer's `File /r` picks up and ships in `engines/`.
+
+Settings → Live detection surfaces this: the engine card lists each component
+with its license, and **Open the full notices file** opens the written copy
+through `GetSpeechAttribution` + `OpenPath`. When nothing is installed yet the
+list still renders from the embedded texts, with the file link absent.
+
 #### Still open
 
 - macOS and Linux packaging do not exist yet (no `build/darwin` bundle, no
   `build/linux`). The code and the staging task are already cross-platform;
   each OS needs its own package layout that places the `engines/` tree beside
   the app, then a one-line `engines:stage` dependency like Windows has.
-- Licensing — sherpa-onnx is Apache-2.0, Moonshine MIT; ship both in the
-  installed tree and the app's attributions.
+- Whether the app itself carries a top-level LICENSE is an owner call; the
+  third-party attributions above are independent of it.
 
 ## F08 — Semantic scripture and song search (Planned)
 
