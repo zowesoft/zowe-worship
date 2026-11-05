@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -56,10 +57,16 @@ func LibraryPath(root string, r Runtime) string {
 	return filepath.Join(root, "bin", r.Library)
 }
 
-// Present reports whether the engine's model files, binary and library all sit
-// under root. It checks existence only; use Verify to also check integrity.
+// Present reports whether the engine's files for a platform all sit under
+// root. It checks existence only; use VerifyFor to also check integrity.
 func Present(root string, engine Engine) bool {
-	r, ok := engine.HostRuntime()
+	return PresentFor(root, engine, runtime.GOOS, runtime.GOARCH)
+}
+
+// PresentFor is Present for a specific target platform, so a packaging step can
+// check an engine staged for another OS.
+func PresentFor(root string, engine Engine, goos, goarch string) bool {
+	r, ok := engine.RuntimeFor(goos, goarch)
 	if !ok {
 		return false
 	}
@@ -80,13 +87,18 @@ func Present(root string, engine Engine) bool {
 	return true
 }
 
-// Verify checks that the engine under root is present AND that every file
-// matches its pinned hash. A bundled engine that fails this is corrupt or was
-// tampered with, and must not be run.
+// Verify checks that the engine for this machine is present AND intact.
 func Verify(root string, engine Engine) error {
-	r, ok := engine.HostRuntime()
+	return VerifyFor(root, engine, runtime.GOOS, runtime.GOARCH)
+}
+
+// VerifyFor checks that the engine's files for a target platform are present
+// AND match their pinned hashes. A bundled engine that fails this is corrupt or
+// was tampered with, and must not be run.
+func VerifyFor(root string, engine Engine, goos, goarch string) error {
+	r, ok := engine.RuntimeFor(goos, goarch)
 	if !ok {
-		return fmt.Errorf("engine %q has no runtime for this platform (%s)", engine.ID, HostKey())
+		return fmt.Errorf("engine %q has no runtime for %s", engine.ID, Key(goos, goarch))
 	}
 
 	if err := verifyHash(BinaryPath(root, r), r.BinarySHA256); err != nil {
@@ -158,14 +170,22 @@ func NewInstaller() *Installer {
 	}
 }
 
-// Install places an engine under root, downloading only what is missing or
-// fails its hash. It is safe to re-run: an intact engine is left untouched.
-// The runtime archive is fetched, its two members extracted, and everything is
-// hash-verified; nothing is registered until every byte checks out.
+// Install places the engine for this machine under root, downloading only what
+// is missing or fails its hash. It is safe to re-run: an intact engine is left
+// untouched.
 func (i *Installer) Install(root string, engine Engine) error {
-	r, ok := engine.HostRuntime()
+	return i.InstallFor(root, engine, runtime.GOOS, runtime.GOARCH)
+}
+
+// InstallFor places the engine for a target platform under root. The runtime
+// archive is fetched, its members extracted, and everything hash-verified;
+// nothing is registered until every byte checks out. A packaging step calls
+// this with an explicit platform so a Windows installer can be assembled from a
+// non-Windows host — the model is shared, only the runtime differs.
+func (i *Installer) InstallFor(root string, engine Engine, goos, goarch string) error {
+	r, ok := engine.RuntimeFor(goos, goarch)
 	if !ok {
-		return fmt.Errorf("engine %q has no runtime for this platform (%s)", engine.ID, HostKey())
+		return fmt.Errorf("engine %q has no runtime for %s", engine.ID, Key(goos, goarch))
 	}
 
 	total := len(engine.Model) + 2
@@ -185,13 +205,13 @@ func (i *Installer) Install(root string, engine Engine) error {
 		done++
 	}
 
-	// Runtime: one archive whose two members become the binary and the library.
+	// Runtime: one archive whose members become the binary and the library.
 	if err := i.installRuntime(root, engine, r, done, total); err != nil {
 		return err
 	}
 
 	// Final gate: the engine is only usable if it verifies end to end.
-	return Verify(root, engine)
+	return VerifyFor(root, engine, goos, goarch)
 }
 
 // installRuntime fetches the platform archive and extracts the transcribe
