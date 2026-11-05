@@ -8,6 +8,7 @@ package speech
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -18,6 +19,10 @@ import (
 type Engine struct {
 	// ID is the stable key stored in settings and used for the on-disk folder.
 	ID string
+	// Command is the spec name before "=" — the family the engine runner keys
+	// on. It is what discovery emits too ("moonshine=…"), so a bundled, a
+	// downloaded and a hand-picked engine all read as the same family.
+	Command string
 	// Name is what the operator sees.
 	Name string
 	// Description explains the trade-off in one line.
@@ -110,6 +115,7 @@ func Catalog() []Engine {
 func Moonshine() Engine {
 	return Engine{
 		ID:          "moonshine-tiny-en",
+		Command:     "moonshine",
 		Name:        "Moonshine tiny (English)",
 		Description: "Bundled with the app. Fast, offline, English only.",
 		ModelDir:    "moonshine-tiny-en-int8",
@@ -173,6 +179,54 @@ func Moonshine() Engine {
 	}
 }
 
+// Spec builds the engine command line for one root, in the "name=bin args
+// {audio}" form asr.ParseEngineSpec accepts. It mirrors what the discovery
+// scanner produces for an on-disk Moonshine, so a downloaded engine and a
+// bundled one are selected identically.
+func (e Engine) Spec(root string) (string, error) {
+	r, ok := e.HostRuntime()
+	if !ok {
+		return "", fmt.Errorf("engine %q has no runtime for this platform (%s)", e.ID, HostKey())
+	}
+	if e.ID != Moonshine().ID {
+		return "", fmt.Errorf("engine %q has no spec builder", e.ID)
+	}
+
+	modelDir := ModelPath(root, e)
+	// Each model file becomes one --flag=value argument, quoted for spaces.
+	flag := func(name string) string {
+		return "--moonshine-" + name + "=" + quoteArg(filepath.Join(modelDir, modelFiles[name]))
+	}
+
+	args := []string{
+		e.Command + "=" + quoteArg(BinaryPath(root, r)),
+		flag("preprocessor"),
+		flag("encoder"),
+		flag("uncached-decoder"),
+		flag("cached-decoder"),
+		"--tokens=" + quoteArg(filepath.Join(modelDir, "tokens.txt")),
+		"{audio}",
+	}
+	return strings.Join(args, " "), nil
+}
+
+// modelFiles maps the flag name to the model file it points at.
+var modelFiles = map[string]string{
+	"preprocessor":     "preprocess.onnx",
+	"encoder":          "encode.int8.onnx",
+	"uncached-decoder": "uncached_decode.int8.onnx",
+	"cached-decoder":   "cached_decode.int8.onnx",
+}
+
+// quoteArg wraps a path in double quotes when it contains whitespace, the only
+// quoting form asr.ParseEngineSpec understands.
+func quoteArg(path string) string {
+	if strings.ContainsAny(path, " \t") {
+		return `"` + path + `"`
+	}
+	return path
+}
+
 // Find returns the catalogue entry with the given id.
 func Find(id string) (Engine, error) {
 	for _, engine := range Catalog() {
@@ -188,12 +242,19 @@ func RuntimeArchiveURL(asset string) string {
 	return releaseBase + "/v2.0.1/" + asset
 }
 
-// EngineIDFromSpec recovers an engine id from an engine spec. The spec names
-// the engine before "=", matching the ids the catalogue uses.
-func EngineIDFromSpec(spec string) string {
+// SpecCommand recovers the family name from an engine spec — the text before
+// "=", e.g. "moonshine". A stored spec matches a catalogue engine when their
+// commands agree, regardless of which binary or folder the spec points at, so
+// a bundled, downloaded or hand-picked Moonshine all read as the same engine.
+func SpecCommand(spec string) string {
 	name, _, found := strings.Cut(strings.TrimSpace(spec), "=")
 	if !found {
 		return ""
 	}
 	return strings.TrimSpace(name)
+}
+
+// Matches reports whether a stored spec runs this engine.
+func (e Engine) Matches(spec string) bool {
+	return e.Command != "" && SpecCommand(spec) == e.Command
 }

@@ -43,6 +43,7 @@ export type {
     SongSectionView,
     SongView,
     SongsView,
+    SpeechEngineView,
     StorageView,
     TranslationView
 } from "./models.js";

@@ -71,6 +71,11 @@ export interface BibleSearchResponse {
     "reference"?: string;
     "results": BibleVerse[] | null;
     "total": number;
+
+    /**
+     * The verse span the query named (0, 0 for a whole chapter or a text
+     * search), so the frontend can highlight exactly what was searched.
+     */
     "verseStart": number;
     "verseEnd": number;
 }

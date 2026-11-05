@@ -194,6 +194,15 @@ export function ImportMedia(paths: string[] | null): $CancellablePromise<$models
 }
 
 /**
+ * InstallSpeechEngine downloads an engine into the user's data root and streams
+ * progress to the settings window. It returns as soon as the download starts so
+ * the window stays responsive; the outcome arrives as speech:config.
+ */
+export function InstallSpeechEngine(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3019342572, id);
+}
+
+/**
  * ListBooks returns all 66 canonical books, ordered by canonical position.
  * The result is static and does not depend on any installed translation.
  */
@@ -202,9 +211,8 @@ export function ListBooks(): $CancellablePromise<$models.BibleBookView[] | null>
 }
 
 /**
- * ListDetectionEngines scans the usual engine locations — the benchmarks
- * folder beside the app in development and an engines folder under the data
- * root — and returns every engine/model pair found there.
+ * ListDetectionEngines scans the usual engine locations and returns every
+ * engine/model pair found there.
  */
 export function ListDetectionEngines(): $CancellablePromise<$models.EngineOption[] | null> {
     return $Call.ByID(3213204963);
@@ -236,6 +244,14 @@ export function ListServices(): $CancellablePromise<$models.ServiceView[] | null
 
 export function ListSongs(query: string): $CancellablePromise<$models.SongsView> {
     return $Call.ByID(554409833, query);
+}
+
+/**
+ * ListSpeechEngines returns the engine catalogue with the state each row needs:
+ * installed, bundled, active and platform support.
+ */
+export function ListSpeechEngines(): $CancellablePromise<$models.SpeechEngineView[] | null> {
+    return $Call.ByID(851174066);
 }
 
 export function ListThemes(): $CancellablePromise<themes$0.Theme[] | null> {
@@ -418,6 +434,16 @@ export function SaveSongArrangement(request: $models.SaveArrangementRequest): $C
 
 export function SearchBible(request: $models.BibleSearchRequest): $CancellablePromise<$models.BibleSearchResponse> {
     return $Call.ByID(1580433009, request);
+}
+
+/**
+ * SelectSpeechEngine makes an already-installed engine the one Live Detection
+ * uses. It looks the engine up under both roots — the bundled one beside the
+ * app or a downloaded one — builds the command line and stores it, so the
+ * operator never handles a path.
+ */
+export function SelectSpeechEngine(id: string): $CancellablePromise<string> {
+    return $Call.ByID(1278482473, id);
 }
 
 export function SendPreviewLive(): $CancellablePromise<$models.PresentationView> {

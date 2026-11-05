@@ -4,6 +4,7 @@ import { App } from '../../../bindings/zowe-worship';
 import type { EngineOption, StorageView } from '../../../bindings/zowe-worship/models';
 import { Icon } from '../../components/Icon';
 import { formatBytes, formatDateTime } from '../../lib/format';
+import { SpeechEngineCard } from './SpeechEngineCard';
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -267,15 +268,27 @@ export function SettingsWindow() {
             out scripture references. Nothing is ever projected on its own — every
             detection waits for your approval in the studio panel.
           </p>
-          {engines.length > 0 ? (
+          <SpeechEngineCard
+            onEngineChanged={() => {
+              App.GetDetectionConfig()
+                .then((config) => {
+                  setEngineSpec(config.engineSpec);
+                  setEngineDraft(config.engineSpec);
+                })
+                .catch(() => {
+                  // Leave the last-known spec in place if the bridge is down.
+                });
+            }}
+          />
+          {engines.length > 0 && (
             <label className="grid gap-1.5">
-              <span className="text-[10.5px] text-secondary">Speech engine</span>
+              <span className="text-[10.5px] text-secondary">Or pick an engine already on disk</span>
               <select
                 className="min-h-8 px-2.5 border border-[#35445C] rounded-md bg-app text-[11.5px] text-text"
                 value={!customEngine && engines.some((engine) => engine.spec === engineSpec) ? engineSpec : customEngine ? CUSTOM_ENGINE : ''}
                 disabled={busy}
                 onChange={(event) => void chooseEngine(event.target.value)}
-                aria-label="Speech engine"
+                aria-label="Speech engine found on disk"
               >
                 <option value="" disabled>{engineSpec ? 'Engine not found on disk' : 'Choose an engine…'}</option>
                 {engines.map((engine) => (
@@ -284,12 +297,6 @@ export function SettingsWindow() {
                 <option value={CUSTOM_ENGINE}>Custom command…</option>
               </select>
             </label>
-          ) : (
-            <p className="text-[#6F809B] text-[10.5px] leading-[1.6]">
-              No speech engine was found on this computer. Download one with
-              {' '}<code className="font-mono">wails3 task asr:bench:fetch</code>, or point
-              the app at an engine you already have:
-            </p>
           )}
           {(customEngine || engines.length === 0) && (
             <>
@@ -318,12 +325,10 @@ export function SettingsWindow() {
               </div>
             </>
           )}
-          {!customEngine && engines.length > 0 && (
-            <p className="text-[#6F809B] text-[10px] leading-[1.6]">
-              Engines are found automatically in the app's benchmarks folder and the
-              engines folder in your data directory.
-            </p>
-          )}
+          <p className="text-[#6F809B] text-[10px] leading-[1.6]">
+            Moonshine ships with the app. The engine runs offline; only the
+            download above touches the network.
+          </p>
         </section>
 
         <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-backups-title">

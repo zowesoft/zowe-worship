@@ -283,6 +283,19 @@ files from GitHub + HuggingFace, verified every hash, extracted the win-x64
 runtime, and the installed engine transcribed the smoke clip and detected
 **Romans 8:28**.
 
+#### Settings UI
+
+Settings → Live detection lists the catalogue through `ListSpeechEngines`
+(installed / bundled / active / supported per row). **Get engine** calls
+`InstallSpeechEngine`, which downloads in the background and streams
+`speech:progress` for a percent bar; the install then auto-selects what it
+fetched by calling `SelectSpeechEngine`, so a first run needs no second step.
+A stored spec matches a catalogue engine by **command family** ("moonshine"),
+not by exact path, so an engine picked from disk, one bundled, and one just
+downloaded all light the same "In use" row. Verified live: fresh download →
+progress bar → "In use", with the engine landing at `<data root>/engines`
+(138 MB, correct layout).
+
 #### Cross-platform shape
 
 The model is **platform-independent** (plain ONNX) — one 119 MB set works on
@@ -332,9 +345,8 @@ to `<data root>/engines` because that is the writable, per-user location.
 #### Still open
 
 - Wire the installer to stage `<exe dir>/engines` and set the bundled engine on
-  first run (Windows NSIS first; macOS `.app`, Linux package later).
-- UI: a Settings card listing engines with a "Get" action, driving
-  `Install` with the progress above, plus the license/attribution text.
+  first run (Windows NSIS first; macOS `.app`, Linux package later). Until then
+  a fresh install still has no engine and reaches for **Get engine**.
 - Licensing — sherpa-onnx is Apache-2.0, Moonshine MIT; ship both in the
   installed tree and the app's attributions.
 
