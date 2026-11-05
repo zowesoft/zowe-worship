@@ -821,15 +821,8 @@ export function BibleWorkspace() {
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden" aria-labelledby="bible-workspace-title">
-      <header className="flex items-center gap-[18px] flex-wrap min-h-[54px] px-3.5 py-2.5 border-b border-border max-[1279px]:gap-3 max-[959px]:p-2.5">
-        <div className="flex items-center gap-2 [&>svg]:text-secondary [&_h2]:text-[14px] [&_h2]:tracking-[-0.2px] max-[959px]:[&_h2]:text-[13px]">
-          <Icon name="bible" size={18} />
-          <h2 id="bible-workspace-title">Bible</h2>
-        </div>
-      </header>
-
-      <div className="grid gap-3 p-3.5 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[minmax(0,1fr)] overflow-hidden" aria-label="Bible">
+      <div className="grid gap-2.5 p-3 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
         {/* ── SEARCH FIELD ROW ─────────────────────────────────────────
             Always visible in both modes: the leading icon toggles between the
             results pane and the chapter reading pane, and the translation
