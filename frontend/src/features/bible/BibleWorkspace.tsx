@@ -378,6 +378,9 @@ export function BibleWorkspace() {
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null;
       setOffset(0);
+      // Typing is a search: leave the reading pane for the results as soon as
+      // the query is long enough to run.
+      setActiveTab('search');
       void executeSearch(trimmedQuery, translationId, 0, true);
     }, SEARCH_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -764,15 +767,6 @@ export function BibleWorkspace() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className="min-h-8 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#35445C] rounded-md bg-elevated text-[11px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
-            disabled={!bridgeAvailable || translationId === ''}
-            onClick={() => void loadChapter(browseBookId, browseChapter)}
-            aria-label="Load chapter"
-          >
-            Go
-          </button>
         </div>
 
         {/* Browse results */}
@@ -781,7 +775,7 @@ export function BibleWorkspace() {
             <div className={STATUS_PANEL} role="status">
               <Icon name="bible" size={28} />
               <strong>Select a chapter to read</strong>
-              <p>Choose a book and chapter above, then press Go.</p>
+              <p>Choose a book and chapter above.</p>
             </div>
           )}
           {browseState.kind === 'loading' && (
@@ -826,13 +820,6 @@ export function BibleWorkspace() {
 
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
-  const tabCls = (active: boolean) =>
-    'inline-flex items-center gap-1.5 min-h-[30px] px-2.5 py-[5px] border rounded-md '
-    + 'bg-transparent text-[11px] font-medium '
-    + (active
-      ? 'bg-selected border-[#304C80] text-text [&>svg]:text-[#8CABFF]'
-      : 'border-transparent text-secondary hover:not-disabled:text-text hover:not-disabled:bg-elevated disabled:opacity-[0.65]');
-
   return (
     <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden" aria-labelledby="bible-workspace-title">
       <header className="flex items-center gap-[18px] flex-wrap min-h-[54px] px-3.5 py-2.5 border-b border-border max-[1279px]:gap-3 max-[959px]:p-2.5">
@@ -840,41 +827,79 @@ export function BibleWorkspace() {
           <Icon name="bible" size={18} />
           <h2 id="bible-workspace-title">Bible</h2>
         </div>
+      </header>
 
-        <div className="flex items-center gap-1 max-[959px]:order-3 max-[959px]:w-full" role="tablist" aria-label="Bible views">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'search'}
-            className={tabCls(activeTab === 'search')}
-            onClick={() => setActiveTab('search')}
-          >
-            <Icon name="search" size={14} />Search
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'browse'}
-            className={tabCls(activeTab === 'browse')}
-            onClick={() => setActiveTab('browse')}
-          >
-            <Icon name="bible" size={14} />Browse
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={false}
-            className={tabCls(false)}
-            disabled
-            title="Cross references are not implemented."
-          >
-            <Icon name="link" size={14} />Cross References
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 ml-auto">
+      <div className="grid gap-3 p-3.5 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
+        {/* ── SEARCH FIELD ROW ─────────────────────────────────────────
+            Always visible in both modes: the leading icon toggles between the
+            results pane and the chapter reading pane, and the translation
+            selector sits where a submit button would have been — typing is
+            enough, there is no button to hit. */}
+        <form className="flex items-stretch gap-2.5 max-[959px]:gap-2" onSubmit={handleSubmit} role="search">
+          <div className={SEARCH_FIELD}>
+            <button
+              type="button"
+              className="grid place-items-center w-6 h-6 shrink-0 border-0 rounded-[4px] bg-transparent text-secondary hover:bg-elevated hover:text-text"
+              onClick={() => {
+                setActiveTab(activeTab === 'search' ? 'browse' : 'search');
+                // Hand focus straight back: the operator switches panes without
+                // leaving the field they were typing in.
+                inputRef.current?.focus();
+              }}
+              aria-label={activeTab === 'search' ? 'Switch to browse' : 'Switch to search'}
+              title={activeTab === 'search' ? 'Browse chapters' : 'Search the Bible'}
+            >
+              <Icon name={activeTab === 'search' ? 'bible' : 'search'} size={15} />
+            </button>
+            {/* The input and its ghost share this box: an invisible copy of
+                the typed text pushes the muted completion to start exactly
+                where the caret sits, so the book name completes inline. */}
+            <div className="relative flex-1 min-w-0 flex items-center">
+              <input
+                id="bible-search-input"
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={() => setFieldFocused(true)}
+                onBlur={() => setFieldFocused(false)}
+                aria-label="Search the Bible"
+                placeholder="Search references or words, e.g. John 3:16 or living water"
+                autoComplete="off"
+                spellCheck={false}
+                disabled={Boolean(translationError) || loadingTranslations}
+                className={SEARCH_INPUT + ' relative z-10'}
+                role="combobox"
+                aria-autocomplete="inline"
+                aria-expanded={false}
+                aria-controls="bible-search-ghost"
+              />
+              {ghost !== '' && (
+                <span
+                  id="bible-search-ghost"
+                  aria-hidden="true"
+                  className="absolute inset-0 z-0 flex items-center pointer-events-none whitespace-pre text-[12px] text-[#6F809B]"
+                >
+                  <span className="invisible">{query}</span>
+                  {ghost}
+                </span>
+              )}
+            </div>
+            {query !== '' && (
+              <button
+                type="button"
+                className="grid place-items-center w-6 h-6 shrink-0 border-0 rounded-[4px] bg-transparent text-secondary hover:bg-elevated hover:text-text"
+                onClick={clearSearch}
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
           <select
-            className="min-h-8 px-2 border border-[#35445C] rounded-md bg-elevated text-text text-[11px] disabled:text-secondary"
+            className="min-h-8 shrink-0 px-2 border border-[#35445C] rounded-md bg-elevated text-text text-[11px] disabled:text-secondary"
             aria-label="Bible translation"
             value={translationId}
             onChange={(event) => setTranslationId(event.target.value)}
@@ -887,72 +912,10 @@ export function BibleWorkspace() {
               </option>
             ))}
           </select>
-        </div>
-      </header>
+        </form>
 
-      <div className="grid gap-3 p-3.5 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
-        {/* ── SEARCH TAB ────────────────────────────────────────────── */}
         {activeTab === 'search' && (
           <>
-            <form className="flex items-stretch gap-2.5 max-[959px]:gap-2" onSubmit={handleSubmit} role="search">
-              <div className={SEARCH_FIELD}>
-                <Icon name="search" size={16} />
-                {/* The input and its ghost share this box: an invisible copy of
-                    the typed text pushes the muted completion to start exactly
-                    where the caret sits, so the book name completes inline. */}
-                <div className="relative flex-1 min-w-0 flex items-center">
-                  <input
-                    id="bible-search-input"
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    onFocus={() => setFieldFocused(true)}
-                    onBlur={() => setFieldFocused(false)}
-                    aria-label="Search the Bible"
-                    placeholder="Search references or words, e.g. John 3:16 or living water"
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={Boolean(translationError) || loadingTranslations}
-                    className={SEARCH_INPUT + ' relative z-10'}
-                    role="combobox"
-                    aria-autocomplete="inline"
-                    aria-expanded={false}
-                    aria-controls="bible-search-ghost"
-                  />
-                  {ghost !== '' && (
-                    <span
-                      id="bible-search-ghost"
-                      aria-hidden="true"
-                      className="absolute inset-0 z-0 flex items-center pointer-events-none whitespace-pre text-[12px] text-[#6F809B]"
-                    >
-                      <span className="invisible">{query}</span>
-                      {ghost}
-                    </span>
-                  )}
-                </div>
-                {query !== '' && (
-                  <button
-                    type="button"
-                    className="grid place-items-center w-6 h-6 border-0 rounded-[4px] bg-transparent text-secondary hover:bg-elevated hover:text-text"
-                    onClick={clearSearch}
-                    aria-label="Clear search"
-                    title="Clear search"
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="min-h-8 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#35445C] rounded-md bg-elevated text-[11px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]! min-w-[88px] max-[959px]:min-w-[72px] max-[959px]:px-2.5"
-                disabled={!canSearch}
-              >
-                Search
-              </button>
-            </form>
-
             <div className="flex items-center gap-2 flex-wrap">
               {/* Testament filter */}
               <select
