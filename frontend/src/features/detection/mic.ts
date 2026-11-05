@@ -15,22 +15,34 @@ const processorSource = `
 class ZoweCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.step = sampleRate / ${TARGET_RATE};
-    this.position = 0;
+    // Input samples consumed per output sample: 1 when the context already runs
+    // at the target rate, 3 at 48 kHz, and so on.
+    this.ratio = sampleRate / ${TARGET_RATE};
+    // Fractional read cursor carried between blocks. Each render quantum hands
+    // us a fresh 128-sample buffer, so the cursor must be measured within the
+    // block and the overshoot rolled into the next one; keeping an absolute
+    // counter would freeze after the first block and the rest of the capture
+    // would be silence.
+    this.cursor = 0;
   }
   process(inputs) {
     const channel = inputs[0] && inputs[0][0];
     if (channel) {
-      const out = new Int16Array(Math.ceil(channel.length / this.step));
-      let n = 0;
-      for (let i = 0; i < channel.length; i++) {
-        if (i >= this.position) {
-          const s = Math.max(-1, Math.min(1, channel[Math.round(this.position)] || 0));
-          out[n++] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          this.position += this.step;
+      const count = this.cursor < channel.length
+        ? Math.max(0, Math.ceil((channel.length - this.cursor) / this.ratio))
+        : 0;
+      if (count > 0) {
+        const out = new Int16Array(count);
+        let pos = this.cursor;
+        for (let n = 0; n < count; n++) {
+          const sample = channel[Math.min(channel.length - 1, Math.round(pos))] ?? 0;
+          const s = Math.max(-1, Math.min(1, sample));
+          out[n] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          pos += this.ratio;
         }
+        this.cursor = pos - channel.length;
+        this.port.postMessage(out.buffer, [out.buffer]);
       }
-      this.port.postMessage(out.buffer, [out.buffer]);
     }
     return true;
   }
@@ -84,7 +96,7 @@ export class MicCapture {
   private worklet: AudioWorkletNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private buffer = new RingBuffer(BUFFER_SECONDS * TARGET_RATE);
-  private onLevel: ((level: number) => void) | null = null;
+  private onLevel: ((level: number, bufferedSeconds: number) => void) | null = null;
 
   get listening(): boolean {
     return this.stream !== null;
@@ -94,7 +106,7 @@ export class MicCapture {
     return this.buffer.seconds;
   }
 
-  setLevelListener(listener: (level: number) => void) {
+  setLevelListener(listener: (level: number, bufferedSeconds: number) => void) {
     this.onLevel = listener;
   }
 
@@ -129,7 +141,10 @@ export class MicCapture {
       const chunk = new Int16Array(event.data as ArrayBuffer);
       this.buffer.append(chunk);
       if (this.onLevel) {
-        this.onLevel(rms(chunk));
+        // Report the level and how much is now buffered from the same tick, so
+        // the panel's seconds readout moves while listening instead of sitting
+        // at zero until the first analyze.
+        this.onLevel(rms(chunk), this.buffer.seconds);
       }
     };
 
@@ -150,7 +165,7 @@ export class MicCapture {
     this.context = null;
     this.worklet = null;
     this.source = null;
-    this.onLevel?.(0);
+    this.onLevel?.(0, this.buffer.seconds);
   }
 
   // takeLast returns the most recent `seconds` of captured audio as 16 kHz

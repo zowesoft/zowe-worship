@@ -92,6 +92,14 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     return () => { cancel(); };
   }, []);
 
+  // Settings is a separate window, so engine selection and the emergency switch
+  // arrive as an event; re-read the config when they do, or the studio would
+  // keep showing "No engine" after the operator just chose one.
+  useEffect(() => {
+    const cancel = Events.On('detection:config', () => { void refreshConfig(); });
+    return () => { cancel(); };
+  }, [refreshConfig]);
+
   // Device labels only become readable once permission is granted, so the
   // list is reread when listening starts.
   useEffect(() => {
@@ -109,7 +117,13 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const startCapture = useCallback(async () => {
     if (captureRef.current?.listening) return;
     const capture = new MicCapture();
-    capture.setLevelListener((next) => setLevel(next));
+    // The worklet's level callback fires per audio block, so it doubles as the
+    // clock for the buffered-seconds readout — otherwise that number only moved
+    // after an analyze and the panel looked frozen while listening.
+    capture.setLevelListener((next, seconds) => {
+      setLevel(next);
+      setBufferedSeconds(seconds);
+    });
     try {
       await capture.start(deviceIdRef.current || undefined);
     } catch (error) {

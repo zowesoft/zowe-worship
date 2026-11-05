@@ -50,6 +50,12 @@ type DetectionResult struct {
 // the whole chunk to finish.
 const detectionProgressEvent = "detection:progress"
 
+// detectionConfigEvent tells the studio its Live Detection settings changed.
+// The engine and the emergency switch are set in the Settings window, which is
+// a different webview; without this the studio panel keeps showing "No engine"
+// or a stale disabled state until the app is restarted.
+const detectionConfigEvent = "detection:config"
+
 // DetectionProgressView is one streaming update: the transcript so far and
 // the queue as it now stands.
 type DetectionProgressView struct {
@@ -247,7 +253,11 @@ func (a *App) SetDetectionEngine(spec string) error {
 	if _, err := asr.ParseEngineSpec(strings.TrimSpace(spec)); err != nil {
 		return err
 	}
-	return a.settings.Set(a.context(), settings.KeyAsrEngine, strings.TrimSpace(spec))
+	if err := a.settings.Set(a.context(), settings.KeyAsrEngine, strings.TrimSpace(spec)); err != nil {
+		return err
+	}
+	a.notifyDetectionConfig()
+	return nil
 }
 
 // SetDetectionDisabled writes the F12 emergency switch. It only stops new
@@ -260,7 +270,23 @@ func (a *App) SetDetectionDisabled(disabled bool) error {
 	if disabled {
 		value = "true"
 	}
-	return a.settings.Set(a.context(), settings.KeyDetectionDisabled, value)
+	if err := a.settings.Set(a.context(), settings.KeyDetectionDisabled, value); err != nil {
+		return err
+	}
+	a.notifyDetectionConfig()
+	return nil
+}
+
+// notifyDetectionConfig nudges the studio to re-read its Live Detection
+// settings. Best-effort: a missing window just means nobody is listening.
+func (a *App) notifyDetectionConfig() {
+	desktop := application.Get()
+	if desktop == nil {
+		return
+	}
+	if studio, ok := desktop.Window.GetByName(studioWindow); ok {
+		studio.DispatchWailsEvent(&application.CustomEvent{Name: detectionConfigEvent})
+	}
 }
 
 func (a *App) detectionDisabled() bool {
