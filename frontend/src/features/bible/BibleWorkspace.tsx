@@ -153,6 +153,9 @@ export function BibleWorkspace() {
   // Where the reading pane was before a search moved it, so clearing the search
   // can put it back.
   const browseReturn = useRef<{ bookId: number; chapter: number } | null>(null);
+  // Monotonic token for chapter loads: an overlapping jump and clear must
+  // never let a stale response overwrite the pane the operator moved to next.
+  const loadSeq = useRef(0);
 
   // — browse state ——————————————————————————————————————————————
   const [browseBookId, setBrowseBookId] = useState(1);
@@ -295,13 +298,11 @@ export function BibleWorkspace() {
     if (event.key !== 'Enter') return;
 
     // Browse takes references: Enter jumps the reading pane there (a whole
-    // book name lands on its first chapter) and never runs a keyword search.
+    // book name lands on its first chapter) and sends the reference live,
+    // never running a keyword search.
     if (activeTab === 'browse') {
       event.preventDefault();
-      void (async () => {
-        const jumped = await jumpToReference(query, { bookOnly: true, toVerse: true });
-        setAction({ busy: null, status: jumped ? null : { kind: 'message', text: browseJumpHint() } });
-      })();
+      void browseEnter();
       return;
     }
 
@@ -382,6 +383,22 @@ export function BibleWorkspace() {
       setSearch({ kind: 'idle' });
       setSelectedReference(null);
       setOffset(0);
+      // An empty field means reading again: put the pane back where it was
+      // before a search or a reference jump moved it (Genesis on a fresh
+      // workspace). Covers both the clear button and backspacing to empty.
+      const home = browseReturn.current;
+      if (home) {
+        browseReturn.current = null;
+        const alreadyHome =
+          home.bookId === browseBookId &&
+          home.chapter === browseChapter &&
+          browseState.kind === 'results';
+        if (!alreadyHome) {
+          setBrowseBookId(home.bookId);
+          setBrowseChapter(home.chapter);
+          void loadChapter(home.bookId, home.chapter);
+        }
+      }
       return;
     }
 
@@ -392,7 +409,7 @@ export function BibleWorkspace() {
       setAction({ busy: null, status: null });
       debounceRef.current = window.setTimeout(() => {
         debounceRef.current = null;
-        void jumpToReference(trimmedQuery, { bookOnly: false, toVerse: false });
+        void jumpToReference(trimmedQuery, { bookOnly: false });
       }, SEARCH_DEBOUNCE_MS);
       return;
     }
@@ -420,13 +437,10 @@ export function BibleWorkspace() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // In browse the field takes a reference: Enter jumps the pane instead of
-    // searching for the text.
+    // In browse the field takes a reference: Enter jumps the pane and sends
+    // the reference live instead of searching for the text.
     if (activeTab === 'browse') {
-      void (async () => {
-        const jumped = await jumpToReference(query, { bookOnly: true, toVerse: true });
-        setAction({ busy: null, status: jumped ? null : { kind: 'message', text: browseJumpHint() } });
-      })();
+      void browseEnter();
       return;
     }
     searchNow();
@@ -443,14 +457,8 @@ export function BibleWorkspace() {
     setPending(false);
     setQuery('');
     setSearch({ kind: 'idle' });
-
-    const back = browseReturn.current;
-    if (back) {
-      browseReturn.current = null;
-      setBrowseBookId(back.bookId);
-      setBrowseChapter(back.chapter);
-      void loadChapter(back.bookId, back.chapter);
-    }
+    // The empty-query branch of the search effect restores the reading
+    // position (browseReturn), so clearing and backspacing behave the same.
     setSelectedReference(null);
     setOffset(0);
     // Clearing the search returns to reading: the pane goes back to where the
@@ -503,41 +511,80 @@ export function BibleWorkspace() {
 
   // Browse moves by reference only: the typed text is resolved to a book and
   // chapter and the reading pane goes there. Typing jumps once a chapter
-  // number appears; Enter also accepts a bare book name as its first chapter
-  // and scrolls the named verse into view. Text that names no reference
-  // returns false so the caller can point the operator at search mode -
-  // keywords never run from here.
+  // number appears; Enter also accepts a bare book name as its first chapter.
+  // A named verse becomes the selected row and is centred in the pane, so the
+  // reference the operator typed is visibly the one in focus. The position
+  // before the move is recorded once so clearing the field can return there
+  // (Genesis on a fresh workspace). Text that names no reference returns null
+  // so the caller can point the operator at search mode - keywords never run
+  // from here.
   async function jumpToReference(
     text: string,
-    options: { bookOnly: boolean; toVerse: boolean },
-  ): Promise<boolean> {
+    options: { bookOnly: boolean },
+  ): Promise<{ book: models.BibleBookView; chapter: number; verse: number | null } | null> {
     const target = parseReference(text, books);
-    if (!target) return false;
-    if (target.chapter === null && !options.bookOnly) return false;
+    if (!target) return null;
+    if (target.chapter === null && !options.bookOnly) return null;
     const chapter = target.chapter ?? 1;
-    if (chapter < 1 || chapter > target.book.chapters) return false;
+    if (chapter < 1 || chapter > target.book.chapters) return null;
+    const resolved = { book: target.book, chapter, verse: target.verse };
 
     const alreadyThere =
       target.book.id === browseBookId && chapter === browseChapter && browseState.kind === 'results';
     if (!alreadyThere) {
+      // Remember where reading was before the pane moves. Only the first move
+      // counts: clearing after several jumps returns all the way home.
+      if (browseReturn.current === null) {
+        browseReturn.current = { bookId: browseBookId, chapter: browseChapter };
+      }
       setBrowseBookId(target.book.id);
       setBrowseChapter(chapter);
-      // This jump is the operator's new position: a later search-clear should
-      // not drag the pane back to wherever it was before.
-      browseReturn.current = null;
       await loadChapter(target.book.id, chapter);
     }
 
-    if (options.toVerse && target.verse !== null) {
+    const reference =
+      target.verse !== null ? `${target.book.name} ${chapter}:${target.verse}` : null;
+    setSelectedReference(reference);
+    if (reference !== null) {
       const key = `${target.book.id}:${chapter}:${target.verse}`;
       requestAnimationFrame(() => {
         document.querySelector(`[data-verse="${key}"]`)?.scrollIntoView({ block: 'center' });
       });
     }
-    return true;
+    return resolved;
   }
 
-  // Enter in browse: jump, or say why nothing moved. Keywords belong to the
+  // Enter in browse: jump the pane to the reference and send it live - the
+  // same contract as Enter in search mode, which sends its top hit. Text that
+  // names no reference only gets the hint; keywords never run from here.
+  async function browseEnter(): Promise<void> {
+    const target = await jumpToReference(query, { bookOnly: true });
+    if (!target) {
+      setAction({ busy: null, status: { kind: 'message', text: browseJumpHint() } });
+      return;
+    }
+    const reference =
+      target.verse !== null
+        ? `${target.book.name} ${target.chapter}:${target.verse}`
+        : `${target.book.name} ${target.chapter}`;
+    if (!canGoLive) return; // the pane moved, but there is no audience to send to
+
+    setAction({ busy: `live:${reference}`, status: null });
+    try {
+      await studio.projectScripture({
+        translationId,
+        bookId: target.book.id,
+        chapter: target.chapter,
+        verseStart: target.verse ?? 0,
+        verseEnd: target.verse ?? 0,
+      });
+      setAction({ busy: null, status: { kind: 'message', text: `${reference} is live.` } });
+    } catch (error: unknown) {
+      setAction({ busy: null, status: { kind: 'error', text: errorMessage(error) } });
+    }
+  }
+
+  // Enter in browse fallback: say why nothing moved. Keywords belong to the
   // search mode behind the field's toggle icon.
   function browseJumpHint() {
     return 'Browse moves by reference, like John 3:16. Use search mode for words.';
@@ -545,6 +592,7 @@ export function BibleWorkspace() {
 
   async function loadChapter(bookId: number, chapter: number, append = false) {
     if (!bridgeAvailable || translationId === '') return;
+    const seq = ++loadSeq.current;
     if (append) setBrowseMore(true);
     else setBrowseState({ kind: 'loading' });
 
@@ -556,6 +604,7 @@ export function BibleWorkspace() {
         verseStart: 0,
         verseEnd: 0,
       });
+      if (seq !== loadSeq.current) return; // a newer load owns the pane
       const block: ChapterBlock = { bookId, chapter, results: response.results ?? [] };
       setBrowseState((current) => (
         append && current.kind === 'results'
@@ -563,11 +612,12 @@ export function BibleWorkspace() {
           : { kind: 'results', chapters: [block], bookId, chapter }
       ));
     } catch (error: unknown) {
+      if (seq !== loadSeq.current) return;
       // A failed top-up leaves the chapters already on screen alone; only a
       // first load can leave the pane with nothing to show.
       if (!append) setBrowseState({ kind: 'error', message: errorMessage(error) });
     } finally {
-      setBrowseMore(false);
+      if (seq === loadSeq.current) setBrowseMore(false);
     }
   }
 
