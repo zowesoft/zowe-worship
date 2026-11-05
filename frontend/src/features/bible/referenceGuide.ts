@@ -89,3 +89,25 @@ export function parseReference(
     verse: match[2] ? Number(match[2]) : null,
   };
 }
+
+// Whether text may be entered in browse mode. The book portion has to stay a
+// prefix of an installed book name - that is the only vocabulary the inline
+// suggestion knows - and everything after it may add chapter and verse syntax
+// (digits, colon, dot, dash, spaces) and nothing else. "for god so" is
+// refused at the first letter, so a word query can never be typed here at
+// all; words belong to search mode. With no books loaded there is nothing to
+// validate against, so input is accepted and the jump fails until the list
+// arrives.
+export function acceptsBrowseInput(text: string, books: Book[]): boolean {
+  if (text === '' || books.length === 0) return true;
+  const typedBook = bookPortion(text);
+  const needle = normalize(typedBook);
+  if (needle === '') return false;
+  const names = books.some((book) =>
+    [book.name, withoutLeadingNumber(book.name), book.abbreviation]
+      .map(normalize)
+      .some((name) => name.startsWith(needle)),
+  );
+  if (!names) return false;
+  return /^[\d\s:.\-]*$/.test(text.slice(typedBook.length));
+}

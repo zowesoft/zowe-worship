@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
-import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference } from './referenceGuide';
+import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +53,11 @@ type ActiveTab = 'search' | 'browse';
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 const PAGE_SIZE = 50;
+
+// Shown when a keystroke is refused in browse mode: the field only builds
+// references out of book names, and words belong to search mode.
+const BROWSE_INPUT_HINT =
+  'Browse takes references from book names only, like John 3:16. Use search mode for words.';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -857,7 +862,7 @@ export function BibleWorkspace() {
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[minmax(0,1fr)] overflow-hidden" aria-label="Bible">
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden" aria-label="Bible">
       <div className="grid gap-2.5 p-3 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
         {/* ── SEARCH FIELD ROW ─────────────────────────────────────────
             Always visible in both modes: the leading icon toggles between the
@@ -870,7 +875,16 @@ export function BibleWorkspace() {
               type="button"
               className="grid place-items-center w-6 h-6 shrink-0 border-0 rounded-[4px] bg-transparent text-secondary hover:bg-elevated hover:text-text"
               onClick={() => {
-                setActiveTab(activeTab === 'search' ? 'browse' : 'search');
+                if (activeTab === 'search') {
+                  // Entering browse: a word query is not browse input, so the
+                  // field starts over for a reference. A typed reference stays
+                  // and the pane jumps to it. The debounce effect resets the
+                  // stale results once the query clears.
+                  if (!acceptsBrowseInput(query, books)) setQuery('');
+                  setActiveTab('browse');
+                } else {
+                  setActiveTab('search');
+                }
                 // Hand focus straight back: the operator switches panes without
                 // leaving the field they were typing in.
                 inputRef.current?.focus();
@@ -889,7 +903,18 @@ export function BibleWorkspace() {
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  // Browse refuses text that is not building toward a book
+                  // name - the suggestion only knows books, so a word query
+                  // never even reaches the field. Cutting text back is always
+                  // safe: every prefix of an acceptable input stays acceptable.
+                  if (activeTab === 'browse' && !acceptsBrowseInput(next, books)) {
+                    setAction({ busy: null, status: { kind: 'message', text: BROWSE_INPUT_HINT } });
+                    return;
+                  }
+                  setQuery(next);
+                }}
                 onKeyDown={handleSearchKeyDown}
                 onFocus={() => setFieldFocused(true)}
                 onBlur={() => setFieldFocused(false)}
@@ -1013,18 +1038,21 @@ export function BibleWorkspace() {
 
         {/* ── BROWSE TAB ────────────────────────────────────────────── */}
         {activeTab === 'browse' && renderBrowse()}
-
-        <p
-          className={
-            'pt-2.5 border-t border-border text-[10px] '
-            + (action.status?.kind === 'error' ? 'text-error' : 'text-secondary')
-          }
-          aria-live="polite"
-        >
-          {action.status?.text ??
-            'Preview and Send Live update the production panes. Add to Service fills the schedule.'}
-        </p>
       </div>
+
+      {/* The status line sits outside the scrolling pane so a hint (like the
+          browse input refusal) is always on screen, never buried under a
+          chapter of verses. */}
+      <p
+        className={
+          'mx-3 mb-3 pt-2.5 border-t border-border text-[10px] '
+          + (action.status?.kind === 'error' ? 'text-error' : 'text-secondary')
+        }
+        aria-live="polite"
+      >
+        {action.status?.text ??
+          'Preview and Send Live update the production panes. Add to Service fills the schedule.'}
+      </p>
     </section>
   );
 }
