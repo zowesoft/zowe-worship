@@ -151,8 +151,12 @@ func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
 	if state.Preview == nil || state.Live != nil {
 		t.Fatalf("state after preview = %+v", state)
 	}
-	if state.Preview.Label != "John 3:16" || state.Preview.Translation != "KJV" {
+	// The slide label carries the version being projected.
+	if state.Preview.Label != "John 3:16 (KJV)" || state.Preview.Translation != "KJV" {
 		t.Fatalf("preview = %+v", state.Preview)
+	}
+	if state.Preview.Reference != "John 3:16" {
+		t.Fatalf("reference = %q, want the bare reference", state.Preview.Reference)
 	}
 
 	live, err := controller.ProjectPreview()

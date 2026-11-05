@@ -510,6 +510,14 @@ func (c *Controller) scriptureContent(
 	}
 
 	reference := referenceFromVerses(verses)
+	// Label is what the preview pane, the live pane and the audience display
+	// print as the slide's reference, so it names the version on screen:
+	// "John 5:9 (KJV)". Title and Reference stay the bare reference for lists
+	// and structured consumers.
+	label := reference
+	if translation.Abbreviation != "" {
+		label = fmt.Sprintf("%s (%s)", reference, translation.Abbreviation)
+	}
 	lines := make([]string, 0, len(verses))
 	for _, verse := range verses {
 		lines = append(lines, splitLines(verse.Text)...)
@@ -519,7 +527,7 @@ func (c *Controller) scriptureContent(
 		ItemID:      itemID,
 		Kind:        "scripture",
 		Title:       reference,
-		Label:       reference,
+		Label:       label,
 		Reference:   reference,
 		Translation: translation.Abbreviation,
 		Lines:       lines,
