@@ -205,10 +205,6 @@ export function BibleWorkspace() {
   const filteredBooks =
     testament === '' ? books : books.filter((b) => b.testament === testament);
 
-  // Chapter count for currently selected browse book
-  const browseBook = books.find((b) => b.id === browseBookId);
-  const browseChapters = browseBook?.chapters ?? 1;
-
   // — guided reference entry ————————————————————————————————————————————————
   // The operator is still naming a book while the text after the book portion
   // holds no chapter digit or colon and the mode resolves references ("auto").
@@ -523,17 +519,6 @@ export function BibleWorkspace() {
     void loadChapter(next.bookId, next.chapter, true);
   }
 
-  function handleBrowseBookChange(id: number) {
-    setBrowseBookId(id);
-    setBrowseChapter(1);
-    void loadChapter(id, 1);
-  }
-
-  function handleBrowseChapterChange(chapter: number) {
-    setBrowseChapter(chapter);
-    void loadChapter(browseBookId, chapter);
-  }
-
   // The Bible tab never opens on an empty pane. Genesis 1 is what a person
   // expects to find there, and they can scroll forward from it.
   useEffect(() => {
@@ -741,41 +726,13 @@ export function BibleWorkspace() {
     }
     return (
       <div className="grid gap-3">
-        {/* Book + chapter selectors */}
-        <div className="flex items-center gap-2 px-2.5 py-2 border border-border rounded-lg bg-app">
-          <select
-            className={`${FILTER} flex-1 min-w-0`}
-            aria-label="Select book"
-            value={browseBookId}
-            onChange={(e) => handleBrowseBookChange(Number(e.target.value))}
-          >
-            {books.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={FILTER}
-            aria-label="Select chapter"
-            value={browseChapter}
-            onChange={(e) => handleBrowseChapterChange(Number(e.target.value))}
-          >
-            {Array.from({ length: browseChapters }, (_, i) => i + 1).map((ch) => (
-              <option key={ch} value={ch}>
-                Ch {ch}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Browse results */}
         <div>
           {browseState.kind === 'idle' && (
             <div className={STATUS_PANEL} role="status">
               <Icon name="bible" size={28} />
-              <strong>Select a chapter to read</strong>
-              <p>Choose a book and chapter above.</p>
+              <strong>Start typing to search</strong>
+              <p>Search a reference or scroll to read through the Bible.</p>
             </div>
           )}
           {browseState.kind === 'loading' && (
