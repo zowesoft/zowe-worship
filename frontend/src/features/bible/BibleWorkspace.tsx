@@ -156,6 +156,9 @@ export function BibleWorkspace() {
   const requestId = useRef(0);
   const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // The scrolling pane beneath the pinned search area; a fresh search snaps it
+  // back to the top so the verse that was searched is the first thing seen.
+  const paneRef = useRef<HTMLDivElement>(null);
   // Where the reading pane was before a search moved it, so clearing the search
   // can put it back.
   const browseReturn = useRef<{ bookId: number; chapter: number } | null>(null);
@@ -358,6 +361,10 @@ export function BibleWorkspace() {
 
         if (replace) {
           setSearch({ kind: 'results', results: incoming, hasMore });
+          // The pane snaps to the top: the first row is the verse the query
+          // named, so that is what the operator sees immediately - nothing
+          // scrolled out from under them.
+          paneRef.current?.scrollTo({ top: 0 });
           // The selection is what the query named: the verse range of a
           // reference search (highlighted and acted on as one block), or the
           // top result's own row for text and whole-chapter searches.
@@ -604,7 +611,10 @@ export function BibleWorkspace() {
       });
       const key = `${target.book.id}:${chapter}:${target.verse}`;
       requestAnimationFrame(() => {
-        document.querySelector(`[data-verse="${key}"]`)?.scrollIntoView({ block: 'center' });
+        // The searched verse goes to the TOP of the reading pane - the verses
+        // before it in the chapter stay above, scrolled out of the way, and
+        // the pane scrolls, never the pinned search area.
+        document.querySelector(`[data-verse="${key}"]`)?.scrollIntoView({ block: 'start' });
       });
     } else {
       setSelection(null);
@@ -974,8 +984,11 @@ export function BibleWorkspace() {
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden" aria-label="Bible">
-      <div className="grid gap-2.5 p-3 min-h-0 overflow-y-auto content-start max-[959px]:p-2.5" onScroll={handleBrowseScroll}>
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden h-full" aria-label="Bible">
+      {/* The search area is a pinned header: results and chapters scroll in
+          the pane beneath it, so nothing can ever push the field out of
+          reach - the operator types and acts without scrolling back. */}
+      <div className="grid gap-2.5 px-3 pt-3 pb-2.5 content-start max-[959px]:px-2.5 max-[959px]:pt-2.5 max-[959px]:pb-2">
         {/* ── SEARCH FIELD ROW ─────────────────────────────────────────
             Always visible in both modes: the leading icon names the current
             mode and toggles to the other one, and the translation selector
@@ -1093,10 +1106,8 @@ export function BibleWorkspace() {
             ))}
           </select>
         </form>
-
         {activeTab === 'search' && (
-          <>
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
               {/* Testament filter */}
               <select
                 className={FILTER}
@@ -1150,12 +1161,17 @@ export function BibleWorkspace() {
                     ? `${resultCount} result${resultCount === 1 ? '' : 's'}`
                     : ''}
               </span>
-            </div>
+          </div>
+        )}
+      </div>
 
-            <div aria-busy={pending}>
-              {renderSearchResults()}
-            </div>
-          </>
+      {/* Results and chapters scroll in their own pane below the pinned
+          search area, so a long reading never moves the field. */}
+      <div ref={paneRef} className="grid px-3 pb-3 min-h-0 overflow-y-auto content-start max-[959px]:px-2.5 max-[959px]:pb-2.5" onScroll={handleBrowseScroll}>
+        {activeTab === 'search' && (
+          <div aria-busy={pending}>
+            {renderSearchResults()}
+          </div>
         )}
 
         {/* ── BROWSE TAB ────────────────────────────────────────────── */}
