@@ -31,6 +31,19 @@ Unicode true
 ## !define REQUEST_EXECUTION_LEVEL "admin"            # Default "admin"  see also https://nsis.sourceforge.io/Docs/Chapter4.html
 ## !define WAILS_INSTALL_SCOPE     "user"             # Default "machine" - set to "user" for per-user install ($LOCALAPPDATA) without UAC prompt
 ####
+## These reflect build/config.yml. They are set here rather than left to
+## wails_tools.nsh because this project packages through the Taskfile, which
+## calls makensis directly and never regenerates wails_tools.nsh — so the copy
+## in the tree still carries the template's "probe" defaults. Defining them
+## ahead of the include makes the include a no-op for them, so the installer's
+## name, publisher and shortcuts are correct regardless of how it is built.
+####
+!define INFO_PROJECTNAME    "zowe-worship"   # -> zowe-worship.exe, the app binary
+!define INFO_COMPANYNAME    "Zowesoft"
+!define INFO_PRODUCTNAME    "Zowe Worship"
+!define INFO_PRODUCTVERSION "0.1.0"
+!define INFO_COPYRIGHT      "(c) 2026, Zowesoft"
+####
 ## Include the wails tools
 ####
 !include "wails_tools.nsh"
@@ -92,6 +105,18 @@ Section
     SetOutPath $INSTDIR
     
     !insertmacro wails.files
+
+    # The bundled speech engine, staged by `task engines:stage`. It lands under
+    # engines/ beside the exe, which is where discovery looks for it; installing
+    # to Program Files makes it read-only to a standard user, so the shipped
+    # engine cannot be casually replaced. Creation of the folder is tolerated as
+    # "already exists" for the same reason. Absent when the engines were not
+    # staged, in which case the app offers "Get engine" instead.
+    !if /FileExists "..\..\..\build\engines\bin\sherpa-onnx-offline.exe"
+        SetOutPath $INSTDIR\engines
+        File /r "..\..\..\build\engines\*.*"
+        SetOutPath $INSTDIR
+    !endif
 
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"

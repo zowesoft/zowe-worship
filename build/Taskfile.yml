@@ -203,6 +203,23 @@ tasks:
     cmds:
       - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
 
+  engines:stage:
+    summary: Stages the bundled speech engine into build/engines for packaging
+    desc: |
+      Produces the engines/ tree the installer ships beside the app, using the
+      pinned hashes so the packaged bytes are the verified ones and not whatever
+      is on the build machine. The engine's model is the same on every platform;
+      only the runtime differs, so GOOS/GOARCH pick the runtime to fetch — which
+      lets any host assemble a package for another OS.
+
+      Usage: task engines:stage [GOOS=windows] [GOARCH=amd64] [ENGINE=moonshine-tiny-en] [OUT=build/engines]
+      Reruns are cheap: files already present and correct are left alone.
+    cmds:
+      - go run ./cmd/zowe-engine -engine {{.ENGINE | default "moonshine-tiny-en"}} -out "{{.OUT | default "build/engines"}}" -goos {{.GOOS | default OS}} -goarch {{.GOARCH | default ARCH}}
+    vars:
+      ENGINE: '{{.ENGINE}}'
+      OUT: '{{.OUT}}'
+
   dev:frontend:
     summary: Runs the frontend in development mode
     deps:

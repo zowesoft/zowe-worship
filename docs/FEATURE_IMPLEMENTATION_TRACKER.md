@@ -342,11 +342,38 @@ administrator or admin-level malware — no desktop app can. Hash-verifying
 before use turns silent replacement into a clear error. Downloaded engines go
 to `<data root>/engines` because that is the writable, per-user location.
 
+#### Installer
+
+`cmd/zowe-engine` stages the engine tree for packaging (`task engines:stage`),
+drawing from the pinned releases so the shipped bytes are the verified ones.
+Because `InstallFor` takes an explicit GOOS/GOARCH, the staging is
+platform-parameterized: the model is shared and only the runtime differs, so
+any host can assemble a package for another OS — a Windows tree and a Linux
+tree were both staged from a Windows host.
+
+The Windows installer ships it: `create:nsis:installer` depends on
+`engines:stage`, and `project.nsi` copies `build/engines/*` to
+`$INSTDIR\engines` (guarded by `!if /FileExists`, so an unstaged build still
+packages and the app falls back to "Get engine"). Installing to Program Files
+keeps the bundled engine read-only to a standard user.
+
+Verified end to end: the installer compiled (121 MB install data), a silent
+install laid down `zowe-worship.exe` plus a 138 MB `engines/` tree whose every
+file matched its pinned hash, and that installed engine transcribed the smoke
+clip and detected **Romans 8:28**.
+
+Also fixed along the way: `build/windows/nsis/wails_tools.nsh` is committed with
+the Wails template defaults ("probe" / "My Company") and the Taskfile flow never
+regenerates it, so the installer would have named the app `probe.exe`. The real
+`INFO_*` values are now defined in `project.nsi` ahead of the include, which
+overrides those defaults.
+
 #### Still open
 
-- Wire the installer to stage `<exe dir>/engines` and set the bundled engine on
-  first run (Windows NSIS first; macOS `.app`, Linux package later). Until then
-  a fresh install still has no engine and reaches for **Get engine**.
+- macOS and Linux packaging do not exist yet (no `build/darwin` bundle, no
+  `build/linux`). The code and the staging task are already cross-platform;
+  each OS needs its own package layout that places the `engines/` tree beside
+  the app, then a one-line `engines:stage` dependency like Windows has.
 - Licensing — sherpa-onnx is Apache-2.0, Moonshine MIT; ship both in the
   installed tree and the app's attributions.
 

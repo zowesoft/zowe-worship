@@ -1,6 +1,9 @@
 /build/bin/
 /bin/
 /.task/
+# Engine tree staged for packaging by `task engines:stage`; the bytes come from
+# pinned releases, not the repo.
+/build/engines/
 # macOS icon generation hook currently assumes a Windows-only build; revisit
 # when macOS/Linux packaging tasks land.
 /build/darwin/

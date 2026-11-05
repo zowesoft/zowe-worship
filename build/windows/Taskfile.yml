@@ -132,6 +132,13 @@ tasks:
     dir: build/windows/nsis
     deps:
       - task: build
+      # Stage the bundled speech engine so the installer ships it read-only
+      # beside the app, giving a fresh install a working engine offline. The
+      # bytes are drawn from pinned releases, not the build machine.
+      - task: common:engines:stage
+        vars:
+          GOOS: windows
+          GOARCH: '{{.ARCH | default ARCH}}'
     preconditions:
       - sh: '[ "{{.INSTALL_SCOPE}}" = "user" ] || [ "{{.INSTALL_SCOPE}}" = "machine" ]'
         msg: "INSTALL_SCOPE must be 'user' or 'machine', got '{{.INSTALL_SCOPE}}'"
