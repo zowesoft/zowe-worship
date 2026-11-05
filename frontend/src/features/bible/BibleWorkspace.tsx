@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
-import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter } from './referenceGuide';
+import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference } from './referenceGuide';
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
@@ -289,6 +289,17 @@ export function BibleWorkspace() {
 
     if (event.key !== 'Enter') return;
 
+    // Browse takes references: Enter jumps the reading pane there (a whole
+    // book name lands on its first chapter) and never runs a keyword search.
+    if (activeTab === 'browse') {
+      event.preventDefault();
+      void (async () => {
+        const jumped = await jumpToReference(query, { bookOnly: true, toVerse: true });
+        setAction({ busy: null, status: jumped ? null : { kind: 'message', text: browseJumpHint() } });
+      })();
+      return;
+    }
+
     // Once a search has landed for what is actually typed, Enter sends the top
     // result straight to the audience; double-clicking a row sends that row
     // instead. Guarding on !pending avoids sending the previous query's stale
@@ -368,19 +379,29 @@ export function BibleWorkspace() {
       setOffset(0);
       return;
     }
+
+    // Browse is reference entry, not search: typing narrows the book ghost
+    // and moves the reading pane as soon as the text names a chapter. Words
+    // are search mode's job - nothing is queried from here.
+    if (activeTab === 'browse') {
+      setAction({ busy: null, status: null });
+      debounceRef.current = window.setTimeout(() => {
+        debounceRef.current = null;
+        void jumpToReference(trimmedQuery, { bookOnly: false, toVerse: false });
+      }, SEARCH_DEBOUNCE_MS);
+      return;
+    }
+
     if (trimmedQuery.length < MIN_QUERY_LENGTH) return;
 
     setAction({ busy: null, status: null });
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null;
       setOffset(0);
-      // Typing is a search: leave the reading pane for the results as soon as
-      // the query is long enough to run.
-      setActiveTab('search');
       void executeSearch(trimmedQuery, translationId, 0, true);
     }, SEARCH_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trimmedQuery, mode, testament, bookFilter, translationId, bridgeAvailable]);
+  }, [trimmedQuery, mode, testament, bookFilter, translationId, bridgeAvailable, activeTab, books]);
 
   useEffect(() => cancelDebounce, []);
 
@@ -394,6 +415,15 @@ export function BibleWorkspace() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // In browse the field takes a reference: Enter jumps the pane instead of
+    // searching for the text.
+    if (activeTab === 'browse') {
+      void (async () => {
+        const jumped = await jumpToReference(query, { bookOnly: true, toVerse: true });
+        setAction({ busy: null, status: jumped ? null : { kind: 'message', text: browseJumpHint() } });
+      })();
+      return;
+    }
     searchNow();
   }
 
@@ -418,6 +448,9 @@ export function BibleWorkspace() {
     }
     setSelectedReference(null);
     setOffset(0);
+    // Clearing the search returns to reading: the pane goes back to where the
+    // operator had been browsing.
+    setActiveTab('browse');
     inputRef.current?.focus();
   }
 
@@ -463,6 +496,48 @@ export function BibleWorkspace() {
 
   // ─── browse ───────────────────────────────────────────────────────────────
 
+  // Browse moves by reference only: the typed text is resolved to a book and
+  // chapter and the reading pane goes there. Typing jumps once a chapter
+  // number appears; Enter also accepts a bare book name as its first chapter
+  // and scrolls the named verse into view. Text that names no reference
+  // returns false so the caller can point the operator at search mode -
+  // keywords never run from here.
+  async function jumpToReference(
+    text: string,
+    options: { bookOnly: boolean; toVerse: boolean },
+  ): Promise<boolean> {
+    const target = parseReference(text, books);
+    if (!target) return false;
+    if (target.chapter === null && !options.bookOnly) return false;
+    const chapter = target.chapter ?? 1;
+    if (chapter < 1 || chapter > target.book.chapters) return false;
+
+    const alreadyThere =
+      target.book.id === browseBookId && chapter === browseChapter && browseState.kind === 'results';
+    if (!alreadyThere) {
+      setBrowseBookId(target.book.id);
+      setBrowseChapter(chapter);
+      // This jump is the operator's new position: a later search-clear should
+      // not drag the pane back to wherever it was before.
+      browseReturn.current = null;
+      await loadChapter(target.book.id, chapter);
+    }
+
+    if (options.toVerse && target.verse !== null) {
+      const key = `${target.book.id}:${chapter}:${target.verse}`;
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-verse="${key}"]`)?.scrollIntoView({ block: 'center' });
+      });
+    }
+    return true;
+  }
+
+  // Enter in browse: jump, or say why nothing moved. Keywords belong to the
+  // search mode behind the field's toggle icon.
+  function browseJumpHint() {
+    return 'Browse moves by reference, like John 3:16. Use search mode for words.';
+  }
+
   async function loadChapter(bookId: number, chapter: number, append = false) {
     if (!bridgeAvailable || translationId === '') return;
     if (append) setBrowseMore(true);
@@ -507,7 +582,10 @@ export function BibleWorkspace() {
 
   function handleBrowseScroll(event: React.UIEvent<HTMLDivElement>) {
     const box = event.currentTarget;
-    if (activeTab !== 'browse' || browseMore || browseState.kind !== 'results') return;
+    // The reading pane is on screen in browse mode and, in search mode, while
+    // no query is active; scrolling forward loads the next chapter only then.
+    const readingVisible = activeTab === 'browse' || (!pending && search.kind === 'idle');
+    if (!readingVisible || browseMore || browseState.kind !== 'results') return;
     if (box.scrollHeight - box.scrollTop - box.clientHeight > 260) return;
 
     const last = browseState.chapters[browseState.chapters.length - 1];
@@ -552,6 +630,7 @@ export function BibleWorkspace() {
     return (
       <li
         key={`${result.bookId}-${result.chapter}-${result.verse}`}
+        data-verse={`${result.bookId}:${result.chapter}:${result.verse}`}
         className={
           'flex items-center gap-2 px-2 py-px border rounded-[7px] cursor-pointer select-none '
           + (selected
@@ -702,15 +781,59 @@ export function BibleWorkspace() {
         </>
       );
     }
+    // No query is active: show the reading pane instead of a poster, so
+    // scripture (Genesis 1 from the top) is on screen before anyone types.
+    return renderReadingPane();
+  }
+
+  // The reading pane itself: chapter blocks of verses rendered top to bottom.
+  // Browse shows it directly and search falls back to it while no query is
+  // active, so the workspace opens on Genesis 1:1 instead of a poster telling
+  // the operator to type.
+  function renderReadingPane() {
+    if (browseState.kind === 'idle') {
+      return (
+        <div className={STATUS_PANEL} role="status">
+          <Icon name="bible" size={28} />
+          <strong>Opening the Bible…</strong>
+          <p>Reading Genesis 1 while the translation loads.</p>
+        </div>
+      );
+    }
+    if (browseState.kind === 'loading') {
+      return (
+        <div className={STATUS_PANEL} role="status">
+          <strong>Loading chapter…</strong>
+        </div>
+      );
+    }
+    if (browseState.kind === 'error') {
+      return (
+        <div className={`${STATUS_PANEL} border-[#5A2B35]! [&_strong]:text-error!`} role="alert">
+          <strong>Could not load chapter</strong>
+          <p>{browseState.message}</p>
+        </div>
+      );
+    }
     return (
-      <div className={STATUS_PANEL} role="status">
-        <Icon name="search" size={30} />
-        <strong>Search the Bible</strong>
-        <p>
-          Start typing a reference like John 3:16, a chapter like Psalm 23, or words like living
-          water.
-        </p>
-      </div>
+      <>
+        {browseState.chapters.map((block) => (
+          <section key={`${block.bookId}-${block.chapter}`} className="grid gap-1.5">
+            <div className="flex items-center gap-2 px-1.5 pt-1 pb-2 text-[12px] font-semibold text-text">
+              <strong>
+                {books.find((b) => b.id === block.bookId)?.name} {block.chapter}
+              </strong>
+              <span className={BADGE}>{activeTranslation?.abbreviation ?? ''}</span>
+            </div>
+            <ul className="list-none grid gap-1 m-0 p-0" aria-label="Chapter verses">
+              {block.results.map((r) => renderVerseRow(r, false))}
+            </ul>
+          </section>
+        ))}
+        {browseMore && (
+          <p className={STATUS_PANEL} role="status">Loading the next chapter…</p>
+        )}
+      </>
     );
   }
 
@@ -724,51 +847,7 @@ export function BibleWorkspace() {
         </div>
       );
     }
-    return (
-      <div className="grid gap-3">
-        {/* Browse results */}
-        <div>
-          {browseState.kind === 'idle' && (
-            <div className={STATUS_PANEL} role="status">
-              <Icon name="bible" size={28} />
-              <strong>Start typing to search</strong>
-              <p>Search a reference or scroll to read through the Bible.</p>
-            </div>
-          )}
-          {browseState.kind === 'loading' && (
-            <div className={STATUS_PANEL} role="status">
-              <strong>Loading chapter…</strong>
-            </div>
-          )}
-          {browseState.kind === 'error' && (
-            <div className={`${STATUS_PANEL} border-[#5A2B35]! [&_strong]:text-error!`} role="alert">
-              <strong>Could not load chapter</strong>
-              <p>{browseState.message}</p>
-            </div>
-          )}
-          {browseState.kind === 'results' && (
-            <>
-              {browseState.chapters.map((block) => (
-                <section key={`${block.bookId}-${block.chapter}`} className="grid gap-1.5">
-                  <div className="flex items-center gap-2 px-1.5 pt-1 pb-2 text-[12px] font-semibold text-text">
-                    <strong>
-                      {books.find((b) => b.id === block.bookId)?.name} {block.chapter}
-                    </strong>
-                    <span className={BADGE}>{activeTranslation?.abbreviation ?? ''}</span>
-                  </div>
-                  <ul className="list-none grid gap-1 m-0 p-0" aria-label="Chapter verses">
-                    {block.results.map((r) => renderVerseRow(r, false))}
-                  </ul>
-                </section>
-              ))}
-              {browseMore && (
-                <p className={STATUS_PANEL} role="status">Loading the next chapter…</p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
+    return renderReadingPane();
   }
 
   // ─── computed counts ──────────────────────────────────────────────────────
@@ -815,7 +894,11 @@ export function BibleWorkspace() {
                 onFocus={() => setFieldFocused(true)}
                 onBlur={() => setFieldFocused(false)}
                 aria-label="Search the Bible"
-                placeholder="Search references or words, e.g. John 3:16 or living water"
+                placeholder={
+                  activeTab === 'browse'
+                    ? 'Jump to a reference, e.g. John 3:16'
+                    : 'Search references or words, e.g. John 3:16 or living water'
+                }
                 autoComplete="off"
                 spellCheck={false}
                 disabled={Boolean(translationError) || loadingTranslations}
