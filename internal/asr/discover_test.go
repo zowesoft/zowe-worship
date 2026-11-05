@@ -26,7 +26,7 @@ func TestDiscoverEnginesFindsWhisperAndSherpa(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatalf("mkdir tools: %v", err)
 	}
-	for _, bin := range []string{"whisper-cli.exe", "sherpa-onnx-offline.exe"} {
+	for _, bin := range []string{"whisper-cli.exe", "sherpa-onnx-offline.exe", "sherpa-onnx-offline-audio-tagging.exe"} {
 		if err := os.WriteFile(filepath.Join(binDir, bin), []byte("x"), 0o644); err != nil {
 			t.Fatalf("write %s: %v", bin, err)
 		}
