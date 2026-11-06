@@ -321,13 +321,20 @@ export function BibleWorkspace() {
       return;
     }
 
-    // Once a search has landed for what is actually typed, Enter sends the top
-    // result straight to the audience; double-clicking a row sends that row
-    // instead. Guarding on !pending avoids sending the previous query's stale
-    // top hit while the current search is still in flight.
+    // Once a search has landed for what is actually typed, Enter sends the
+    // highlighted verse (or the top hit when nothing is highlighted) straight
+    // to the audience; double-clicking a row sends that row instead. Guarding
+    // on !pending avoids sending the previous query's stale top hit while the
+    // current search is still in flight.
     if (canGoLive && !pending && search.kind === 'results' && search.results.length > 0) {
       event.preventDefault();
-      void perform('live', search.results[0]);
+      const highlighted =
+        selection === null
+          ? undefined
+          : search.results.find(
+              (v) => v.bookId === selection.bookId && v.chapter === selection.chapter && v.verse === selection.start,
+            );
+      void perform('live', highlighted ?? search.results[0]);
       return;
     }
     // Otherwise let the form submit and run the search.
@@ -727,6 +734,67 @@ export function BibleWorkspace() {
     }
   }
 
+  // The verses currently on screen, in reading order: the ranked hits while a
+  // search is showing, otherwise the chapter blocks of the reading pane. Arrow
+  // keys step through exactly this list so the highlight never jumps to a row
+  // the operator cannot see.
+  function visibleVerses(): models.BibleVerse[] {
+    if (activeTab === 'search' && search.kind === 'results') return search.results;
+    if (browseState.kind === 'results') return browseState.chapters.flatMap((c) => c.results);
+    return [];
+  }
+
+  // Nudge the pane just enough to keep a row fully on screen - unlike
+  // scrollVerseToTop this preserves the operator's place when stepping by arrow.
+  function keepRowVisible(key: string) {
+    const pane = paneRef.current;
+    const row = pane?.querySelector(`[data-verse="${key}"]`);
+    if (!pane || !row) return;
+    const box = pane.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    if (r.top < box.top) pane.scrollTo({ top: pane.scrollTop + (r.top - box.top) });
+    else if (r.bottom > box.bottom) pane.scrollTo({ top: pane.scrollTop + (r.bottom - box.bottom) });
+  }
+
+  // Up/Down walk the highlight one verse at a time and preview it at once;
+  // Enter sends the highlighted verse live. Scoped to the workspace so the
+  // shell's own Left/Right schedule shortcuts are untouched.
+  function handleWorkspaceKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+    // Dropdowns keep their own arrow/Enter behaviour (choosing an option), and
+    // the row action buttons keep Enter for their own action.
+    const ownsKeys = target.closest('select, [data-row-actions]') !== null;
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (ownsKeys || selection === null || !canGoLive) return;
+      const list = visibleVerses();
+      const anchor = event.key === 'ArrowDown' ? selection.end : selection.start;
+      const index = list.findIndex(
+        (v) => v.bookId === selection.bookId && v.chapter === selection.chapter && v.verse === anchor,
+      );
+      const next = list[index + (event.key === 'ArrowDown' ? 1 : -1)];
+      if (index === -1 || next === undefined) return;
+      event.preventDefault();
+      setSelection({ bookId: next.bookId, chapter: next.chapter, start: next.verse, end: next.verse });
+      void perform('preview', next);
+      keepRowVisible(`${next.bookId}:${next.chapter}:${next.verse}`);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      // The search field owns Enter (submit / send top hit); a row button's
+      // default Enter would only preview, so send the highlight live instead.
+      if (ownsKeys || event.defaultPrevented || event.target === inputRef.current) return;
+      if (selection === null || !canGoLive) return;
+      const verse = visibleVerses().find(
+        (v) => v.bookId === selection.bookId && v.chapter === selection.chapter && v.verse === selection.start,
+      );
+      if (verse === undefined) return;
+      event.preventDefault();
+      void perform('live', verse);
+    }
+  }
+
   function handleBrowseScroll(event: React.UIEvent<HTMLDivElement>) {
     const box = event.currentTarget;
     // The reading pane is on screen in browse mode and, in search mode, while
@@ -813,7 +881,9 @@ export function BibleWorkspace() {
         <button
           type="button"
           className={
-            'flex-1 min-w-0 grid items-center gap-2 py-[9px] px-1 border-0 bg-transparent text-left text-inherit '
+            // The selected-row highlight is the focus indicator here; a browser
+            // focus ring on top of it reads as a second, unwanted border.
+            'flex-1 min-w-0 grid items-center gap-2 py-[9px] px-1 border-0 bg-transparent text-left text-inherit focus:outline-none focus-visible:outline-none '
             + (showRef ? 'grid-cols-[84px_36px_minmax(0,1fr)] max-[1279px]:grid-cols-[78px_32px_minmax(0,1fr)] max-[959px]:grid-cols-[72px_30px_minmax(0,1fr)] max-[959px]:pl-0.5'
                        : 'grid-cols-[28px_36px_minmax(0,1fr)]')
           }
@@ -1018,7 +1088,7 @@ export function BibleWorkspace() {
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden flex-1 min-h-0" aria-label="Bible">
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden flex-1 min-h-0" aria-label="Bible" onKeyDown={handleWorkspaceKeyDown}>
       {/* The search area is a pinned header: results and chapters scroll in
           the pane beneath it, so nothing can ever push the field out of
           reach - the operator types and acts without scrolling back. */}
