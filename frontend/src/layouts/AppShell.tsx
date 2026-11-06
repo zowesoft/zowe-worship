@@ -1038,6 +1038,12 @@ export function AppShell({ activePage, onNavigate, children }: {
 
   // Home has its own live hero so the presentation dock is redundant there.
   const showDock = activePage !== 'home';
+  // Most workspaces grow as tall as their content and let this column scroll.
+  // Bible is different: it keeps a search header on screen at all times and
+  // scrolls only the reading pane under it. For that its pane needs a real
+  // height to overflow, so the workspace is stretched to fill the column and
+  // its own inner scroller does the scrolling — the column never moves.
+  const selfScrolls = activePage === 'bible';
 
   return (
     <div className="min-w-[768px] grid grid-cols-[var(--sidebar-width)_minmax(0,1fr)] grid-rows-[var(--header-height)_minmax(0,1fr)] h-dvh overflow-hidden max-[1300px]:[--sidebar-width:212px] max-[959px]:[--sidebar-width:184px]">
@@ -1045,7 +1051,7 @@ export function AppShell({ activePage, onNavigate, children }: {
       <ScheduleSidebar onNavigate={onNavigate} />
       <AppHeader />
       <main id="workspace" className="col-start-2 row-start-2 grid grid-cols-[minmax(0,1fr)_320px] grid-rows-[minmax(0,1fr)] items-stretch gap-[18px] p-[18px] overflow-hidden min-h-0 focus:outline-none focus:[outline-offset:-3px] min-[1600px]:grid-cols-[minmax(0,1fr)_352px] max-[1300px]:grid-cols-[minmax(0,1fr)_292px] max-[1300px]:gap-3.5 max-[1300px]:p-3.5 max-[1150px]:grid-cols-[minmax(0,1fr)_264px] max-[1150px]:gap-3 max-[1150px]:p-3 max-[959px]:grid-cols-[minmax(0,1fr)] max-[959px]:grid-rows-[auto] max-[959px]:p-3 max-[959px]:gap-3 max-[959px]:overflow-y-auto" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
-        <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden max-[959px]:overflow-visible" ref={workspaceRef}>
+        <div className={`min-h-0 min-w-0 overflow-x-hidden max-[959px]:overflow-visible ${selfScrolls ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'} `} ref={workspaceRef}>
           {showDock && (
             <div className="sticky top-0 z-4 grid gap-3.5 pb-3.5 bg-app after:absolute after:inset-x-0 after:bottom-[-8px] after:h-2 after:bg-linear-to-b after:from-app after:to-[rgba(8,15,28,0)] after:pointer-events-none max-[1300px]:gap-3 max-[1300px]:pb-3 max-[959px]:static max-[959px]:pb-0 max-[959px]:after:hidden">
               <PresentationPanes />
@@ -1057,7 +1063,7 @@ export function AppShell({ activePage, onNavigate, children }: {
               <WorkspaceTabs activePage={activePage} onNavigate={onNavigate} />
             </div>
           )}
-          <section className="min-w-0">
+          <section className={selfScrolls ? 'min-w-0 flex-1 min-h-0 flex flex-col max-[959px]:block' : 'min-w-0'}>
             {children}
           </section>
         </div>

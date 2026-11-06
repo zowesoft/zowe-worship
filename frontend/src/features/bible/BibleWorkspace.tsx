@@ -156,9 +156,15 @@ export function BibleWorkspace() {
   const requestId = useRef(0);
   const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // The scrolling pane beneath the pinned search area; a fresh search snaps it
-  // back to the top so the verse that was searched is the first thing seen.
+  // The scrolling pane beneath the pinned search area. Every scroll this
+  // workspace performs goes through this ref, so the pinned header above it
+  // can never move - scrollIntoView would walk every scrollable ancestor and
+  // drag the whole column instead.
   const paneRef = useRef<HTMLDivElement>(null);
+  // The verse row that the next render should bring to the top of the pane
+  // (the searched verse, not the top of its chapter). Consumed once, after the
+  // row exists in the DOM.
+  const pinnedScrollKey = useRef<string | null>(null);
   // Where the reading pane was before a search moved it, so clearing the search
   // can put it back.
   const browseReturn = useRef<{ bookId: number; chapter: number } | null>(null);
@@ -361,14 +367,19 @@ export function BibleWorkspace() {
 
         if (replace) {
           setSearch({ kind: 'results', results: incoming, hasMore });
-          // The pane snaps to the top: the first row is the verse the query
-          // named, so that is what the operator sees immediately - nothing
-          // scrolled out from under them.
-          paneRef.current?.scrollTo({ top: 0 });
           // The selection is what the query named: the verse range of a
           // reference search (highlighted and acted on as one block), or the
           // top result's own row for text and whole-chapter searches.
           const first = incoming[0];
+          // Remember which row should end up at the top of the pane. A
+          // reference search names one verse and its chapter is rendered whole,
+          // so scrolling to the top of the results would show verse 1 and bury
+          // the verse that was asked for; pin the searched verse instead. Text
+          // searches rank the best hit first, so their top row is the target.
+          const pinned = first === undefined
+            ? null
+            : `${first.bookId}:${first.chapter}:${response.verseStart > 0 ? response.verseStart : first.verse}`;
+          pinnedScrollKey.current = pinned;
           setSelection(
             first === undefined
               ? null
@@ -610,12 +621,10 @@ export function BibleWorkspace() {
         end: target.verseEnd ?? target.verse,
       });
       const key = `${target.book.id}:${chapter}:${target.verse}`;
-      requestAnimationFrame(() => {
-        // The searched verse goes to the TOP of the reading pane - the verses
-        // before it in the chapter stay above, scrolled out of the way, and
-        // the pane scrolls, never the pinned search area.
-        document.querySelector(`[data-verse="${key}"]`)?.scrollIntoView({ block: 'start' });
-      });
+      // The searched verse goes to the TOP of the reading pane, so the one
+      // thing the operator asked for is the first thing they see. The chapter
+      // it lives in is rendered whole, so the scroll happens after that render.
+      pinnedScrollKey.current = key;
     } else {
       setSelection(null);
     }
@@ -706,6 +715,18 @@ export function BibleWorkspace() {
     return { bookId: following.id, chapter: 1 };
   }
 
+  // Bring one verse row to the very top of the reading pane by scrolling the
+  // pane alone. The row's offset is measured against the pane's own box, so no
+  // ancestor (the pinned search header lives in one) is ever scrolled.
+  function scrollVerseToTop(key: string) {
+    const pane = paneRef.current;
+    const row = pane?.querySelector(`[data-verse="${key}"]`);
+    if (pane && row) {
+      const delta = row.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+      pane.scrollTo({ top: pane.scrollTop + delta });
+    }
+  }
+
   function handleBrowseScroll(event: React.UIEvent<HTMLDivElement>) {
     const box = event.currentTarget;
     // The reading pane is on screen in browse mode and, in search mode, while
@@ -748,6 +769,19 @@ export function BibleWorkspace() {
     void loadChapter(first.bookId, first.chapter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Bring a requested verse to the top of the pane once its row is on screen.
+  // A reference search has to wait for the chapter to render, so the key is
+  // held across renders and only cleared after the row has been scrolled to.
+  useEffect(() => {
+    const key = pinnedScrollKey.current;
+    if (key === null) return;
+    if (paneRef.current?.querySelector(`[data-verse="${key}"]`)) {
+      scrollVerseToTop(key);
+      pinnedScrollKey.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, browseState]);
 
   // ─── renderers ────────────────────────────────────────────────────────────
 
@@ -984,7 +1018,7 @@ export function BibleWorkspace() {
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden h-full" aria-label="Bible">
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden flex-1 min-h-0" aria-label="Bible">
       {/* The search area is a pinned header: results and chapters scroll in
           the pane beneath it, so nothing can ever push the field out of
           reach - the operator types and acts without scrolling back. */}
