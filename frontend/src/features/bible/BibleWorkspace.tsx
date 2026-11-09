@@ -165,6 +165,10 @@ export function BibleWorkspace() {
   // (the searched verse, not the top of its chapter). Consumed once, after the
   // row exists in the DOM.
   const pinnedScrollKey = useRef<string | null>(null);
+  // Arrow-stepping writes the highlighted reference into the field for display;
+  // that write must not re-run the search/jump debounce, or stepping would keep
+  // resetting the pane to whatever the field says.
+  const skipQuerySync = useRef(false);
   // Where the reading pane was before a search moved it, so clearing the search
   // can put it back.
   const browseReturn = useRef<{ bookId: number; chapter: number } | null>(null);
@@ -231,10 +235,9 @@ export function BibleWorkspace() {
   // — guided reference entry ————————————————————————————————————————————————
   // The operator is still naming a book while the text after the book portion
   // holds no chapter digit or colon and the mode resolves references ("auto").
-  // Keying off the chapter position (not "any digit") lets a leading book number
-  // like the "1" in "1 John" stay part of the book stage. Once a whole book name
-  // is committed (it resolves and the field ends in the space we add on accept),
-  // there is nothing left to complete.
+  // Keying off the chapter position, not "any digit", keeps a leading book
+  // number like the "1" in "1 John" in the book stage. Once a whole book name is
+  // committed there is nothing left to complete.
   const bookText = bookPortion(query);
   const bookCommitted = Boolean(resolveBook(query, books)) && /\s$/.test(query);
   const inBookStage =
@@ -423,6 +426,11 @@ export function BibleWorkspace() {
   // Debounced search trigger
   useEffect(() => {
     if (!bridgeAvailable || translationId === '') return;
+    if (skipQuerySync.current) {
+      skipQuerySync.current = false;
+      cancelDebounce();
+      return;
+    }
     cancelDebounce();
 
     if (trimmedQuery === '') {
@@ -585,14 +593,12 @@ export function BibleWorkspace() {
 
   // ─── browse ───────────────────────────────────────────────────────────────
 
-  // Browse moves by reference only: the typed text is resolved to a book and
-  // chapter and the reading pane goes there. Typing jumps once a chapter
-  // number appears; Enter also accepts a bare book name as its first chapter.
-  // A named verse becomes the selected row and is centred in the pane, so the
-  // reference the operator typed is visibly the one in focus. The position
-  // before the move is recorded once so clearing the field can return there
-  // (Genesis on a fresh workspace). Text that names no reference returns null
-  // so the caller can point the operator at search mode - keywords never run
+  // Browse moves by reference only: the typed text resolves to a book and
+  // chapter and the reading pane goes there. Typing jumps once a chapter number
+  // appears; Enter also accepts a bare book name as its first chapter. A named
+  // verse becomes the selected row, centred in the pane. The position before the
+  // move is recorded so clearing the field returns there (Genesis on a fresh
+  // workspace). Text naming no reference returns null, so keywords never run
   // from here.
   async function jumpToReference(
     text: string,
@@ -642,6 +648,18 @@ export function BibleWorkspace() {
   // same contract as Enter in search mode, which sends its top hit. Text that
   // names no reference only gets the hint; keywords never run from here.
   async function browseEnter(): Promise<void> {
+    // If a verse is highlighted (arrow-stepping or a search result), Enter sends
+    // that exact verse - not whatever stale text still sits in the field.
+    const highlighted =
+      selection === null
+        ? undefined
+        : visibleVerses().find(
+            (v) => v.bookId === selection.bookId && v.chapter === selection.chapter && v.verse === selection.start,
+          );
+    if (highlighted !== undefined && canGoLive) {
+      void perform('live', highlighted);
+      return;
+    }
     const target = await jumpToReference(query, { bookOnly: true });
     if (!target) {
       setAction({ busy: null, status: { kind: 'message', text: browseJumpHint() } });
@@ -776,6 +794,11 @@ export function BibleWorkspace() {
       if (index === -1 || next === undefined) return;
       event.preventDefault();
       setSelection({ bookId: next.bookId, chapter: next.chapter, start: next.verse, end: next.verse });
+      // Keep the field showing the verse under the highlight so Enter and the
+      // operator's eyes agree on what is selected. The flag stops this write
+      // from re-running the search/jump debounce and snapping the pane back.
+      skipQuerySync.current = true;
+      setQuery(next.reference);
       void perform('preview', next);
       keepRowVisible(`${next.bookId}:${next.chapter}:${next.verse}`);
       return;
@@ -1088,7 +1111,7 @@ export function BibleWorkspace() {
   // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden flex-1 min-h-0" aria-label="Bible" onKeyDown={handleWorkspaceKeyDown}>
+    <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden flex-1 min-h-0" aria-label="Bible" onKeyDown={handleWorkspaceKeyDown}>
       {/* The search area is a pinned header: results and chapters scroll in
           the pane beneath it, so nothing can ever push the field out of
           reach - the operator types and acts without scrolling back. */}
@@ -1267,6 +1290,14 @@ export function BibleWorkspace() {
               </span>
           </div>
         )}
+        {/* Errors live in the pinned header, not over the verses: a failed
+            projection stays readable without burying the chapter below it.
+            Ordinary hints are gone - the controls speak for themselves. */}
+        {action.status?.kind === 'error' && (
+          <p className="text-error text-[10px] leading-snug" role="alert">
+            {action.status.text}
+          </p>
+        )}
       </div>
 
       {/* Results and chapters scroll in their own pane below the pinned
@@ -1281,20 +1312,6 @@ export function BibleWorkspace() {
         {/* ── BROWSE TAB ────────────────────────────────────────────── */}
         {activeTab === 'browse' && renderBrowse()}
       </div>
-
-      {/* The status line sits outside the scrolling pane so a hint (like the
-          browse input refusal) is always on screen, never buried under a
-          chapter of verses. */}
-      <p
-        className={
-          'mx-3 mb-3 pt-2.5 border-t border-border text-[10px] '
-          + (action.status?.kind === 'error' ? 'text-error' : 'text-secondary')
-        }
-        aria-live="polite"
-      >
-        {action.status?.text ??
-          'Preview and Send Live update the production panes. Add to Service fills the schedule.'}
-      </p>
     </section>
   );
 }

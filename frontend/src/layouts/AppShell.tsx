@@ -718,7 +718,7 @@ function DetectionPanel() {
             <h3 id="transcript-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Current transcript</h3>
           </div>
           {detection.transcript ? (
-            <p className="p-2.5 border border-border rounded-md bg-app text-text text-[10px] leading-[1.6] select-text">{detection.transcript}</p>
+            <p className="p-2.5 border border-border rounded-md bg-app text-text text-[10px] leading-[1.6]">{detection.transcript}</p>
           ) : (
             <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">
               {detection.listening ? 'Nothing analyzed yet. Let the preacher name a verse, then analyze.' : 'Start listening, then analyze a chunk to transcribe it.'}
@@ -996,7 +996,8 @@ export function AppShell({ activePage, onNavigate, children }: {
         return;
       }
 
-      // F12: Emergency disable detection (per PRD: must not blank audience display)
+      // F12: emergency disable detection — it stops new candidates without
+      // touching what the audience is already looking at
       if (event.key === 'F12') {
         event.preventDefault();
         void run(() => App.SetDetectionDisabled(true), () => {
@@ -1020,7 +1021,8 @@ export function AppShell({ activePage, onNavigate, children }: {
         }
       }
 
-      // Escape: dismiss input focus; PRD: Escape must not clear live output by default
+      // Escape only blurs a focused field; clearing live output needs an
+      // explicit command, so a stray keypress cannot blank the room
       if (event.key === 'Escape') {
         if (inText) {
           (activeEl as HTMLElement).blur();
