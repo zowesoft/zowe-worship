@@ -143,6 +143,14 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	}
 
 	a.core = core
+	a.rewireStores(core, paths)
+	return nil
+}
+
+// rewireStores builds every repository on the shared core connection.
+// Replacing the connection rebuilds every window's views.
+func (a *App) rewireStores(core *sql.DB, paths database.Paths) {
+	a.core = core
 	a.bible = bible.NewSQLiteRepository(core, paths.Translations())
 	a.order = serviceorder.NewSQLiteRepository(core)
 	a.songs = songs.NewSQLiteRepository(core)
@@ -152,7 +160,6 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
 	a.detection = detection.New(core)
 	a.history = history.New(core)
-	return nil
 }
 
 func (a *App) ServiceShutdown() error {

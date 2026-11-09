@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"zowe-worship/internal/database"
@@ -151,6 +154,85 @@ func (a *App) BackupNow() (StorageView, error) {
 		return StorageView{}, err
 	}
 	return a.GetStorage()
+}
+
+// restoreMu serialises restores; two windows can call bindings at once.
+var restoreMu sync.Mutex
+
+// RestoreBackup swaps the live database for a named backup and reopens storage
+// on it. Media files and translation packages live outside the core database
+// and are untouched.
+//
+// Safety: the file must sit in the backups folder and pass an integrity check
+// with a schema this build can read; the current data is backed up first; and
+// the old files are kept until the restored copy opens, migrates and checks
+// out — any failure rolls straight back.
+func (a *App) RestoreBackup(name string) (StorageView, error) {
+	if a.core == nil {
+		return StorageView{}, errStorageUnavailable
+	}
+	restoreMu.Lock()
+	defer restoreMu.Unlock()
+
+	paths, err := a.paths()
+	if err != nil {
+		return StorageView{}, err
+	}
+	if base := filepath.Base(strings.TrimSpace(name)); base != strings.TrimSpace(name) || base == "." {
+		return StorageView{}, fmt.Errorf("restore a copy from the backups folder by name")
+	}
+	backup := filepath.Join(paths.Backups(), strings.TrimSpace(name))
+	info, err := os.Stat(backup)
+	if err != nil || info.IsDir() {
+		return StorageView{}, fmt.Errorf("backup %q was not found in the backups folder", name)
+	}
+
+	if err := database.CheckRestoreCandidate(a.context(), backup); err != nil {
+		return StorageView{}, err
+	}
+	if _, err := database.BeforeRestore(a.context(), a.core, paths.Backups()); err != nil {
+		return StorageView{}, fmt.Errorf("back up the current data first: %w", err)
+	}
+
+	live := paths.CoreDatabase()
+	keep := live + ".prior"
+	// Clear keep-files a previous interrupted restore may have left; the
+	// current data is snapshotted already.
+	_ = os.Remove(keep)
+	database.DiscardDatabase(keep)
+
+	if err := a.core.Close(); err != nil {
+		return StorageView{}, fmt.Errorf("close the live database: %w", err)
+	}
+	a.core = nil
+
+	err = database.ReplaceDatabase(live, backup, keep)
+	if err == nil {
+		var restored *sql.DB
+		restored, err = database.Open(a.context(), live)
+		if err == nil {
+			if err = database.Migrate(a.context(), restored, paths.Backups()); err == nil {
+				if err = database.CheckIntegrity(a.context(), restored); err == nil {
+					a.rewireStores(restored, paths)
+					database.DiscardDatabase(keep)
+					return a.GetStorage()
+				}
+			}
+			_ = restored.Close()
+		}
+	}
+
+	// The copy-in, the open or the migrate failed: undo the swap.
+	rollErr := database.RollbackDatabase(live, keep)
+	if rollErr != nil {
+		return StorageView{}, fmt.Errorf("restore failed (%v) and the previous database could not be returned (%v); the files are kept, see the backups folder", err, rollErr)
+	}
+	reopened, reopenErr := database.Open(a.context(), live)
+	if reopenErr != nil {
+		return StorageView{}, fmt.Errorf("restore failed (%v) and the previous database would not reopen (%v)", err, reopenErr)
+	}
+	a.rewireStores(reopened, paths)
+	return StorageView{}, fmt.Errorf("restore failed: %w", err)
 }
 
 func fileSize(path string) (int64, error) {

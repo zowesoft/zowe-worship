@@ -25,6 +25,9 @@ export function SettingsWindow() {
   const [customEngine, setCustomEngine] = useState(false);
   const [detectionDisabled, setDetectionDisabled] = useState(false);
   const [engineSaved, setEngineSaved] = useState(false);
+  // Restore arms per backup name; a second click on the armed row confirms.
+  const [restoreArm, setRestoreArm] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
     App.GetStorage()
@@ -74,6 +77,26 @@ export function SettingsWindow() {
     try {
       setStorage(await App.BackupNow());
     } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restore(name: string) {
+    if (restoreArm !== name) {
+      setRestoreArm(name);
+      window.setTimeout(() => setRestoreArm((current) => (current === name ? null : current)), 6000);
+      return;
+    }
+    setRestoreArm(null);
+    setBusy(true);
+    setProblem(null);
+    try {
+      setStorage(await App.RestoreBackup(name));
+      setNote(`Restored ${name}. The current data was kept as its own backup.`);
+    } catch (error: unknown) {
+      setNote(null);
       setProblem(errorMessage(error));
     } finally {
       setBusy(false);
@@ -356,7 +379,18 @@ export function SettingsWindow() {
                       <strong>{formatDateTime(backup.createdAt)}</strong>
                       <span>{backup.name}</span>
                     </span>
-                    <span className="shrink-0 text-secondary text-[10.5px] inline-flex items-center gap-2">{formatBytes(backup.sizeBytes)}</span>
+                    <span className="shrink-0 text-secondary text-[10.5px] inline-flex items-center gap-2">
+                      {formatBytes(backup.sizeBytes)}
+                      <button
+                        type="button"
+                        className="min-h-7 inline-flex items-center justify-center px-[9px] py-1 border border-[#35445C] rounded-md bg-elevated text-text text-[10.5px] font-medium whitespace-nowrap hover:bg-[#1C2A40] disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]!"
+                        disabled={busy}
+                        onClick={() => void restore(backup.name)}
+                        title="Replace the current data with this backup"
+                      >
+                        {restoreArm === backup.name ? 'Confirm?' : 'Restore'}
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -369,6 +403,7 @@ export function SettingsWindow() {
           )}
         </section>
 
+        {note !== null && <p className="text-[#8BBA8B] text-[11.5px]" role="status">{note}</p>}
         {problem !== null && <p className="text-error text-[11.5px]" role="alert">{problem}</p>}
       </div>
     </main>

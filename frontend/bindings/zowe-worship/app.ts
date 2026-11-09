@@ -439,6 +439,20 @@ export function ReorderServiceItems(itemIDs: string[] | null): $CancellablePromi
 }
 
 /**
+ * RestoreBackup swaps the live database for a named backup and reopens storage
+ * on it. Media files and translation packages live outside the core database
+ * and are untouched.
+ *
+ * Safety: the file must sit in the backups folder and pass an integrity check
+ * with a schema this build can read; the current data is backed up first; and
+ * the old files are kept until the restored copy opens, migrates and checks
+ * out — any failure rolls straight back.
+ */
+export function RestoreBackup(name: string): $CancellablePromise<$models.StorageView> {
+    return $Call.ByID(1800244779, name);
+}
+
+/**
  * SaveMediaPresentation stores the framing and reports what the slide now looks
  * like, so a live image updates from the same reply the editor shows.
  */

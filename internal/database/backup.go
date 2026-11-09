@@ -26,6 +26,16 @@ func ManualBackup(ctx context.Context, db *sql.DB, dir string) (string, error) {
 	return filepath.Join(dir, name), nil
 }
 
+// BeforeRestore writes the safety copy a restore is measured against, named
+// apart from the operator's own backups.
+func BeforeRestore(ctx context.Context, db *sql.DB, dir string) (string, error) {
+	name := fmt.Sprintf("zowe-before-restore-%s.db", time.Now().UTC().Format("20060102T150405Z"))
+	if err := snapshot(ctx, db, dir, name); err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name), nil
+}
+
 func snapshot(ctx context.Context, db *sql.DB, dir, name string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create backup directory: %w", err)
