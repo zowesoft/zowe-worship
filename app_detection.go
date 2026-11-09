@@ -28,11 +28,16 @@ type DetectionView struct {
 	ID         string `json:"id"`
 	Transcript string `json:"transcript"`
 	Reference  string `json:"reference"`
-	BookID     int    `json:"bookId"`
-	Chapter    int    `json:"chapter"`
-	VerseStart int    `json:"verseStart"`
-	VerseEnd   int    `json:"verseEnd"`
-	CreatedAt  string `json:"createdAt"`
+	// Method, Confidence and Explanation are what the panel shows beneath the
+	// reference; the score stays a rule match until bands are calibrated.
+	Method      string  `json:"method"`
+	Confidence  float64 `json:"confidence"`
+	Explanation string  `json:"explanation"`
+	BookID      int     `json:"bookId"`
+	Chapter     int     `json:"chapter"`
+	VerseStart  int     `json:"verseStart"`
+	VerseEnd    int     `json:"verseEnd"`
+	CreatedAt   string  `json:"createdAt"`
 }
 
 // DetectionResult returns the transcript even when nothing was detected, so
@@ -139,6 +144,60 @@ func (a *App) ListDetections() ([]DetectionView, error) {
 		return nil, errStorageUnavailable
 	}
 	return toDetectionViews(a.detection.List()), nil
+}
+
+// DetectionHistoryView is one recorded decision. Pending candidates live only in
+// memory, so this is how the panel recounts what was approved, dismissed or
+// cleared.
+type DetectionHistoryView struct {
+	ID         string  `json:"id"`
+	Transcript string  `json:"transcript"`
+	Reference  string  `json:"reference"`
+	Confidence float64 `json:"confidence"`
+	Decision   string  `json:"decision"`
+	CreatedAt  string  `json:"createdAt"`
+}
+
+// The panel shows a short recent list, not an export: the cap keeps a mistaken
+// large limit from scanning the whole table.
+const maxDetectionHistoryRows = 50
+
+// ListDetectionHistory returns past decisions newest first. A limit of zero
+// means the panel default.
+func (a *App) ListDetectionHistory(limit int) ([]DetectionHistoryView, error) {
+	if a.core == nil {
+		return nil, errStorageUnavailable
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > maxDetectionHistoryRows {
+		limit = maxDetectionHistoryRows
+	}
+
+	rows, err := a.core.QueryContext(a.context(),
+		`SELECT id, transcript, reference, confidence, decision, created_at
+		 FROM detection_history
+		 ORDER BY created_at DESC, rowid DESC
+		 LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("read detection history: %w", err)
+	}
+	defer rows.Close()
+
+	history := make([]DetectionHistoryView, 0, limit)
+	for rows.Next() {
+		var view DetectionHistoryView
+		if err := rows.Scan(&view.ID, &view.Transcript, &view.Reference,
+			&view.Confidence, &view.Decision, &view.CreatedAt); err != nil {
+			return nil, fmt.Errorf("read detection history row: %w", err)
+		}
+		history = append(history, view)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read detection history: %w", err)
+	}
+	return history, nil
 }
 
 // ApproveDetection previews only; it never changes what the audience sees.
@@ -303,14 +362,17 @@ func toDetectionViews(candidates []detection.Candidate) []DetectionView {
 	for _, candidate := range candidates {
 		reference := candidate.Reference
 		views = append(views, DetectionView{
-			ID:         candidate.ID,
-			Transcript: candidate.Transcript,
-			Reference:  reference.String(),
-			BookID:     reference.Book.ID,
-			Chapter:    reference.Chapter,
-			VerseStart: reference.VerseStart,
-			VerseEnd:   reference.VerseEnd,
-			CreatedAt:  candidate.CreatedAt.Format("15:04:05"),
+			ID:          candidate.ID,
+			Transcript:  candidate.Transcript,
+			Reference:   reference.String(),
+			Method:      candidate.Method,
+			Confidence:  candidate.Confidence,
+			Explanation: candidate.Explanation,
+			BookID:      reference.Book.ID,
+			Chapter:     reference.Chapter,
+			VerseStart:  reference.VerseStart,
+			VerseEnd:    reference.VerseEnd,
+			CreatedAt:   candidate.CreatedAt.Format("15:04:05"),
 		})
 	}
 	return views

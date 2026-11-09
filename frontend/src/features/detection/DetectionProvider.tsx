@@ -19,6 +19,8 @@ type DetectionValue = {
   level: number;
   transcript: string;
   candidates: models.DetectionView[];
+  // Decisions already taken, newest first: the panel's recent list.
+  history: models.DetectionHistoryView[];
   analyzing: boolean;
   disabled: boolean;
   engineConfigured: boolean;
@@ -48,6 +50,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const [level, setLevel] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [candidates, setCandidates] = useState<models.DetectionView[]>([]);
+  const [history, setHistory] = useState<models.DetectionHistoryView[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [disabled, setDisabled] = useState(false);
   const [engineConfigured, setEngineConfigured] = useState(false);
@@ -75,10 +78,21 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // The queue drops a card the moment it is decided, so the panel's recent list
+  // comes from detection_history rather than from memory.
+  const refreshHistory = useCallback(async () => {
+    try {
+      setHistory((await App.ListDetectionHistory(20)) ?? []);
+    } catch {
+      // Read-only without the bridge.
+    }
+  }, []);
+
   useEffect(() => {
     void refreshConfig();
     void refreshQueue();
-  }, [refreshConfig, refreshQueue]);
+    void refreshHistory();
+  }, [refreshConfig, refreshQueue, refreshHistory]);
 
   // The backend streams the transcript while the engine runs, so the panel fills
   // segment by segment instead of all at once.
@@ -174,17 +188,19 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     // Approval previews through the studio; sending it live stays a separate
     // operator action.
     await studio.approveDetection(id);
-    await refreshQueue();
-  }, [studio, refreshQueue]);
+    await Promise.all([refreshQueue(), refreshHistory()]);
+  }, [studio, refreshQueue, refreshHistory]);
 
   const dismiss = useCallback(async (id: string) => {
     setCandidates((await App.DismissDetection(id)) ?? []);
-  }, []);
+    await refreshHistory();
+  }, [refreshHistory]);
 
   const clear = useCallback(async () => {
     setCandidates((await App.ClearDetections()) ?? []);
     setTranscript('');
-  }, []);
+    await refreshHistory();
+  }, [refreshHistory]);
 
   // Release the microphone when the studio window goes away.
   useEffect(() => () => stopCapture(), [stopCapture]);
@@ -196,6 +212,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     level,
     transcript,
     candidates,
+    history,
     analyzing,
     disabled,
     engineConfigured,
@@ -211,9 +228,9 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       await Promise.all([refreshConfig(), refreshQueue()]);
     },
   }), [
-    listening, devices, deviceId, level, transcript, candidates, analyzing, disabled,
+    listening, devices, deviceId, level, transcript, candidates, history, analyzing, disabled,
     engineConfigured, bufferedSeconds, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
-    refreshConfig, refreshQueue,
+    refreshConfig, refreshQueue, refreshHistory,
   ]);
 
   return <DetectionContext.Provider value={value}>{children}</DetectionContext.Provider>;

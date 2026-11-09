@@ -208,6 +208,14 @@ export function ListDetectionEngines(): $CancellablePromise<$models.EngineOption
     return $Call.ByID(3213204963);
 }
 
+/**
+ * ListDetectionHistory returns past decisions newest first. A limit of zero
+ * means the panel default.
+ */
+export function ListDetectionHistory(limit: number): $CancellablePromise<$models.DetectionHistoryView[] | null> {
+    return $Call.ByID(1901055976, limit);
+}
+
 export function ListDetections(): $CancellablePromise<$models.DetectionView[] | null> {
     return $Call.ByID(2091494841);
 }

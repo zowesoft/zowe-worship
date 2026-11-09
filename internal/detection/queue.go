@@ -27,15 +27,47 @@ type Candidate struct {
 	Reference  scripture.Reference
 	// Raw is what the detector parsed, useful when an ASR near miss needs
 	// explaining.
-	Raw       string
-	CreatedAt time.Time
+	Raw string
+	// Method names how the passage was found. Only explicit references exist
+	// today; contextual and quotation matches get their own values later.
+	Method string
+	// Confidence is the detector's score for this hearing. It is fixed for the
+	// rule-based detector until per-type calibration lands, so the panel shows
+	// it as a rule match rather than a percentage.
+	Confidence float64
+	// Explanation is the sentence the panel shows under the candidate.
+	Explanation string
+	CreatedAt   time.Time
+}
+
+// The rule-based detector produces one kind of match and one fixed score for
+// now; calibrated bands replace ConfidenceRuleMatch once the detector is
+// measured against labeled audio.
+const (
+	MethodExplicitReference      = "explicit-reference"
+	ExplanationExplicitReference = "Explicit reference detected"
+	ConfidenceRuleMatch          = 1.0
+)
+
+// newCandidate fills the fields every detection type shares, so Add and
+// MergeLive cannot drift apart.
+func newCandidate(transcript string, detection asr.Detection, now time.Time) Candidate {
+	return Candidate{
+		Transcript:  transcript,
+		Reference:   detection.Reference,
+		Raw:         detection.Raw,
+		Method:      MethodExplicitReference,
+		Confidence:  ConfidenceRuleMatch,
+		Explanation: ExplanationExplicitReference,
+		CreatedAt:   now,
+	}
 }
 
 // decision values must stay inside the CHECK constraint on detection_history.
 const (
-	decisionApproved = "approved"
+	decisionApproved  = "approved"
 	decisionDismissed = "dismissed"
-	decisionIgnored  = "ignored"
+	decisionIgnored   = "ignored"
 )
 
 // Queue keeps pending candidates in memory and records decisions in
@@ -60,12 +92,7 @@ func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate,
 	now := time.Now().UTC().Truncate(time.Second)
 	added := make([]Candidate, 0, len(detections))
 	for _, detection := range detections {
-		candidate := Candidate{
-			Transcript: transcript,
-			Reference:  detection.Reference,
-			Raw:        detection.Raw,
-			CreatedAt:  now,
-		}
+		candidate := newCandidate(transcript, detection, now)
 		id, err := database.NewID()
 		if err != nil {
 			return nil, fmt.Errorf("new candidate id: %w", err)
@@ -103,16 +130,14 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 			updated.Transcript = transcript
 			updated.Raw = detection.Raw
 			updated.Reference = detection.Reference
+			updated.Method = MethodExplicitReference
+			updated.Confidence = ConfidenceRuleMatch
+			updated.Explanation = ExplanationExplicitReference
 			q.pending[replaced] = updated
 			added = append(added, updated)
 			continue
 		}
-		candidate := Candidate{
-			Transcript: transcript,
-			Reference:  detection.Reference,
-			Raw:        detection.Raw,
-			CreatedAt:  now,
-		}
+		candidate := newCandidate(transcript, detection, now)
 		id, err := database.NewID()
 		if err != nil {
 			return nil, fmt.Errorf("new candidate id: %w", err)
@@ -203,7 +228,7 @@ func (q *Queue) record(ctx context.Context, candidate Candidate, decision string
 	_, err := q.db.ExecContext(ctx, `
 		INSERT INTO detection_history (id, transcript, reference, confidence, decision, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)`,
-		candidate.ID, candidate.Transcript, candidate.Reference.String(), confidence, decision,
+		candidate.ID, candidate.Transcript, candidate.Reference.String(), candidate.Confidence, decision,
 		candidate.CreatedAt.Format(time.RFC3339),
 	)
 	if err != nil {
@@ -211,7 +236,3 @@ func (q *Queue) record(ctx context.Context, candidate Candidate, decision string
 	}
 	return nil
 }
-
-// confidence is a fixed score for the rule-based detector, stored for the
-// history schema only.
-const confidence = 1.0

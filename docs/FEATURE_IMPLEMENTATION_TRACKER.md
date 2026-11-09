@@ -253,6 +253,13 @@ sends it live by hand. `F8` toggles listening, `F12` persists the
 emergency disable (`detection_disabled`), and the engine command is set in
 Settings → Live detection.
 
+Candidates carry the detection method, an explanation sentence and the
+rule-match score, and `App.ListDetectionHistory` reads `detection_history` back
+newest first for the panel's recent-decisions list (`app_detection.go`,
+`internal/detection/queue.go`, and the detection panel in `AppShell.tsx`). The
+score is still the fixed `ConfidenceRuleMatch` and is deliberately not shown as
+a percentage until bands are calibrated.
+
 Still open (later slices): continuous listening with automatic segmentation
 (currently manual chunks only), finalized transcripts, calibrated confidence
 bands, gated auto-projection with the safety checklist, and the empty
@@ -520,7 +527,8 @@ The tracker understated the app, which is why this audit was needed:
 
 ### Phase 1 — P0 detection safety chain
 
-1. **Read `detection_history` + richer candidate metadata (S–M).** A binding that
+1. **Read `detection_history` + richer candidate metadata (S–M) — landed
+   2026-11-09.** A binding that
    reads decisions back, and method/confidence/explanation on `DetectionView`.
    Everything after this needs the data surface, and it closes three
    detection-panel requirements at once.

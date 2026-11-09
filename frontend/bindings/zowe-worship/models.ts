@@ -119,6 +119,20 @@ export interface DetectionConfigView {
 }
 
 /**
+ * DetectionHistoryView is one recorded decision. Pending candidates live only in
+ * memory, so this is how the panel recounts what was approved, dismissed or
+ * cleared.
+ */
+export interface DetectionHistoryView {
+    "id": string;
+    "transcript": string;
+    "reference": string;
+    "confidence": number;
+    "decision": string;
+    "createdAt": string;
+}
+
+/**
  * DetectionResult returns the transcript even when nothing was detected, so
  * the panel can show why the queue stayed empty.
  */
@@ -134,6 +148,14 @@ export interface DetectionView {
     "id": string;
     "transcript": string;
     "reference": string;
+
+    /**
+     * Method, Confidence and Explanation are what the panel shows beneath the
+     * reference; the score stays a rule match until bands are calibrated.
+     */
+    "method": string;
+    "confidence": number;
+    "explanation": string;
     "bookId": number;
     "chapter": number;
     "verseStart": number;

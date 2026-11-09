@@ -18,6 +18,7 @@ export type {
     BrowsePassageRequest,
     CustomItemRequest,
     DetectionConfigView,
+    DetectionHistoryView,
     DetectionResult,
     DetectionView,
     DisplayView,

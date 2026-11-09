@@ -748,6 +748,12 @@ function DetectionPanel() {
                     <span className="ml-auto text-secondary text-[9.5px] whitespace-nowrap">{candidate.createdAt}</span>
                   </div>
                   <p className="text-secondary text-[9.5px] leading-[1.5] line-clamp-2">“{candidate.transcript}”</p>
+                  <p className="flex flex-wrap items-center gap-1.5 text-secondary text-[9px] leading-[1.4]">
+                    <span className="inline-flex items-center px-1.5 py-px border border-[#3B355C]! rounded-full bg-[#24203E]! text-[#B3A4FF]! whitespace-nowrap">
+                      {candidate.method === 'explicit-reference' ? 'Explicit reference' : candidate.method}
+                    </span>
+                    <span>{candidate.explanation}</span>
+                  </p>
                   <div className="flex gap-1.5">
                     <button
                       type="button"
@@ -764,6 +770,28 @@ function DetectionPanel() {
                       Dismiss
                     </button>
                   </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="detection-history-title">
+          <div className="flex items-center justify-between gap-2">
+            <h3 id="detection-history-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Recent decisions</h3>
+            {detection.history.length > 0 && (
+              <span className="inline-grid place-items-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-elevated text-[9.5px]">{detection.history.length}</span>
+            )}
+          </div>
+          {detection.history.length === 0 ? (
+            <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">Nothing decided yet — approvals, dismissals and cleared candidates appear here.</p>
+          ) : (
+            <ul className="m-0 p-0 list-none grid gap-px">
+              {detection.history.slice(0, 6).map((entry) => (
+                <li key={entry.id} className="flex items-baseline gap-2 min-w-0 px-2 py-[5px] rounded-md hover:bg-elevated">
+                  <span className="text-[10.5px] font-medium truncate">{entry.reference}</span>
+                  <span className={`ml-auto text-[9px] whitespace-nowrap ${entry.decision === 'approved' || entry.decision === 'auto_projected' ? 'text-[#6EE7C0]' : 'text-secondary'}`}>{decisionLabel(entry.decision)}</span>
+                  <span className="text-secondary text-[9px] whitespace-nowrap tabular-nums">{decisionTime(entry.createdAt)}</span>
                 </li>
               ))}
             </ul>
@@ -901,6 +929,23 @@ function WorkspaceTabs({ activePage, onNavigate }: {
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+// The panel keeps the wording short; these are the history table's CHECK values.
+function decisionLabel(decision: string): string {
+  switch (decision) {
+    case 'auto_projected': return 'Auto-projected';
+    case 'approved': return 'Approved';
+    case 'dismissed': return 'Dismissed';
+    case 'ignored': return 'Cleared';
+    default: return decision;
+  }
+}
+
+function decisionTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
 function isTextInput(element: Element | null): boolean {
