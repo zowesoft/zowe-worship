@@ -245,6 +245,12 @@ export interface ProjectionView {
     "label": string;
     "source": string;
     "projectedAt": string;
+
+    /**
+     * Restorable says whether the row names a schedule item, which is the
+     * only content the restore action can put back on the wall.
+     */
+    "restorable": boolean;
 }
 
 export interface SaveArrangementRequest {

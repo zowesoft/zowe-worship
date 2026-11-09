@@ -439,6 +439,15 @@ export function ReorderServiceItems(itemIDs: string[] | null): $CancellablePromi
 }
 
 /**
+ * RestoreProjection puts a history entry's schedule item back on the wall
+ * live, writing a new history row as any projection does. Ad hoc projections
+ * carry no schedule item and cannot be restored.
+ */
+export function RestoreProjection(historyID: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(3520303596, historyID);
+}
+
+/**
  * RestoreBackup swaps the live database for a named backup and reopens storage
  * on it. Media files and translation packages live outside the core database
  * and are untouched.

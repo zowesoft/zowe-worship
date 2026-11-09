@@ -12,6 +12,7 @@ package history
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -82,6 +83,37 @@ func (l *Log) Record(ctx context.Context, entry Entry) error {
 		return fmt.Errorf("record projection: %w", err)
 	}
 	return nil
+}
+
+// Entry reads one history row; a restore cannot act on a row it cannot read.
+func (l *Log) Entry(ctx context.Context, id string) (Entry, error) {
+	if l.db == nil {
+		return Entry{}, fmt.Errorf("presentation history is not available")
+	}
+
+	row := l.db.QueryRowContext(ctx, `
+		SELECT kind, title, label, source, payload, projected_at
+		FROM presentation_history
+		WHERE id = ?`, id)
+
+	var (
+		entry       Entry
+		projectedAt string
+	)
+	if err := row.Scan(&entry.Kind, &entry.Title, &entry.Label,
+		&entry.Source, &entry.Payload, &projectedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Entry{}, fmt.Errorf("that projection is no longer in the history")
+		}
+		return Entry{}, fmt.Errorf("read presentation history: %w", err)
+	}
+	parsed, err := time.Parse(time.RFC3339, projectedAt)
+	if err != nil {
+		return Entry{}, fmt.Errorf("parse projection time %q: %w", projectedAt, err)
+	}
+	entry.ID = id
+	entry.ProjectedAt = parsed
+	return entry, nil
 }
 
 // Recent returns the most recent projections, newest first, capped at limit.

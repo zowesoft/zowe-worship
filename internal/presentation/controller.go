@@ -84,9 +84,8 @@ type previewSource struct {
 	chapter       int
 	verseStart    int
 	verseEnd      int
-	// verse is the one currently shown when a passage is displayed one verse at a
-	// time; the whole range stays in verseStart and verseEnd so Next and Previous
-	// know how far they may walk.
+	// verse is the one shown while stepping a passage one verse at a time; the
+	// full range stays in verseStart/verseEnd so Next and Previous know its bounds.
 	verse    int
 	oneVerse bool
 	songID   string
@@ -242,6 +241,12 @@ func (c *Controller) ProjectSongSection(ctx context.Context, songID, sectionID s
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.sendLive(c.previewSongSection(ctx, songID, sectionID))
+}
+
+func (c *Controller) ProjectItem(ctx context.Context, itemID string) (State, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.sendLive(c.previewItem(ctx, itemID))
 }
 
 // RefreshPreview rebuilds the previewed slide from whatever it was made of, so a

@@ -13,6 +13,7 @@ export function HistoryPanel() {
   const studio = useStudio();
   const [entries, setEntries] = useState<models.ProjectionView[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState<string | null>(null);
   const presentation = studio.presentation;
 
   const reload = useCallback(async () => {
@@ -27,6 +28,21 @@ export function HistoryPanel() {
   useEffect(() => {
     void reload();
   }, [reload, presentation]);
+
+  // Restore puts a past slide back on the wall live. The presentation event
+  // republished by the backend re-runs reload, so the row and the list refresh
+  // on their own.
+  async function restore(entry: models.ProjectionView) {
+    setRestoring(entry.id);
+    try {
+      await App.RestoreProjection(entry.id);
+      setProblem(null);
+    } catch (error: unknown) {
+      setProblem(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRestoring(null);
+    }
+  }
 
   return (
     <aside className="min-w-0 bg-panel border border-border rounded-[10px]" aria-labelledby="history-panel-title">
@@ -62,6 +78,18 @@ export function HistoryPanel() {
                 >
                   {clockTime(entry.projectedAt)}
                 </time>
+                {entry.restorable && (
+                  <button
+                    type="button"
+                    className="shrink-0 inline-grid place-items-center min-w-[18px] h-[18px] px-1 border border-[#35445C] rounded-[5px] bg-elevated text-secondary hover:not-disabled:bg-[#1C2A40] hover:not-disabled:text-text disabled:opacity-50"
+                    disabled={restoring !== null}
+                    onClick={() => void restore(entry)}
+                    aria-label={`Send ${entry.title} live again`}
+                    title={`Send ${entry.title} live again`}
+                  >
+                    <Icon name="display" size={11} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -70,7 +98,7 @@ export function HistoryPanel() {
         {entries.length > 0 && (
           <div className="flex items-start gap-2 text-secondary">
             <Icon name="history" size={16} className="mt-0.5" />
-            <p className="text-[10px] leading-[1.6]">Newest first. Clearing the screen is recorded too, so what the room saw between slides is not a gap.</p>
+            <p className="text-[10px] leading-[1.6]">Newest first. Clearing is recorded too. The display icon sends that slide live again — schedule items only, since ad hoc slides have nothing stored to rebuild from.</p>
           </div>
         )}
       </div>

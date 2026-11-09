@@ -763,6 +763,9 @@ type ProjectionView struct {
 	Label       string `json:"label"`
 	Source      string `json:"source"`
 	ProjectedAt string `json:"projectedAt"`
+	// Restorable says whether the row names a schedule item, which is the
+	// only content the restore action can put back on the wall.
+	Restorable bool `json:"restorable"`
 }
 
 // historyLimit keeps the panel useful without letting a long service pull an
@@ -788,9 +791,27 @@ func (a *App) RecentProjections() ([]ProjectionView, error) {
 			Label:       entry.Label,
 			Source:      entry.Source,
 			ProjectedAt: entry.ProjectedAt.Format(time.RFC3339),
+			Restorable:  entry.Payload != "",
 		})
 	}
 	return views, nil
+}
+
+// RestoreProjection puts a history entry's schedule item back on the wall
+// live, writing a new history row as any projection does. Ad hoc projections
+// carry no schedule item and cannot be restored.
+func (a *App) RestoreProjection(historyID string) (PresentationView, error) {
+	if a.presentation == nil || a.history == nil {
+		return PresentationView{}, errStorageUnavailable
+	}
+	entry, err := a.history.Entry(a.context(), strings.TrimSpace(historyID))
+	if err != nil {
+		return PresentationView{}, err
+	}
+	if entry.Payload == "" {
+		return PresentationView{}, errors.New("that entry was projected ad hoc; only schedule items can be restored")
+	}
+	return a.projected(a.presentation.ProjectItem(a.context(), entry.Payload))
 }
 
 func (a *App) serviceOrderView(ctx context.Context) (ServiceOrderView, error) {

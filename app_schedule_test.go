@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"zowe-worship/internal/serviceorder"
@@ -145,4 +146,100 @@ func equalIDs(got, want []string) bool {
 		}
 	}
 	return true
+}
+
+func TestRestoreProjectionPutsTheScheduledItemBack(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	order, err := app.AddScriptureToService(scriptureAt(43, 3, 16))
+	if err != nil {
+		t.Fatalf("add item: %v", err)
+	}
+	itemID := order.Items[0].ID
+
+	if _, err := app.PreviewServiceItem(itemID); err != nil {
+		t.Fatalf("preview item: %v", err)
+	}
+	projected, err := app.SendPreviewLive()
+	if err != nil {
+		t.Fatalf("send live: %v", err)
+	}
+	if projected.Live == nil || projected.Live.Reference != "John 3:16" {
+		t.Fatalf("live after project = %+v", projected.Live)
+	}
+
+	// Take it down, then bring it back from the history panel.
+	if _, err := app.ClearLive(); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	state, err := app.GetPresentationState()
+	if err != nil {
+		t.Fatalf("state after clear: %v", err)
+	}
+	if state.Live != nil {
+		t.Fatalf("clear did not black the screen: %+v", state.Live)
+	}
+
+	entries, err := app.RecentProjections()
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	// Newest first: the clear row then the projection row. The clear is
+	// not restorable; the scheduled projection is.
+	if len(entries) != 2 {
+		t.Fatalf("history rows = %d, want 2", len(entries))
+	}
+	if entries[0].Restorable {
+		t.Fatalf("a clear row was marked restorable: %+v", entries[0])
+	}
+	restorable := entries[1]
+	if !restorable.Restorable {
+		t.Fatalf("a scheduled projection was not marked restorable: %+v", restorable)
+	}
+
+	restored, err := app.RestoreProjection(restorable.ID)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if restored.Live == nil || restored.Live.Reference != "John 3:16" || restored.Live.ItemID != itemID {
+		t.Fatalf("live after restore = %+v", restored.Live)
+	}
+
+	// The restore itself is recorded, so the panel shows it too.
+	entries, err = app.RecentProjections()
+	if err != nil {
+		t.Fatalf("history after restore: %v", err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("history rows after restore = %d, want 3", len(entries))
+	}
+	if entries[0].Title != restorable.Title {
+		t.Fatalf("restored row title = %q, want %q", entries[0].Title, restorable.Title)
+	}
+}
+
+func TestRestoreProjectionRefusesAdHocAndUnknownEntries(t *testing.T) {
+	app := newTestApp(t)
+	installTestBible(t, app)
+
+	// Ad hoc scripture projected straight from the Bible tab carries no
+	// schedule item, so there is nothing to restore.
+	if _, err := app.ProjectScripture(scriptureAt(19, 23, 1)); err != nil {
+		t.Fatalf("project ad hoc: %v", err)
+	}
+	entries, err := app.RecentProjections()
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Restorable {
+		t.Fatalf("adhoc rows = %+v", entries)
+	}
+	if _, err := app.RestoreProjection(entries[0].ID); err == nil || !strings.Contains(err.Error(), "ad hoc") {
+		t.Fatalf("ad hoc restore err = %v, want a refusal", err)
+	}
+
+	if _, err := app.RestoreProjection("missing-id"); err == nil || !strings.Contains(err.Error(), "no longer in the history") {
+		t.Fatalf("unknown entry err = %v, want a not-found refusal", err)
+	}
 }
