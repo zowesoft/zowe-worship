@@ -11,13 +11,18 @@ row **Done**.
 
 ## Verification baseline
 
-Last verified: **2026-11-03** on branch `feat/f04-songs-presentation`.
+Last verified: **2026-11-09** on branch `main`.
 
 | Command | Result |
 | --- | --- |
 | `CGO_ENABLED=0 go build ./...` | pass |
-| `CGO_ENABLED=0 go test ./...` | pass (all packages) |
+| `CGO_ENABLED=0 go test ./...` | pass (all packages; root package 40.0 s) |
 | `cd frontend && npm run typecheck` | pass (`tsc --noEmit`) |
+| `cd frontend && npm run build` | pass (typecheck + production bundle) |
+
+The generated bindings were refreshed from the current services on 2026-11-09
+(commit `1d4dd85`); before that the committed TypeScript lagged `media_control.go`
+and failed typecheck. Keep the bindings in the same change as a Go API edit.
 
 Real Bible data is exercised by `internal/bible/integration_test.go`, which is
 skipped unless `ZOWE_BIBLE_DATASETS` points at a directory holding `KJV/` (and
@@ -54,9 +59,13 @@ Done:
 - [x] Wails v3 shell, typed bindings under `frontend/bindings/`, Taskfile build
       (`Taskfile.yml`); commit `b8f1c2d`.
 - [x] SQLite via `modernc.org/sqlite` with FTS5; versioned migrations
-      `internal/database/migrations/001..014`, checksum-tracked (`migrate.go`).
+      `internal/database/migrations/001..015`, checksum-tracked (`migrate.go`).
 - [x] App lifecycle wiring, storage paths, backups (`internal/database/backup.go`,
       `app_settings.go` `BackupNow` / `GetStorage`).
+- [x] Restore a backup into the running app: the candidate is integrity-checked,
+      the current data is snapshotted first, and the swap rolls back if the
+      restored copy will not open or migrate (`app_settings.go` `RestoreBackup`,
+      `internal/database/restore.go`, Settings → Backups).
 - [x] Settings store with typed keys and fallbacks (`internal/settings/store.go`,
       `KeyDefaultTranslation`, `KeyVersesPerSlide`).
 - [x] Utility-window helper for editors (`windows.go` `openUtilityWindow`).
@@ -68,8 +77,8 @@ Done:
       database.
 
 Open:
-- [ ] Packaging / recovery round-trip beyond a manual backup (`BackupNow` writes a
-      copy; restore is not implemented).
+- [ ] macOS/Linux packaging; Windows already builds an NSIS installer (see the
+      F07 installer notes).
 - [ ] Migration rollback / downgrade handling (only forward migrations exist).
 
 ## F02 — Bible library and translation search (Partial)
@@ -143,8 +152,11 @@ Done:
       (`display.go`, `frontend/src/features/display/AudienceDisplay.tsx`).
 - [x] Persistent production bar: preview/live, previous/next, clear, send live
       (`frontend/src/layouts/AppShell.tsx`).
-- [x] Keyboard shortcuts F8/F9/F12, Ctrl+Shift+S, Alt+Enter, ArrowLeft/Right,
-      Esc (`AppShell.tsx` handler) — see caveat under F07.
+- [x] Configurable operator shortcuts, stored per machine and rebound in
+      Settings → Shortcuts (`app_shortcuts.go`, `frontend/src/lib/shortcuts.ts`,
+      `SettingsWindow.tsx`; commit `6f3f5a4`). Defaults: Ctrl+L send live,
+      Ctrl+F Bible search, F8 listening, F9 auto-projection, F12 emergency,
+      ←/→ previous/next schedule item. F9 still has nothing to pause — see F07.
 - [x] Presentation history writing — every command that changes live output
       records a row (`app.go` `projected`/`recordProjection`, `internal/history`),
       exposed through `App.RecentProjections` and shown in
@@ -152,12 +164,12 @@ Done:
       deliberately do not write. Migration
       `015_presentation_history_kinds.sql` drops the stale `kind` CHECK that
       predated text/announcement/blank and the split media kinds.
+- [x] Reopen a past projection from history: a row carrying a schedule item puts
+      that item back on the wall live and writes a fresh history row
+      (`app.go` `RestoreProjection`, `HistoryPanel.tsx`; commit `2308a8a`).
 
 Open:
-- [ ] Reopen/restore past output from history — rows carry the schedule item id
-      in `payload`, so a restore slice has what it needs.
 - [ ] Mixed-DPI, disconnect/reconnect recovery tests for the audience display.
-- [ ] Configurable operator shortcuts — shortcuts are hard-coded, no settings UI.
 - [ ] Additional audience outputs (intentionally deferred past single-output).
 - [ ] Acceptance evidence for navigation-not-interrupting-live, display error
       preserving last live slide, etc.
@@ -188,12 +200,15 @@ Done:
 - [x] Image framing (aspect ratio / crop) and editor window
       (`frontend/src/features/media/MediaEditorWindow.tsx`).
 - [x] Project images, video and audio as slides; transport play/pause/restart
-      (`app_media.go` `ProjectMedia`, `media_control.go`).
+      in the studio (`app_media.go` `ProjectMedia`, `media_control.go`).
+- [x] Stop, seek and volume commands end to end: `MediaCommand` validates them
+      (`media_control.go`) and the audience player acts on all six
+      (`AudienceDisplay.tsx`); the studio exposes only play/pause/restart so far.
 - [x] Relink a missing asset (`App.RelinkMedia`).
 - [x] Preview playback kept separate from audience playback.
 
 Open:
-- [ ] Stop / seek / volume controls beyond play-pause-restart, where supported.
+- [ ] Studio controls for stop, seek and volume (the backend commands exist).
 - [ ] Explicit declared-format/codec list surfaced to the user.
 - [ ] Acceptance evidence: missing file, unsupported codec, relink, failure without
       blanking a valid live slide.
@@ -239,15 +254,16 @@ emergency disable (`detection_disabled`), and the engine command is set in
 Settings → Live detection.
 
 Still open (later slices): continuous listening with automatic segmentation
-(currently manual chunks only), Whisper model lifecycle management, finalized
-transcripts, calibrated confidence bands, gated auto-projection with the
-safety checklist, and the remaining `internal/audio` / `internal/speech` /
-`internal/confidence` packages.
+(currently manual chunks only), finalized transcripts, calibrated confidence
+bands, gated auto-projection with the safety checklist, and the empty
+`internal/audio` and `internal/confidence` packages. The shipped engine is
+Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
+and has no model lifecycle of its own.
 
 `F9` (pause auto-projection) remains a placeholder notice because nothing
 auto-projects yet.
 
-### Engine provisioning (F07 slice — in progress)
+### Engine provisioning (F07 slice — landed)
 
 The engine is only *discovered* if it already sits on disk. Discovery now scans
 four roots: `<cwd>/benchmarks`, `<exe dir>/benchmarks`, `<exe dir>/engines`,
@@ -429,9 +445,11 @@ separate `song_fts` table in the app DB.
 
 ## Application events
 
-Implemented: a single `presentation` event republishes the slide pair to the
-studio and audience windows (`display.go` `publishToDisplay`,
-`StudioProvider.tsx`), plus `media-control` / `media-ended`.
+Implemented: `presentation` republishes the slide pair to the studio and
+audience windows (`display.go` `publishToDisplay`, `StudioProvider.tsx`);
+`media-control`, `media-progress` and `media-ended` (`media_control.go`);
+`detection:progress` and `detection:config` (`app_detection.go`); and
+`speech:progress` / `speech:config` (`app_speech.go`).
 
 Not implemented: the `audio.*`, `transcript.*` and `scripture.*` events, which
 belong to F07.
@@ -441,12 +459,12 @@ belong to F07.
 - **F07/F08 placeholders vs. roadmap.** The original baseline claimed only the
   scaffold existed; that is now stale. F01–F07 have working slices (F06 fully),
   while F08–F10 remain genuinely unstarted.
-- **Keyboard shortcuts look done but aren't.** Navigation/projection shortcuts
-  act; `F8` and `F12` now drive real detection state, `F9` is still a stub
-  (see F07).
-- **`presentation_history`** is written on every live change (F03);
-  `detection_history` is written on every approve/dismiss/clear (F07). Both read
-  and write; neither is surfaced as an export yet.
+- **Shortcuts are configurable; `F9` is still a stub.** The map is stored per
+  machine and edited in Settings → Shortcuts; `F8` and `F12` drive real
+  detection state, `F9` has nothing to pause (see F07).
+- **`presentation_history`** is written on every live change and read back by
+  the History panel (F03); `detection_history` is written on every
+  approve/dismiss/clear but never read back (F07). Neither is exported.
 
 ## Landed on `feat/f04-songs-presentation`
 
@@ -472,20 +490,109 @@ build + tests + typecheck:
 The bindings under `frontend/bindings/**` were regenerated with `-i`
 (plain interfaces, no factories); the exported surface is unchanged.
 
-## Recommended next workstreams
+## Fix order for the open gaps
 
-In dependency order:
+Derived from a PRD-to-code audit on 2026-11-09. It replaces the earlier
+recommended-workstreams list, whose top three entries (configured shortcuts,
+restoring a past projection, engine provisioning) had already landed. Sizes are
+S/M/L, not dates. The order follows the dependencies and the P0/P1 split in the
+PRD, not the workstream numbering.
 
-1. **Configured shortcuts + settings UI** (F01/F03).
-2. **Reopen/restore past output** (F03) — `presentation_history` now has rows and
-   carries the item id in `payload`, so this is the natural follow-on.
-3. **F07 engine provisioning** — ship a speech engine so a fresh install is not
-   permanently "No engine": **bundle Moonshine in the installer** (per-platform
-   runtime ~19–26 MB + shared 119 MB model) and **download any other engine**
-   into the same `engines/` tree. Cross-platform layout, per-platform assets and
-   open questions are recorded under F07 above.
-4. **F07 offline detection, later slices** — continuous listening with automatic
-   segmentation (silence-based), Whisper model lifecycle behind
-   `internal/speech`, confidence bands.
+The one critical path is **F07**: finalized segments → confidence → gates →
+auto-projection. Auto-projection cannot be built honestly on the current manual
+20-second chunk, because the PRD's safety checklist requires a finalized, stable
+transcript plus a duplicate/repeat gate.
 
-Recommending a workstream is not authorization to build it — confirm scope first.
+### Phase 0 — Correct the record (S) — closed 2026-11-09
+
+The tracker understated the app, which is why this audit was needed:
+
+- [x] F01 "restore is not implemented" was stale: `RestoreBackup`
+      (`app_settings.go`), `internal/database/restore.go` and the Settings →
+      Backups restore action all exist.
+- [x] F03 "reopen/restore past output" was stale: `App.RestoreProjection`
+      (`app.go`) and the History panel restore action (commit `2308a8a`).
+- [x] F03 "configurable shortcuts" was stale: `app_shortcuts.go` and Settings →
+      Shortcuts (commit `6f3f5a4`).
+- [x] F05 stop/seek/volume was half-done: the Go side (`media_control.go`) and
+      the audience player handle all six commands; only the studio UI is missing.
+- [x] Baseline refreshed to 2026-11-09 on `main` — all four commands pass.
+
+### Phase 1 — P0 detection safety chain
+
+1. **Read `detection_history` + richer candidate metadata (S–M).** A binding that
+   reads decisions back, and method/confidence/explanation on `DetectionView`.
+   Everything after this needs the data surface, and it closes three
+   detection-panel requirements at once.
+2. **Finalized-segment lifecycle + repeat protection (M–L).** `DetectScripture`
+   transcribes one 20 s blob today. Introduce finalized segments with stable
+   candidate IDs/versions and the duplicate/rapid-repeat gate on top of the
+   existing `MergeLive` merge. **Critical path.**
+3. **Confidence scoring (M).** Replace `const confidence = 1.0` in
+   `internal/detection/queue.go`, fill `internal/confidence`, and store real
+   scores (`detection_history` already permits `auto_projected` in its CHECK).
+   Keep auto-projection off while the bands are calibrated.
+4. **Policy, safety gates, auto-projection (M–L).** Only the policy layer may
+   send an automatic command to `internal/presentation`; each gate in PRD §7
+   gets its own test. UI: a real Auto Projection toggle and hybrid status in
+   `ProductionCard`, F9 becomes a real pause, Emergency becomes live, nothing
+   resumes after a restart, failures preserve the live slide. **Highest risk in
+   this file.**
+5. **Continuous listening and segmentation (M–L).** Silence-based segmentation
+   over the bounded buffer; depends on slice 2.
+6. **Panel parity + candidate keyboard (S–M).** Project, Search and Preview per
+   candidate, plus Enter / Esc / Alt+Enter / Ctrl+Up-Down in `lib/shortcuts.ts`
+   and the panel. After slice 4, so Project goes through the gates instead of
+   bypassing them.
+7. **Further detection types (M each, sequential).** Contextual → quotation →
+   correction → multi-reference. Each type stays disabled until it clears the
+   precision target on labeled audio.
+
+### Phase 2 — Reliability and evidence (parallel to Phase 1)
+
+Different files from detection, so these run alongside it:
+
+- [ ] Media transport UI: stop, seek, volume (S). Backend done.
+- [ ] Display reconnect and mixed-DPI recovery (M); `clearAudienceDisplay`
+      currently forgets the output when the window closes.
+- [ ] `internal/audio` decision (S–M): build the Go capture service, or record
+      the webview capture as the accepted adapter and emit `audio.input.*`.
+- [ ] Bible reference/full-text p95 benchmarks, plus the acceptance sweep
+      (navigation not interrupting live, media failure preserving the slide).
+- [ ] Packaging: macOS/Linux bundles and migration rollback (M–L), owner call.
+
+### Phase 3 — P1 content
+
+- [ ] Translation packages plus license/attribution surface (S for the surface,
+      L for licensed content). KJV attribution can ship before NIV/ESV/NLT/NASB
+      rights exist.
+- [ ] Speech-assisted scripture search (S–M), cheap once slices 2–3 exist.
+- [ ] Media playlists (M).
+- [ ] Additional audience outputs (M–L).
+
+### Phase 4 — P1 discovery and migration
+
+All three are gated on external input, which is why they come last:
+
+- [ ] F08 semantic search (L): benchmark a local model on the Windows baseline
+      before choosing it; no `search_embeddings` until then.
+- [ ] F09 Genius (M–L): provider terms and an OS credential store, not just code.
+- [ ] F10 EasyWorship (L): permitted fixtures, a supported-format list,
+      `import_runs`, and transactional import with a result summary.
+
+### Decisions needed before their phase
+
+- Auto-projection default and per-type enablement (before 1.4).
+- Whisper vs Moonshine as the V1 engine — it changes the model-lifecycle work
+  (before 1.5 and the `internal/audio` decision).
+- Whether Live Detection stays a persistent panel or becomes a page (before 1.6).
+- Translation rights and whether the app carries a top-level LICENSE (3.x).
+- Supported EasyWorship formats and the semantic model choice (4.x).
+
+### Exit criteria for every phase
+
+`CGO_ENABLED=0 go build ./...`, `CGO_ENABLED=0 go test ./...` and
+`cd frontend && npm run typecheck` pass; scoped Conventional Commits
+(`feat(detection)`, `feat(media)`, …); this file updated in the same change.
+
+Recommending a phase is not authorization to build it — confirm scope first.
