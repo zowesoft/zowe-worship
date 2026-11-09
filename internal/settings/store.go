@@ -30,6 +30,11 @@ const (
 	// detections from being processed. It never touches the audience display —
 	// per the PRD the operator, not the shortcut, decides what is on air.
 	KeyDetectionDisabled = "detection_disabled"
+
+	// KeyShortcuts holds the operator key map as one JSON blob: a combo per
+	// action in the canonical "Ctrl+Alt+Shift+Key" form the frontend builds
+	// from a KeyboardEvent. Empty means the built-in defaults are in use.
+	KeyShortcuts = "operator_shortcuts"
 )
 
 // ErrNotFound is returned when a key has never been written.

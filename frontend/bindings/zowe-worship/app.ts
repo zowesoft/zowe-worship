@@ -181,6 +181,16 @@ export function GetSetting(key: string): $CancellablePromise<string> {
 }
 
 /**
+ * GetShortcuts reads the stored key map. Unmarshalling into a defaults-filled
+ * struct means a blob saved before an action existed still gets that action's
+ * default, and a missing or corrupt blob falls back to the full default set
+ * rather than leaving the operator with no keys.
+ */
+export function GetShortcuts(): $CancellablePromise<$models.ShortcutsView> {
+    return $Call.ByID(737927018);
+}
+
+/**
  * GetSpeechAttribution returns the licenses for the speech engine the app
  * redistributes. The installer ships the same text as THIRD-PARTY-NOTICES.txt
  * beside the engine; this surfaces it in-app so it is readable without hunting
@@ -448,6 +458,14 @@ export function RestoreProjection(historyID: string): $CancellablePromise<$model
 }
 
 /**
+ * ResetShortcuts drops the stored map and returns the defaults, so the studio
+ * picks them straight back up.
+ */
+export function ResetShortcuts(): $CancellablePromise<$models.ShortcutsView> {
+    return $Call.ByID(1581057387);
+}
+
+/**
  * RestoreBackup swaps the live database for a named backup and reopens storage
  * on it. Media files and translation packages live outside the core database
  * and are untouched.
@@ -522,6 +540,14 @@ export function SetDetectionEngine(spec: string): $CancellablePromise<void> {
  */
 export function SetItemTheme(itemID: string, themeID: string): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(345195545, itemID, themeID);
+}
+
+/**
+ * SetShortcuts validates and stores a full key map, then nudges the studio to
+ * re-read it so the change takes effect without a restart.
+ */
+export function SetShortcuts(view: $models.ShortcutsView): $CancellablePromise<void> {
+    return $Call.ByID(2916301934, view);
 }
 
 /**

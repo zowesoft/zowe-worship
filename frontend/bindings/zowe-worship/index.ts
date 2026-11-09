@@ -37,6 +37,7 @@ export type {
     ServiceItemView,
     ServiceOrderView,
     ServiceView,
+    ShortcutsView,
     SongArrangementRequest,
     SongSectionEdit,
     SongSectionRequest,

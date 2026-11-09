@@ -13,6 +13,7 @@ import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
 import { StudioProvider } from '../stores/StudioProvider';
 import { DetectionProvider } from '../features/detection/DetectionProvider';
+import { ShortcutsProvider } from '../stores/ShortcutsProvider';
 
 // Secondary windows are the same bundle loaded at a different address. They have
 // no studio to talk to, so they skip the provider and the shell entirely.
@@ -41,17 +42,19 @@ export default function App() {
   return (
     <StudioProvider>
       <DetectionProvider>
-        <AppShell activePage={activePage} onNavigate={setActivePage}>
-          {activePage === 'home'
-            ? <HomeWorkspace onNavigate={setActivePage} />
-            : activePage === 'bible'
-              ? <BibleWorkspace />
-              : activePage === 'songs'
-                ? <SongsWorkspace />
-                : activePage === 'media'
-                  ? <MediaWorkspace />
-                  : <ServiceOrderWorkspace />}
-        </AppShell>
+        <ShortcutsProvider>
+          <AppShell activePage={activePage} onNavigate={setActivePage}>
+            {activePage === 'home'
+              ? <HomeWorkspace onNavigate={setActivePage} />
+              : activePage === 'bible'
+                ? <BibleWorkspace />
+                : activePage === 'songs'
+                  ? <SongsWorkspace />
+                  : activePage === 'media'
+                    ? <MediaWorkspace />
+                    : <ServiceOrderWorkspace />}
+          </AppShell>
+        </ShortcutsProvider>
       </DetectionProvider>
     </StudioProvider>
   );

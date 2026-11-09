@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Window } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
-import type { EngineOption, StorageView } from '../../../bindings/zowe-worship/models';
+import type { EngineOption, ShortcutsView, StorageView } from '../../../bindings/zowe-worship/models';
 import { Icon } from '../../components/Icon';
 import { formatBytes, formatDateTime } from '../../lib/format';
+import { DEFAULT_SHORTCUTS, SHORTCUT_ACTIONS, comboFromEvent, formatCombo, isBindable } from '../../lib/shortcuts';
+import type { ShortcutAction } from '../../lib/shortcuts';
 import { SpeechEngineCard } from './SpeechEngineCard';
 
 function errorMessage(error: unknown): string {
@@ -28,6 +30,10 @@ export function SettingsWindow() {
   // Restore arms per backup name; a second click on the armed row confirms.
   const [restoreArm, setRestoreArm] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [shortcuts, setShortcuts] = useState<ShortcutsView>(DEFAULT_SHORTCUTS);
+  // The action whose capture button is armed; a window keydown listener fills it.
+  const [capturing, setCapturing] = useState<ShortcutAction | null>(null);
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
 
   useEffect(() => {
     App.GetStorage()
@@ -56,7 +62,68 @@ export function SettingsWindow() {
     App.ListDetectionEngines()
       .then((found) => setEngines(found ?? []))
       .catch(() => setEngines([]));
+
+    App.GetShortcuts()
+      .then(setShortcuts)
+      .catch(() => {
+        // Without the bridge the card keeps its built-in defaults.
+      });
   }, []);
+
+  // While a row is armed, a capture-phase listener owns every keydown: Escape
+  // cancels, a bare modifier keeps waiting, and anything else becomes the new
+  // combo once it clears the bindable and duplicate checks. Capture phase so the
+  // studio's own global handler never sees these keys.
+  useEffect(() => {
+    if (capturing === null) return;
+    const target = capturing;
+    function onKey(event: KeyboardEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') {
+        setCapturing(null);
+        setShortcutError(null);
+        return;
+      }
+      const combo = comboFromEvent(event);
+      if (combo === null) return;
+      if (!isBindable(combo)) {
+        setShortcutError(`${formatCombo(combo)} needs Ctrl or Alt so it can't clash with typing.`);
+        return;
+      }
+      const clash = SHORTCUT_ACTIONS.find(
+        ({ action }) => action !== target && shortcuts[action] === combo,
+      );
+      if (clash !== undefined) {
+        setShortcutError(`${clash.label} already uses ${formatCombo(combo)}.`);
+        return;
+      }
+      const next: ShortcutsView = { ...shortcuts, [target]: combo };
+      setCapturing(null);
+      setShortcutError(null);
+      setBusy(true);
+      App.SetShortcuts(next)
+        .then(() => setShortcuts(next))
+        .catch((error: unknown) => setProblem(errorMessage(error)))
+        .finally(() => setBusy(false));
+    }
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [capturing, shortcuts]);
+
+  async function resetShortcuts() {
+    setBusy(true);
+    setProblem(null);
+    setShortcutError(null);
+    try {
+      setShortcuts(await App.ResetShortcuts());
+      setCapturing(null);
+    } catch (error: unknown) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function chooseVerses(value: 'one' | 'all') {
     setBusy(true);
@@ -328,6 +395,49 @@ export function SettingsWindow() {
             Moonshine ships with the app. The engine runs offline; only the
             download above touches the network.
           </p>
+        </section>
+
+        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-shortcuts-title">
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="settings-shortcuts-title">Shortcuts</h3>
+            <button
+              type="button"
+              className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap hover:bg-[#1C2A40] disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]!"
+              disabled={busy}
+              onClick={() => void resetShortcuts()}
+            >
+              Reset to defaults
+            </button>
+          </div>
+          <p className="text-[#6F809B] text-[10.5px] leading-[1.6]">
+            Click a shortcut, then press the keys you want. A printable key needs
+            Ctrl or Alt so it can't swallow ordinary typing. Escape cancels.
+          </p>
+          <ul className="m-0 p-0 list-none grid gap-px [&_li]:flex [&_li]:items-center [&_li]:justify-between [&_li]:gap-3.5 [&_li]:px-2 [&_li]:py-[7px] [&_li]:rounded-md [&_li:hover]:bg-elevated">
+            {SHORTCUT_ACTIONS.map(({ action, label }) => {
+              const isCapturing = capturing === action;
+              return (
+                <li key={action}>
+                  <span className="text-[11.5px] font-medium">{label}</span>
+                  <button
+                    type="button"
+                    className={`min-h-7 inline-flex items-center justify-center px-2.5 py-1 border rounded-md font-mono text-[11px] whitespace-nowrap ${isCapturing ? 'border-blue! bg-blue! text-white!' : 'border-[#35445C] bg-elevated hover:bg-[#1C2A40]'}`}
+                    disabled={busy && !isCapturing}
+                    onClick={() => {
+                      setShortcutError(null);
+                      setCapturing(isCapturing ? null : action);
+                    }}
+                    aria-pressed={isCapturing}
+                  >
+                    {isCapturing ? 'Press keys…' : formatCombo(shortcuts[action])}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {shortcutError !== null && (
+            <p className="text-error text-[10px] leading-snug" role="alert">{shortcutError}</p>
+          )}
         </section>
 
         <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-backups-title">

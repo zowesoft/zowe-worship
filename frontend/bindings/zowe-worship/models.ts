@@ -313,6 +313,22 @@ export interface ServiceView {
     "name": string;
 }
 
+/**
+ * ShortcutsView is the operator key map: one combo per action. Combos are
+ * stored in a canonical "Ctrl+Alt+Shift+Key" form that the frontend builds from
+ * a KeyboardEvent, so Go only ever stores and compares strings — it never has
+ * to know what a key looks like.
+ */
+export interface ShortcutsView {
+    "sendPreviewLive": string;
+    "focusBibleSearch": string;
+    "toggleListening": string;
+    "toggleAutoProjection": string;
+    "emergencyDisable": string;
+    "schedulePrevious": string;
+    "scheduleNext": string;
+}
+
 export interface SongArrangementRequest {
     "songId": string;
     "arrangementId": string;

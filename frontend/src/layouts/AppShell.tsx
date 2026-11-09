@@ -9,6 +9,8 @@ import { SlideMedia } from '../components/SlideMedia';
 import { ThemedSlide } from '../components/ThemedSlide';
 import { useStudio } from '../stores/StudioProvider';
 import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
+import { useShortcuts } from '../stores/ShortcutsProvider';
+import { TEXT_GUARDED, actionForCombo, comboFromEvent } from '../lib/shortcuts';
 import { HistoryPanel } from '../features/presentation/HistoryPanel';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import { App } from '../../bindings/zowe-worship';
@@ -922,6 +924,7 @@ export function AppShell({ activePage, onNavigate, children }: {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const studio = useStudio();
   const detection = useDetection();
+  const { shortcuts } = useShortcuts();
   const [shortcutNotice, setShortcutNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
@@ -947,92 +950,71 @@ export function AppShell({ activePage, onNavigate, children }: {
       const activeEl = document.activeElement;
       const inText = isTextInput(activeEl);
 
-      // Alt+Enter: Project selected preview or candidate
-      if (event.altKey && event.key === 'Enter') {
+      const combo = comboFromEvent(event);
+      const action = combo === null ? null : actionForCombo(shortcuts, combo);
+      // Schedule navigation stays out of the way while the operator types; the
+      // other actions are global.
+      if (action !== null && !(TEXT_GUARDED.has(action) && inText)) {
         event.preventDefault();
-        if (studio.presentation?.preview) {
-          void studio.sendPreviewLive();
-          flashNotice('Preview sent live');
-        } else {
-          flashNotice('No preview ready to send live');
+        switch (action) {
+          case 'sendPreviewLive':
+            if (studio.presentation?.preview) {
+              void studio.sendPreviewLive();
+              flashNotice('Preview sent live');
+            } else {
+              flashNotice('No preview ready to send live');
+            }
+            break;
+          case 'focusBibleSearch':
+            onNavigate('bible');
+            window.setTimeout(() => {
+              const input = document.getElementById('bible-search-input') as HTMLInputElement | null;
+              input?.focus();
+              input?.select();
+            }, 60);
+            break;
+          case 'toggleListening':
+            // Stopping always works: if detection was disabled while the mic was
+            // live, refusing the toggle would leave it capturing with no way off.
+            if (detection.listening) {
+              void detection.toggleListening();
+              flashNotice('Stopped listening for scripture');
+            } else if (detection.disabled) {
+              flashNotice('Detection is disabled — re-enable it in Settings');
+            } else {
+              void run(() => detection.toggleListening(), () => flashNotice('Listening for scripture references'));
+            }
+            break;
+          case 'toggleAutoProjection':
+            flashNotice('Automatic projection is not implemented — nothing to pause');
+            break;
+          case 'emergencyDisable':
+            // Stops new candidates without touching what the audience sees.
+            void run(() => App.SetDetectionDisabled(true), () => {
+              void detection.refresh();
+              flashNotice('Emergency: detection disabled (live display preserved)');
+            });
+            break;
+          case 'schedulePrevious':
+            void studio.previousItem();
+            break;
+          case 'scheduleNext':
+            void studio.nextItem();
+            break;
         }
         return;
-      }
-
-      // Ctrl+Shift+S: Open scripture search
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'S' || event.key === 's')) {
-        event.preventDefault();
-        onNavigate('bible');
-        window.setTimeout(() => {
-          const input = document.getElementById('bible-search-input') as HTMLInputElement | null;
-          input?.focus();
-          input?.select();
-        }, 60);
-        return;
-      }
-
-      // F8: Start/stop scripture listening
-      if (event.key === 'F8') {
-        event.preventDefault();
-        // Stopping always works: if F12 disabled detection while the mic was
-        // live, refusing the toggle would leave it capturing with no way off.
-        if (detection.listening) {
-          void detection.toggleListening();
-          flashNotice('Stopped listening for scripture');
-          return;
-        }
-        if (detection.disabled) {
-          flashNotice('Detection is disabled — re-enable it in Settings');
-          return;
-        }
-        void run(() => detection.toggleListening(), () => flashNotice('Listening for scripture references'));
-        return;
-      }
-
-      // F9: Pause/resume automatic projection
-      if (event.key === 'F9') {
-        event.preventDefault();
-        flashNotice('Automatic projection is not implemented — nothing to pause');
-        return;
-      }
-
-      // F12: emergency disable detection — it stops new candidates without
-      // touching what the audience is already looking at
-      if (event.key === 'F12') {
-        event.preventDefault();
-        void run(() => App.SetDetectionDisabled(true), () => {
-          void detection.refresh();
-          flashNotice('Emergency: detection disabled (live display preserved)');
-        });
-        return;
-      }
-
-      // Left / Right: Previous / Next slide when not typing in text fields
-      if (!inText) {
-        if (event.key === 'ArrowLeft') {
-          event.preventDefault();
-          void studio.previousItem();
-          return;
-        }
-        if (event.key === 'ArrowRight') {
-          event.preventDefault();
-          void studio.nextItem();
-          return;
-        }
       }
 
       // Escape only blurs a focused field; clearing live output needs an
-      // explicit command, so a stray keypress cannot blank the room
-      if (event.key === 'Escape') {
-        if (inText) {
-          (activeEl as HTMLElement).blur();
-        }
+      // explicit command, so a stray keypress cannot blank the room.
+      if (event.key === 'Escape' && inText) {
+        (activeEl as HTMLElement).blur();
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [studio, detection, onNavigate]);
+  }, [shortcuts, studio, detection, onNavigate]);
 
   useEffect(() => {
     workspaceRef.current?.scrollTo({ top: 0 });
