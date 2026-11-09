@@ -5,12 +5,9 @@ import type { SpeechAttributionView, SpeechEngineView } from '../../../bindings/
 import { Icon } from '../../components/Icon';
 import { formatBytes } from '../../lib/format';
 
-// The engine is large (~140 MB), so the download runs in the background on the
-// Go side and reports through events; this component is only the view.
-
-// SpeechProgressView mirrors the Go event payload. It is declared here rather
-// than imported because it travels as event data, which the binding generator
-// does not expose as a model.
+// The download runs on the Go side and reports progress through events; this
+// component only renders it. The payload has no generated model, so its shape
+// is mirrored here.
 type SpeechProgressView = {
   engineId: string;
   file: string;
@@ -43,8 +40,8 @@ export function SpeechEngineCard({
       .catch((error: unknown) => setProblem(errorMessage(error)));
   };
 
-  // The notices file only exists once an engine is on disk, so the attribution
-  // must be re-read after an install, not just on mount.
+  // Notices only exist once an engine is on disk, so this is re-read after an
+  // install rather than only on mount.
   const loadAttribution = () => {
     App.GetSpeechAttribution()
       .then(setAttribution)
@@ -58,8 +55,8 @@ export function SpeechEngineCard({
     loadAttribution();
   }, []);
 
-  // Progress arrives per whole percent; the final event (empty file) clears the
-  // bar, and speech:config carries the outcome.
+  // An empty file in the progress event clears the bar; speech:config carries
+  // the outcome.
   useEffect(() => {
     const offProgress = Events.On('speech:progress', (event) => {
       const update = event.data as SpeechProgressView;
@@ -221,8 +218,7 @@ export function SpeechEngineCard({
     </div>
   );
 
-  // choose selects an already-installed engine; the backend builds and stores
-  // its command line so no path ever reaches the UI.
+  // The backend builds and stores the command line, so no path reaches the UI.
   async function choose(id: string) {
     setProblem(null);
     try {

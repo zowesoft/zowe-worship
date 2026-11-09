@@ -1,28 +1,22 @@
 // Mic capture for Live Detection: getUserMedia → AudioWorklet → 16 kHz mono
-// Int16 PCM ring buffer. The webview owns the device so no native capture
-// code is needed, and the chunk handed to Go is exactly the WAV-ready format
-// the engine expects.
+// Int16 PCM ring buffer, the WAV-ready format the engine expects.
 
 const TARGET_RATE = 16000;
-// Sixty seconds covers a slow reference plus the sentence around it; the
-// buffer is 1.9 MB, so keeping it resident is cheaper than re-listening.
+// Sixty seconds covers a slow reference plus the sentence around it.
 const BUFFER_SECONDS = 60;
 
-// The worklet converts the microphone's float frames to Int16 PCM. When the
-// context could not be opened at 16 kHz it also decimates by the ratio
-// between the real rate and the target.
+// The worklet converts float frames to Int16 PCM, decimating by the ratio
+// between the real sample rate and 16 kHz when the context could not open at it.
 const processorSource = `
 class ZoweCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    // Input samples consumed per output sample: 1 when the context already runs
-    // at the target rate, 3 at 48 kHz, and so on.
+    // Input samples per output sample: 1 at the target rate, 3 at 48 kHz.
     this.ratio = sampleRate / ${TARGET_RATE};
-    // Fractional read cursor carried between blocks. Each render quantum hands
-    // us a fresh 128-sample buffer, so the cursor must be measured within the
-    // block and the overshoot rolled into the next one; keeping an absolute
-    // counter would freeze after the first block and the rest of the capture
-    // would be silence.
+    // Fractional read cursor carried between blocks. The cursor is measured
+    // within each 128-sample block and the overshoot rolled into the next one;
+    // an absolute counter would freeze after the first block and the rest of the
+    // capture would be silence.
     this.cursor = 0;
   }
   process(inputs) {
@@ -55,7 +49,6 @@ export type AudioInput = {
   label: string;
 };
 
-// Ring buffer holding the most recent BUFFER_SECONDS of audio.
 class RingBuffer {
   private readonly samples: Int16Array;
   private writePos = 0;
@@ -141,9 +134,9 @@ export class MicCapture {
       const chunk = new Int16Array(event.data as ArrayBuffer);
       this.buffer.append(chunk);
       if (this.onLevel) {
-        // Report the level and how much is now buffered from the same tick, so
-        // the panel's seconds readout moves while listening instead of sitting
-        // at zero until the first analyze.
+        // Report level and buffered seconds from the same tick, so the readout
+        // moves while listening instead of sitting at zero until the first
+        // analyze.
         this.onLevel(rms(chunk), this.buffer.seconds);
       }
     };
@@ -168,8 +161,6 @@ export class MicCapture {
     this.onLevel?.(0, this.buffer.seconds);
   }
 
-  // takeLast returns the most recent `seconds` of captured audio as 16 kHz
-  // mono PCM, ready to be wrapped in a WAV on the Go side.
   takeLast(seconds: number): Int16Array {
     return this.buffer.takeLast(Math.round(seconds * TARGET_RATE));
   }

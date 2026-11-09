@@ -35,12 +35,11 @@ type MediaImportResult struct {
 	Problems []media.ImportProblem `json:"problems"`
 }
 
-// mediaFilter is what the library accepts, kept in one place so both pickers
-// offer exactly what the importer enforces.
+// mediaFilter is shared so both pickers offer exactly what the importer enforces.
 const mediaFilter = "*.jpg;*.jpeg;*.png;*.gif;*.webp;*.bmp;*.mp4;*.m4v;*.mov;*.webm;*.mp3;*.m4a;*.aac;*.wav;*.ogg;*.flac"
 
-// PickMediaFiles opens the native picker so an operator can reach any folder
-// without learning where Zowe keeps its own copies.
+// PickMediaFiles opens the native picker, so an operator never needs to know
+// where the library keeps its copies.
 func (a *App) PickMediaFiles() ([]string, error) {
 	desktop := application.Get()
 	if desktop == nil {
@@ -58,7 +57,6 @@ func (a *App) PickMediaFiles() ([]string, error) {
 	return paths, nil
 }
 
-// PickMediaFile asks for one file, which is what putting a lost copy back needs.
 func (a *App) PickMediaFile() (string, error) {
 	desktop := application.Get()
 	if desktop == nil {
@@ -73,8 +71,7 @@ func (a *App) PickMediaFile() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// A cancelled single-choice dialog comes back as nothing to choose, which the
-	// browser cleans to ".". Only a real path is worth handing on.
+	// A cancelled dialog comes back empty, which the browser cleans to ".".
 	if path == "" || path == "." {
 		return "", nil
 	}
@@ -88,9 +85,8 @@ func (a *App) ListMedia() ([]MediaView, error) {
 	return a.mediaViews(a.context())
 }
 
-// ImportMedia copies the chosen files into the library. Files that cannot be
-// taken come back explained rather than failing the whole import, because the
-// usual case is a folder dropped with a mix of usable and unusable things in it.
+// ImportMedia reports unusable files individually rather than failing the whole
+// import, because a dropped folder usually mixes usable and unusable things.
 func (a *App) ImportMedia(paths []string) (MediaImportResult, error) {
 	if a.media == nil {
 		return MediaImportResult{}, errStorageUnavailable
@@ -120,8 +116,6 @@ func (a *App) DeleteMedia(id string) ([]MediaView, error) {
 	return a.mediaViews(ctx)
 }
 
-// RelinkMedia adopts a new copy of a file the library lost, then returns the
-// whole grid so the tile stops saying Missing.
 func (a *App) RelinkMedia(mediaID, path string) ([]MediaView, error) {
 	if a.media == nil {
 		return nil, errStorageUnavailable
@@ -134,8 +128,8 @@ func (a *App) RelinkMedia(mediaID, path string) ([]MediaView, error) {
 	return a.mediaViews(ctx)
 }
 
-// AddMediaToService puts a library asset into the running order. The item keeps
-// a reference rather than a second copy, so one file can serve two services.
+// AddMediaToService references the asset rather than copying it, so one file can
+// serve two services.
 func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 	if a.media == nil || a.order == nil {
 		return ServiceOrderView{}, errStorageUnavailable
@@ -159,12 +153,12 @@ func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 	return a.serviceOrderView(ctx)
 }
 
-// mediaEditorWindow names the editor so reopening it for another image moves the
-// same window instead of stacking a second one.
+// mediaEditorWindow doubles as the reuse key: reopening the editor for another
+// image moves the existing window.
 const mediaEditorWindow = "media-editor"
 
-// OpenMediaEditor frames one image in its own small window, which keeps the
-// studio a production view rather than a workspace with drawers in it.
+// OpenMediaEditor keeps framing in its own small window, so the studio stays a
+// production view.
 func (a *App) OpenMediaEditor(mediaID string) (EditorView, error) {
 	if a.media == nil {
 		return EditorView{}, errStorageUnavailable
@@ -187,9 +181,8 @@ func (a *App) OpenMediaEditor(mediaID string) (EditorView, error) {
 	)
 }
 
-// MediaAspects is the framing menu. It comes from the backend so the chips the
-// operator sees, the values that get stored and the ratio the renderer uses are
-// one list rather than three.
+// MediaAspects comes from the backend so the chips, the stored values and the
+// renderer ratio are one list rather than three.
 func (a *App) MediaAspects() []media.Aspect {
 	return media.Aspects()
 }
@@ -201,8 +194,6 @@ func (a *App) GetMediaPresentation(mediaID string) (media.Presentation, error) {
 	return a.media.Presentation(a.context(), strings.TrimSpace(mediaID))
 }
 
-// SaveMediaPresentation stores the framing and reports what the slide now looks
-// like, so a live image updates from the same reply the editor shows.
 func (a *App) SaveMediaPresentation(mediaID string, presentation media.Presentation) (media.Slide, error) {
 	if a.media == nil {
 		return media.Slide{}, errStorageUnavailable
@@ -255,9 +246,8 @@ func (a *App) assetViews(assets []media.Asset) []MediaView {
 	return views
 }
 
-// serveMedia hands out the library's own copies. An id is only ever resolved
-// through the catalog, so no request can name a path on disk, and ServeFile
-// gives the byte ranges a video needs to seek.
+// serveMedia resolves ids through the catalog, so no request can name a path on
+// disk. ServeFile gives video the byte ranges it needs to seek.
 func (a *App) serveMedia(w http.ResponseWriter, r *http.Request) {
 	if a.media == nil {
 		http.Error(w, "media is not available", http.StatusServiceUnavailable)

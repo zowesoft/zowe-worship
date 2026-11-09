@@ -30,9 +30,8 @@ const (
 	BackgroundImage    BackgroundKind = "image"
 )
 
-// FontFamily is one choice from the list the app will draw. The value is a whole
-// CSS stack taken from FontFamilies rather than free text, which is what keeps a
-// theme definition from carrying anything but a family name.
+// FontFamily is a CSS stack from FontFamilies, never free text, so a theme
+// definition can only carry a family name.
 type FontFamily struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
@@ -60,9 +59,8 @@ func knownFont(value string) bool {
 
 var hexColor = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
 
-// TextCase is how the letters of a slide element are drawn. Small caps is a
-// typeface variant rather than a change of case, so it travels with the others
-// instead of being a separate switch an operator would have to cross-check.
+// TextCase travels with the other styles because small caps is a typeface
+// variant, not a case switch.
 type TextCase string
 
 const (
@@ -81,8 +79,8 @@ func knownCase(value TextCase) bool {
 	return false
 }
 
-// Style is how the words on a slide look. Sizes are percentages of the output
-// height so one theme reads the same size in a preview pane and on a projector.
+// Style sizes are percentages of output height, so one theme reads the same size
+// in a preview pane and on a projector.
 type Style struct {
 	FontFamily string   `json:"fontFamily"`
 	FontSize   float64  `json:"fontSize"`
@@ -96,8 +94,8 @@ type Style struct {
 	Margin     float64  `json:"margin"`
 }
 
-// Background is what sits behind the words. An image is a media library asset,
-// referenced by id, so a theme never stores a path that could point anywhere.
+// Background images are media library ids, so a theme never stores a path that
+// could point anywhere.
 type Background struct {
 	Kind    BackgroundKind `json:"kind"`
 	Color   string         `json:"color"`
@@ -106,9 +104,9 @@ type Background struct {
 	MediaID string         `json:"mediaId"`
 }
 
-// Reference styles the passage or song label. An empty font, colour or
-// alignment, and a size of zero, mean "same as the slide text", so wanting only
-// a quieter colour does not force the operator to restate the whole style.
+// Reference styles the passage or song label. Empty font, colour or alignment
+// and a zero size mean "same as the slide text", so wanting only a quieter
+// colour does not force the operator to restate the whole style.
 type Reference struct {
 	Placement  string   `json:"placement"`
 	FontFamily string   `json:"fontFamily"`
@@ -127,8 +125,8 @@ type Theme struct {
 	IsDefault  bool       `json:"isDefault"`
 	Style      Style      `json:"style"`
 	Background Background `json:"background"`
-	// Reference places the passage or song label, which an operator may want off
-	// a full-bleed picture, and in its own voice.
+	// Reference places the passage or song label, which may want to sit off a
+	// full-bleed picture in its own voice.
 	Reference Reference `json:"reference"`
 
 	CreatedAt time.Time `json:"createdAt"`
@@ -141,9 +139,8 @@ const (
 	ReferenceBottom = "bottom"
 )
 
-// Limits are the range the editor's controls can ask for. A value outside them
-// is clamped rather than refused, because it can only come from a slider that
-// was dragged too far or a row written by an older build.
+// Values outside Limits are clamped rather than refused: they come from a
+// dragged slider or a row written by an older build.
 const (
 	minFontSize   = 2.0
 	maxFontSize   = 12.0
@@ -154,7 +151,7 @@ const (
 )
 
 // DefaultStyle is the reading look a new theme starts from: large, centred and
-// high contrast, which is what a room needs before anyone has tuned anything.
+// high contrast before anyone has tuned anything.
 func DefaultStyle() Style {
 	return Style{
 		FontFamily: fontFamilies[0].Value,
@@ -168,8 +165,7 @@ func DefaultStyle() Style {
 	}
 }
 
-// DefaultReference follows the slide text in every way but size, which is the
-// behaviour an operator expects before they have touched anything.
+// DefaultReference follows the slide text in every way but size.
 func DefaultReference() Reference {
 	return Reference{Placement: ReferenceBottom, Case: CaseAsWritten}
 }
@@ -178,8 +174,7 @@ func DefaultBackground() Background {
 	return Background{Kind: BackgroundSolid, Color: "#081A2E", Angle: 180}
 }
 
-// DefaultTheme builds one theme for the editor's "new theme" button. It is not
-// stored until the operator saves it.
+// DefaultTheme is not stored until the operator saves it.
 func DefaultTheme(kind Kind) Theme {
 	name := "Untitled"
 	switch kind {
@@ -215,8 +210,8 @@ func knownReference(value string) bool {
 	return false
 }
 
-// Validate checks what came from the editor. Anything it cannot draw is refused
-// with the reason, so a half-written theme is never stored.
+// Validate refuses anything the renderer cannot draw, with the reason, so a
+// half-written theme is never stored.
 func (t Theme) Validate() error {
 	if strings.TrimSpace(t.Name) == "" {
 		return fmt.Errorf("%w: a theme needs a name", ErrInvalidTheme)
@@ -275,9 +270,9 @@ func (t Theme) Validate() error {
 	return nil
 }
 
-// Normalised repairs what came out of the database. A row written by an older
-// build, or with a background picture that has since been deleted, falls back to
-// something readable instead of failing the whole list.
+// Normalised repairs rows from an older build, or with a background picture that
+// has since been deleted, falling back to something readable instead of failing
+// the whole list.
 func (t Theme) Normalised() Theme {
 	out := t
 	out.Name = strings.TrimSpace(out.Name)

@@ -5,8 +5,6 @@ import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import type { SongSectionInput } from '../../stores/StudioProvider';
 
-// ─── styles ──────────────────────────────────────────────────────────────────
-
 // The lyric list borrows the Bible tab's row/action look, so these mirror the
 // strings in BibleWorkspace.tsx.
 const ROW_ACTION =

@@ -1,10 +1,8 @@
 package asr
 
-// Engine discovery: the operator should pick a speech engine from a list of
-// what is actually installed, not type a filesystem path by hand. Discovery
-// scans a set of root directories for known engine binaries and pairs them
-// with the models sitting beside them, producing ready-to-run engine specs in
-// the same "name=bin args {audio}" form ParseEngineSpec accepts.
+// Discovery pairs known engine binaries with the models beside them, so the
+// operator picks from what is installed instead of typing a path. The specs it
+// builds are in the same "name=bin args {audio}" form ParseEngineSpec accepts.
 
 import (
 	"io/fs"
@@ -14,8 +12,7 @@ import (
 	"strings"
 )
 
-// DiscoveredEngine is one selectable engine: a human label and the spec that
-// runs it. Spec is complete — no further editing required.
+// DiscoveredEngine is a label and a ready-to-run spec, with nothing left to edit.
 type DiscoveredEngine struct {
 	Name string `json:"name"`
 	Spec string `json:"spec"`
@@ -25,11 +22,7 @@ type DiscoveredEngine struct {
 // settings window.
 const maxDiscoveryDepth = 5
 
-// DiscoverEngines scans the given roots for whisper.cpp and sherpa-onnx
-// installations and returns every engine/model pair it can wire up. Roots are
-// typically the repository's benchmarks folder in development and an engines
-// folder under the data root for installed builds. Missing roots are simply
-// skipped; the result may be empty.
+// DiscoverEngines skips missing roots; the result may be empty.
 func DiscoverEngines(roots ...string) []DiscoveredEngine {
 	var (
 		whisperBins   []string
@@ -67,8 +60,7 @@ func DiscoverEngines(roots ...string) []DiscoveredEngine {
 			return nil
 		})
 
-		// Model directories are found with a shallow walk: a model is a
-		// directory that holds tokens.txt.
+		// A model is a directory holding tokens.txt; nothing nests inside one.
 		_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil || !entry.IsDir() || path == root {
 				return nil
@@ -79,7 +71,7 @@ func DiscoverEngines(roots ...string) []DiscoveredEngine {
 			}
 			if _, err := os.Stat(filepath.Join(path, "tokens.txt")); err == nil {
 				sherpaModels = append(sherpaModels, path)
-				return fs.SkipDir // no nested model dirs inside a model
+				return fs.SkipDir
 			}
 			return nil
 		})
@@ -109,8 +101,7 @@ func DiscoverEngines(roots ...string) []DiscoveredEngine {
 	return engines
 }
 
-// sherpaEngine builds a spec for one model directory, or reports false when
-// the directory does not match a known sherpa-onnx model family.
+// sherpaEngine reports false when the directory matches no known model family.
 func sherpaEngine(bin, dir string) (DiscoveredEngine, bool) {
 	label := prettifyModelName(filepath.Base(dir))
 

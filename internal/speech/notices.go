@@ -6,9 +6,8 @@ import (
 	"strings"
 )
 
-// Licensing for what the app redistributes. Each embedded file is the exact
-// upstream text; they travel with the source so the packaged app and its
-// attribution screen never drift from what is actually shipped.
+// Embedded license files are the exact upstream text, so the packaged app and
+// its attribution screen never drift from what is actually shipped.
 
 //go:embed notices/sherpa-onnx-Apache-2.0.txt
 var sherpaLicense string
@@ -19,22 +18,16 @@ var onnxRuntimeLicense string
 //go:embed notices/moonshine-MIT.txt
 var moonshineLicense string
 
-// Component is one redistributed piece and its license.
 type Component struct {
-	// Name is the component's project name.
 	Name string
-	// License is the SPDX-ish short name shown in a list.
-	License string
-	// Homepage is where the component lives.
+	// License is the SPDX short name shown in a list.
+	License  string
 	Homepage string
-	// Text is the full license text.
-	Text string
+	Text     string
 }
 
-// Components returns every third-party piece the app ships, with its license
-// text. The engine binary (sherpa-onnx), its inference runtime (onnxruntime)
-// and the model (Moonshine) are three separate licenses, so each is listed on
-// its own.
+// The engine, its inference runtime and the model are three separate licenses,
+// so each is listed on its own.
 func Components() []Component {
 	return []Component{
 		{
@@ -58,9 +51,8 @@ func Components() []Component {
 	}
 }
 
-// Notices renders every component's license into one THIRD-PARTY-NOTICES text,
-// the file the installer drops beside the app so the terms travel with the
-// binaries even when the app is never opened.
+// Notices renders the THIRD-PARTY-NOTICES text the installer drops beside the
+// app, so the terms travel with the binaries even when it is never opened.
 func Notices() string {
 	var b strings.Builder
 	b.WriteString("Zowe Worship — third-party notices\n")

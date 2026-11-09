@@ -6,25 +6,21 @@ import (
 	"zowe-worship/internal/themes"
 )
 
-// themesWindow names the theme editor so opening it again moves the same window
-// instead of stacking a second one.
+// themesWindow doubles as the reuse key: opening the editor again moves the
+// existing window.
 const themesWindow = "themes"
 
 func (a *App) ThemeFonts() []themes.FontFamily {
 	return themes.FontFamilies()
 }
 
-// NewTheme hands the editor an unsaved theme with the app's readable defaults,
-// so "a new theme looks like this" is stated once rather than in two languages.
 func (a *App) NewTheme(kind themes.Kind) themes.Theme {
 	return themes.DefaultTheme(kind)
 }
 
-// themeChange hands the editor its refreshed list and rebuilds the previewed
-// slide, because an operator who changes a reference colour expects to see it in
-// the pane they are aiming at rather than after hunting for the item again.
-// Live output is deliberately untouched: a slide on the wall keeps the look it
-// was projected with.
+// themeChange refreshes the previewed slide so a colour change shows in the pane
+// the editor is aimed at. Live output is deliberately untouched: a slide on the
+// wall keeps the look it was projected with.
 func (a *App) themeChange(list []themes.Theme, err error) ([]themes.Theme, error) {
 	if err == nil && a.presentation != nil {
 		if state, refreshErr := a.presentation.RefreshPreview(a.context()); refreshErr == nil {
@@ -41,8 +37,6 @@ func (a *App) ListThemes() ([]themes.Theme, error) {
 	return a.themes.List(a.context())
 }
 
-// CreateTheme stores one theme and returns the whole list, so the editor can
-// show the new entry without a second call racing the save.
 func (a *App) CreateTheme(theme themes.Theme) ([]themes.Theme, error) {
 	if a.themes == nil {
 		return nil, errStorageUnavailable
@@ -91,8 +85,8 @@ func (a *App) MakeThemeDefault(id string) ([]themes.Theme, error) {
 	return a.themeChange(a.themes.List(ctx))
 }
 
-// DuplicateTheme copies one under a fresh name, because the usual reason to
-// duplicate is to keep a working theme while trying a change on it.
+// DuplicateTheme exists because the usual reason to duplicate is to keep a
+// working theme while trying a change on it.
 func (a *App) DuplicateTheme(id string) ([]themes.Theme, error) {
 	if a.themes == nil {
 		return nil, errStorageUnavailable
@@ -118,8 +112,8 @@ func (a *App) DuplicateTheme(id string) ([]themes.Theme, error) {
 	return a.themeChange(a.themes.List(ctx))
 }
 
-// OpenThemeWindow edits themes in their own window, which keeps the studio a
-// production view.
+// OpenThemeWindow keeps theme editing out of the studio, which stays a production
+// view.
 func (a *App) OpenThemeWindow() (EditorView, error) {
 	return openUtilityWindow(
 		themesWindow, "Themes", "/?view=themes",
@@ -127,8 +121,8 @@ func (a *App) OpenThemeWindow() (EditorView, error) {
 	)
 }
 
-// duplicateName finds the first free "(copy)" suffix, so duplicating the same
-// theme three times gives three usable rows instead of an error.
+// duplicateName finds the first free "(copy)" suffix, so duplicating three times
+// gives three usable rows instead of an error.
 func duplicateName(name string, existing []themes.Theme) string {
 	taken := make(map[string]bool, len(existing))
 	for _, theme := range existing {

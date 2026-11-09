@@ -161,7 +161,6 @@ func (l *Library) List(ctx context.Context) ([]Asset, error) {
 	return l.repo.List(ctx)
 }
 
-// Exists reports whether the library still holds the file behind an asset.
 func (l *Library) Exists(asset Asset) bool {
 	_, err := os.Stat(l.Path(asset))
 	return err == nil

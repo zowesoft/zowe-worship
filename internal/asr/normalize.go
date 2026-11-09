@@ -5,9 +5,8 @@ import (
 	"strings"
 )
 
-// numberWords maps spoken number tokens to their value. Tens and hundred are
-// represented so a run of tokens such as "one hundred nineteen" can be
-// composed into 119.
+// numberWords includes tens and hundred so a run like "one hundred nineteen"
+// can be composed into 119.
 var numberWords = map[string]int{
 	"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
 	"seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
@@ -17,9 +16,8 @@ var numberWords = map[string]int{
 	"eighty": 80, "ninety": 90, "hundred": 100,
 }
 
-// ordinalWords maps spoken ordinal tokens (used before book names, e.g.
-// "first Corinthians") to their digit form. Ranges beyond third are rarely
-// book ordinals but still normalized so "twentieth" behaves like a number.
+// ordinalWords folds spoken ordinals ("first Corinthians") to digits. Beyond
+// third they are rarely book ordinals, but still normalize like any number.
 var ordinalWords = map[string]string{
 	"first": "1", "second": "2", "third": "3", "fourth": "4", "fifth": "5",
 	"sixth": "6", "seventh": "7", "eighth": "8", "ninth": "9", "tenth": "10",
@@ -32,13 +30,11 @@ var ordinalWords = map[string]string{
 	"ninetieth": "90", "hundredth": "100",
 }
 
-// normalizeSpokenText strips punctuation ASR engines insert, lowercases, and
-// keeps only characters the detector token pipeline needs (letters, digits,
-// apostrophes, colon, hyphen). A colon always becomes a standalone token so
-// "Revelation:" does not swallow the separator ("revelation" : 22 : 21);
-// hyphens stay attached because spoken compounds ("twenty-eight") rejoin.
-// Unicode punctuation from realistic ASR output ("’", "–", full-width
-// quotes) is folded to ASCII equivalents.
+// normalizeSpokenText lowercases and strips ASR punctuation down to the
+// characters the detector needs. A colon becomes a standalone token so
+// "Revelation:" does not swallow the separator; hyphens stay attached so spoken
+// compounds ("twenty-eight") rejoin. Unicode punctuation ("’", "–", full-width
+// quotes) folds to ASCII.
 func normalizeSpokenText(text string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(text) {
@@ -56,20 +52,14 @@ func normalizeSpokenText(text string) string {
 		case r == '–' || r == '—':
 			b.WriteRune('-')
 		default:
-			// Commas, periods, quotes, brackets and any other noise become
-			// separator spaces.
 			b.WriteRune(' ')
 		}
 	}
 	return b.String()
 }
 
-// tokenizeForDetection turns normalized text into detector tokens:
-// punctuation runs become separate ":" tokens, hyphenated spoken compounds
-// ("twenty-eight") become natural numbers, number words are folded to digits
-// ("one hundred nineteen" -> "119"), the ordinals representing book numbers
-// become "1"/"2"/"3", and the connector words "chapter"/"verse" are dropped
-// because the surrounding numbers carry their meaning.
+// tokenizeForDetection folds number words and ordinals to digits and drops the
+// connector words "chapter"/"verse", whose meaning the surrounding numbers carry.
 func tokenizeForDetection(text string) []string {
 	fields := strings.Fields(text)
 	tokens := make([]string, 0, len(fields)+8)
@@ -94,10 +84,8 @@ func tokenizeForDetection(text string) []string {
 	return filtered
 }
 
-// tokenizeField expands one whitespace-separated field into detector tokens.
 func tokenizeField(field string) []string {
-	// Ordinals ("first", "21st") fold to plain digits first so later digit
-	// handling sees uniform tokens.
+	// Fold ordinals first so later digit handling sees uniform tokens.
 	if replacement, ok := ordinalWords[field]; ok {
 		field = replacement
 	} else if digit, suffixed := stripOrdinalSuffix(field); suffixed {
@@ -110,7 +98,6 @@ func tokenizeField(field string) []string {
 		return composeNumberList(parts)
 	}
 
-	// Colon-separated verse spans keep their separators.
 	if strings.Contains(field, ":") {
 		segments := strings.Split(field, ":")
 		out := make([]string, 0, 2*len(segments))
@@ -161,11 +148,8 @@ func allNumberVocabulary(parts []string) bool {
 	return true
 }
 
-// composeNumberList resolves a run of number-word tokens into natural
-// numbers, following English composition rules: tens take units ("twenty +
-// eight" -> 28), "hundred" scales the accumulator ("one hundred" -> 100,
-// "one hundred nineteen" -> 119), and completed numbers start anew when a
-// following value cannot extend them ("eight twenty eight" -> 8, 28).
+// composeNumberList follows English composition: tens take units, "hundred"
+// scales the run, and a value that cannot extend it starts a new number.
 func composeNumberList(values []string) []string {
 	var out []string
 	acc := 0
@@ -234,9 +218,8 @@ func composeNumberList(values []string) []string {
 	return out
 }
 
-// composeNumberRuns merges consecutive number-word tokens into natural
-// numbers ("one", "hundred", "nineteen" -> "119"). The word "and" inside a
-// numeric run acts as glue and disappears.
+// composeNumberRuns merges consecutive number-word tokens into natural numbers;
+// "and" inside a run acts as glue and disappears.
 func composeNumberRuns(tokens []string) []string {
 	out := make([]string, 0, len(tokens))
 	run := make([]string, 0, 4)
@@ -278,9 +261,8 @@ func composeNumberRuns(tokens []string) []string {
 	return out
 }
 
-// stripOrdinalSuffix converts digit tokens with ordinal suffix letters
-// ("21st", "3RD") to their numeral form. The boolean reports whether the
-// conversion applied.
+// stripOrdinalSuffix converts "21st"/"3RD" to their numeral form, reporting
+// whether the conversion applied.
 func stripOrdinalSuffix(token string) (string, bool) {
 	digits := 0
 	for digits < len(token) && token[digits] >= '0' && token[digits] <= '9' {

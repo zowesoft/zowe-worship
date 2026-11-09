@@ -1,14 +1,8 @@
-// Command zowe-engine stages a speech engine for packaging.
-//
-// The installer ships one engine (Moonshine) read-only beside the app. This
-// command produces the tree the packager copies into place, using the pinned
-// hashes in internal/speech so the shipped bytes are the verified ones — not
-// whatever happens to be on the build machine.
-//
-// The engine's model is the same on every platform; only the runtime differs,
-// so -goos/-goarch choose which runtime to fetch. That lets a Windows installer
-// be staged from any host, and leaves the same command ready for the macOS and
-// Linux packages when they exist.
+// Command zowe-engine stages a speech engine for packaging: it builds the tree
+// the packager copies beside the app, using the pinned hashes in internal/speech
+// so the shipped bytes are the verified ones, not whatever is on the build
+// machine. The model is platform-independent; -goos/-goarch pick the runtime, so
+// a Windows installer can be staged from any host.
 //
 // Usage:
 //
@@ -51,9 +45,8 @@ func run(engineID, out, goos, goarch string, verify bool) error {
 	}
 
 	installer := speech.NewInstaller()
-	// A live bar rewrites one line, which only reads well on a terminal; when
-	// output is piped to a log it would emit thousands of lines, so progress is
-	// limited to coarse per-file marks in that case.
+	// A live progress bar only reads well on a terminal; piped to a log it would
+	// emit thousands of lines, so fall back to coarse per-file marks there.
 	live := isTerminal(os.Stdout)
 	lastFile := ""
 	installer.Progress = func(p speech.Progress) {
@@ -71,8 +64,6 @@ func run(engineID, out, goos, goarch string, verify bool) error {
 		}
 	}
 
-	// Stage with the target platform's runtime, so the tree matches what the
-	// packaged app will look for at <exe dir>/engines.
 	if err := installer.InstallFor(out, engine, goos, goarch); err != nil {
 		return err
 	}
@@ -86,9 +77,8 @@ func run(engineID, out, goos, goarch string, verify bool) error {
 		}
 	}
 
-	// The engines directory sits beside the app in the package; the notices are
-	// written by InstallFor, so they travel with the redistributed binaries
-	// automatically, whichever packager copies the tree in.
+	// InstallFor writes the notices into the tree; fail if they are missing so
+	// the redistributed binaries always carry their terms.
 	noticesPath := filepath.Join(out, speech.NoticesFile)
 	if _, err := os.Stat(noticesPath); err != nil {
 		return fmt.Errorf("expected third-party notices at %s: %w", noticesPath, err)
@@ -98,8 +88,6 @@ func run(engineID, out, goos, goarch string, verify bool) error {
 	return nil
 }
 
-// isTerminal reports whether f is a character device, i.e. a real console
-// rather than a pipe or a redirected file.
 func isTerminal(f *os.File) bool {
 	info, err := f.Stat()
 	if err != nil {

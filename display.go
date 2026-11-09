@@ -10,22 +10,20 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// audienceWindow names the display window so a reopen replaces it instead of
-// stacking a second one.
+// audienceWindow doubles as the reuse key: a reopen replaces the window instead
+// of stacking a second one.
 const audienceWindow = "audience"
 
-// studioWindow is the operator's window. Its monitor is never offered as an
-// audience display.
+// studioWindow's monitor is never offered as an audience display.
 const studioWindow = "studio"
 
-// AudienceEvent carries the presentation state to the audience window whenever
-// a projection command succeeds, so the display never polls.
+// AudienceEvent pushes presentation state, so the display never polls.
 const AudienceEvent = "presentation"
 
 var errNoApplication = errors.New("the audience display needs the desktop app")
 
 // Registering the event gives the binding generator a payload type, so the
-// audience window's listener is typed rather than `any`.
+// listener is typed rather than `any`.
 func init() {
 	application.RegisterEvent[PresentationView](AudienceEvent)
 }
@@ -42,16 +40,13 @@ type DisplayView struct {
 	ScreenName string `json:"screenName"`
 }
 
-// screenLabel turns the Windows device name, which reads "\\.\DISPLAY1", into
-// something an operator can match against the monitor in front of them.
 func screenLabel(index int, screen *application.Screen) string {
 	return fmt.Sprintf("Display %d · %d×%d", index+1,
 		screen.PhysicalBounds.Width, screen.PhysicalBounds.Height)
 }
 
-// ListScreens feeds the display picker. The screen the studio is on is left out
-// rather than assumed to be "the primary", because which physical monitor is
-// primary depends on how the room is wired.
+// ListScreens leaves the studio's own screen out rather than assuming "the
+// primary", because which monitor is primary depends on how the room is wired.
 func (a *App) ListScreens() ([]ScreenOption, error) {
 	desktop := application.Get()
 	if desktop == nil {
@@ -84,9 +79,8 @@ func (a *App) GetAudienceDisplay() DisplayView {
 	return a.displayView()
 }
 
-// OpenAudienceDisplay puts a fullscreen slide-only window on a second display.
-// The display shows whatever is already live rather than starting blank, so an
-// operator can open it mid-service.
+// OpenAudienceDisplay shows whatever is already live rather than starting blank,
+// so an operator can open it mid-service.
 func (a *App) OpenAudienceDisplay(screenID string) (DisplayView, error) {
 	desktop := application.Get()
 	if desktop == nil {
@@ -163,9 +157,8 @@ func (a *App) displayView() DisplayView {
 	}
 }
 
-// publishToDisplay pushes the current state to the audience window. Failures
-// are swallowed on purpose: the studio must keep working if a projector is
-// unplugged mid-service.
+// publishToDisplay swallows failures on purpose: the studio must keep working if
+// a projector is unplugged mid-service.
 func (a *App) publishToDisplay(state presentation.State) {
 	if a.presentation == nil {
 		return

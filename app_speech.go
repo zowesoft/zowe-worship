@@ -14,13 +14,12 @@ import (
 	"zowe-worship/internal/speech"
 )
 
-// speechProgressEvent streams an engine download to the settings window. A
-// model is ~140 MB, so the operator needs to see it moving rather than watch a
-// frozen button for a minute.
+// speechProgressEvent exists so a ~140 MB download shows movement instead of a
+// frozen button.
 const speechProgressEvent = "speech:progress"
 
-// speechConfigEvent tells both windows the engine situation changed — an
-// installed or removed engine should appear without reopening the app.
+// speechConfigEvent refreshes both windows when an engine is installed or
+// removed, without an app restart.
 const speechConfigEvent = "speech:config"
 
 var (
@@ -29,24 +28,19 @@ var (
 	errInstallInProgress  = errors.New("another engine download is already running")
 )
 
-// SpeechEngineView is one row in the Settings engine list: what it is, whether
-// it is already on disk, and whether it is the one currently selected.
+// SpeechEngineView is one row in the Settings engine list.
 type SpeechEngineView struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	// Installed is true when the engine's files are present.
-	Installed bool `json:"installed"`
-	// Bundled is true when the engine's files come from beside the app rather
-	// than a download.
+	Installed   bool   `json:"installed"`
+	// Bundled means the files come from beside the app, not a download.
 	Bundled bool `json:"bundled"`
-	// Active is true when this engine is the one Live Detection uses.
-	Active bool `json:"active"`
-	// Supported is false when no runtime exists for this machine's platform.
+	Active  bool `json:"active"`
+	// Supported is false when no runtime exists for this platform.
 	Supported bool `json:"supported"`
 }
 
-// SpeechProgressView is one download update for the Settings progress bar.
 type SpeechProgressView struct {
 	EngineID   string `json:"engineId"`
 	File       string `json:"file"`
@@ -63,8 +57,6 @@ var speechInstall struct {
 	running bool
 }
 
-// ListSpeechEngines returns the engine catalogue with the state each row needs:
-// installed, bundled, active and platform support.
 func (a *App) ListSpeechEngines() ([]SpeechEngineView, error) {
 	layout := a.speechLayout()
 	active := ""
@@ -89,9 +81,8 @@ func (a *App) ListSpeechEngines() ([]SpeechEngineView, error) {
 	return views, nil
 }
 
-// InstallSpeechEngine downloads an engine into the user's data root and streams
-// progress to the settings window. It returns as soon as the download starts so
-// the window stays responsive; the outcome arrives as speech:config.
+// InstallSpeechEngine returns once the download starts, so the window stays
+// responsive; the outcome arrives as speech:config.
 func (a *App) InstallSpeechEngine(id string) error {
 	if a.settings == nil {
 		return errStorageUnavailable
@@ -116,7 +107,6 @@ func (a *App) InstallSpeechEngine(id string) error {
 	return nil
 }
 
-// runSpeechInstall does the download off the UI thread and reports the result.
 func (a *App) runSpeechInstall(engine speech.Engine) {
 	defer func() {
 		speechInstall.mu.Lock()
@@ -147,12 +137,10 @@ func (a *App) runSpeechInstall(engine speech.Engine) {
 	a.finishSpeechInstall(engine.ID, err)
 }
 
-// emitSpeechProgress forwards one update to the settings window.
 func (a *App) emitSpeechProgress(view SpeechProgressView) {
 	a.dispatchToWindow(settingsWindow, speechProgressEvent, view)
 }
 
-// finishSpeechInstall reports the outcome and nudges both windows to refresh.
 func (a *App) finishSpeechInstall(id string, err error) {
 	message := ""
 	if err != nil {
@@ -163,8 +151,7 @@ func (a *App) finishSpeechInstall(id string, err error) {
 	a.dispatchToWindow(studioWindow, speechConfigEvent, data)
 }
 
-// dispatchToWindow sends one custom event to a named window, best-effort: a
-// window that is not open simply means nobody is listening.
+// dispatchToWindow is best-effort: a missing window means nobody is listening.
 func (a *App) dispatchToWindow(window, name string, data any) {
 	desktop := application.Get()
 	if desktop == nil {
@@ -175,10 +162,8 @@ func (a *App) dispatchToWindow(window, name string, data any) {
 	}
 }
 
-// SelectSpeechEngine makes an already-installed engine the one Live Detection
-// uses. It looks the engine up under both roots — the bundled one beside the
-// app or a downloaded one — builds the command line and stores it, so the
-// operator never handles a path.
+// SelectSpeechEngine looks under both roots, so the operator never handles a
+// path.
 func (a *App) SelectSpeechEngine(id string) (string, error) {
 	if a.settings == nil {
 		return "", errStorageUnavailable
@@ -209,8 +194,7 @@ func (a *App) SelectSpeechEngine(id string) (string, error) {
 	return spec, nil
 }
 
-// SpeechComponentView is one redistributed component and its license, for the
-// attribution list in Settings.
+// SpeechComponentView is one redistributed component and its license.
 type SpeechComponentView struct {
 	Name     string `json:"name"`
 	License  string `json:"license"`
@@ -218,17 +202,14 @@ type SpeechComponentView struct {
 	Text     string `json:"text"`
 }
 
-// SpeechAttributionView is the attribution payload: the components the app
-// ships, the license text for each, and where the combined notices file sits
-// in the install so an operator can open it.
+// SpeechAttributionView is the same text as the shipped notices file, plus its
+// location so an operator can open it.
 type SpeechAttributionView struct {
 	Components  []SpeechComponentView `json:"components"`
 	NoticesPath string                `json:"noticesPath"`
 }
 
-// GetSpeechAttribution returns the licenses for the speech engine the app
-// redistributes. The installer ships the same text as THIRD-PARTY-NOTICES.txt
-// beside the engine; this surfaces it in-app so it is readable without hunting
+// GetSpeechAttribution surfaces the licenses in Settings so nobody has to hunt
 // through the install folder.
 func (a *App) GetSpeechAttribution() SpeechAttributionView {
 	components := speech.Components()
@@ -255,8 +236,8 @@ func (a *App) GetSpeechAttribution() SpeechAttributionView {
 	return SpeechAttributionView{Components: views, NoticesPath: noticesPath}
 }
 
-// OpenPath reveals a file or folder in the OS file manager, so an operator can
-// read the shipped notices without knowing the install path.
+// OpenPath is how an operator reaches the notices without knowing the install
+// path.
 func (a *App) OpenPath(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return errors.New("no path to open")
@@ -267,8 +248,6 @@ func (a *App) OpenPath(path string) error {
 	return application.Get().Env.OpenFileManager(path, false)
 }
 
-// speechLayout is the two engine roots: the bundled, read-only home beside the
-// app, and the writable home under the data root.
 func (a *App) speechLayout() speech.Layout {
 	layout := speech.Layout{}
 	if exe, err := os.Executable(); err == nil {

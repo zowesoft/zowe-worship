@@ -16,12 +16,11 @@ func TestGetSetDelete(t *testing.T) {
 		t.Fatalf("Get missing key: want ErrNotFound, got %v", err)
 	}
 
-	// GetDefault returns the fallback for a missing key.
+	// GetDefault falls back when the key is missing.
 	if v := store.GetDefault(ctx, "missing", "fallback"); v != "fallback" {
 		t.Fatalf("GetDefault missing = %q, want %q", v, "fallback")
 	}
 
-	// Set then Get.
 	if err := store.Set(ctx, "mykey", "myvalue"); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
@@ -41,7 +40,6 @@ func TestGetSetDelete(t *testing.T) {
 		t.Fatalf("Get after overwrite = %q, want %q", v, "updated")
 	}
 
-	// Delete.
 	if err := store.Delete(ctx, "mykey"); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}

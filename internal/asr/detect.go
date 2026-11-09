@@ -1,5 +1,5 @@
 // Package asr holds the offline speech-to-text adapter layer and the
-// spoken-reference detector used by the future Live Detection workspace.
+// spoken-reference detector behind the Live Detection workspace.
 package asr
 
 import (
@@ -10,23 +10,17 @@ import (
 	"zowe-worship/internal/scripture"
 )
 
-// Detection is a scripture reference found in spoken (or transcribed) text.
 type Detection struct {
 	Reference scripture.Reference
-	// Raw is the normalized candidate string the detection was parsed from,
-	// useful for debugging ASR errors that produced a near miss.
+	// Raw is the normalized candidate string, useful for debugging ASR near misses.
 	Raw string
 }
 
-// DetectReferences scans free-form transcript text for spoken scripture
-// references such as "Romans chapter eight verse twenty-eight",
-// "let's turn to John 3:16", "first Corinthians thirteen" or "Psalm twenty
-// three". Results are deduplicated; candidates that name a real book but
-// carry an unusable chapter or verse range are dropped by scripture.Parse's
-// rules and therefore not returned.
-//
-// The detector is deliberately conservative: ambiguity means no match, so an
-// operator always confirms before projection (PRD section 9).
+// DetectReferences scans transcript text for spoken scripture references
+// ("Romans chapter eight verse twenty-eight", "John 3:16", "first Corinthians
+// thirteen"). Results are deduplicated, and candidates with an unusable chapter
+// or verse range are dropped. The detector is deliberately conservative:
+// ambiguity means no match.
 func DetectReferences(text string) []Detection {
 	tokens := tokenizeForDetection(normalizeSpokenText(text))
 	consumed := make([]bool, len(tokens))
@@ -34,8 +28,6 @@ func DetectReferences(text string) []Detection {
 	var detections []Detection
 	seen := make(map[string]bool)
 
-	// commit records a validated detection spanning tokens [from..to].
-	// Returns false when the surrounding numbers were not a usable reference.
 	commit := func(from, to int, book bible.Book, chapter, verseStart, verseEnd int) bool {
 		ref, ok := buildReference(book, chapter, verseStart, verseEnd)
 		if !ok {
@@ -61,10 +53,8 @@ func DetectReferences(text string) []Detection {
 			continue
 		}
 
-		// Spoken ordinal prefix, e.g. "1 Corinthians 13" or "2 Timothy 4 2"
-		// spoken as "first Corinthians thirteen", "second Timothy four two".
-		// Handled as its own pattern because the leading digit terminates the
-		// alphabetic book scan.
+		// Spoken ordinal prefix ("first Corinthians thirteen"): its own pattern
+		// because the leading digit terminates the alphabetic book scan.
 		if chapter <= 3 && i+2 < len(tokens) && !consumed[i+1] && !consumed[i+2] {
 			book, ok := bible.LookupBook(tokens[i+1])
 			if !ok {
@@ -82,15 +72,12 @@ func DetectReferences(text string) []Detection {
 			}
 		}
 
-		// Book name may be preceded by spoken filler; scan at most six words
-		// back ("song of solomon", "to the book of first peter" after
-		// normalization maps first->1 ... handled by the pattern above).
+		// A book name may carry spoken filler ("song of solomon"), so scan up to
+		// six words back for it.
 		bookEnd := i - 1
 		for bookEnd >= 0 && consumed[bookEnd] {
 			bookEnd--
 		}
-		// Candidate book names are the tokens between bookEnd and the chapter
-		// number: bookEnd..i-1, so the widest window is min(i, 6) tokens.
 		window := i
 		if window > 6 {
 			window = 6
@@ -128,10 +115,8 @@ func DetectReferences(text string) []Detection {
 	return detections
 }
 
-// parseVerseTail reads ": verse - verse" or bare trailing verse numbers after
-// a chapter token, e.g. "8 : 28 - 30", "8 28 30" (spoken with chapter and
-// verse words already removed) or "8 28". Returns the verse values and the
-// index of the last token consumed.
+// parseVerseTail reads the verse numbers after a chapter token (": 28 - 30",
+// bare "28 30", or "28 and 30") and returns them with the last token consumed.
 func parseVerseTail(tokens []string, consumed []bool, index int) (verseStart, verseEnd, last int) {
 	last = index - 1
 	if index >= len(tokens) || consumed[index] {
@@ -185,8 +170,6 @@ func parseVerseTail(tokens []string, consumed []bool, index int) (verseStart, ve
 	return verseStart, verseEnd, last
 }
 
-// buildReference validates numbers against the book's shape and renders the
-// raw candidate string.
 func buildReference(book bible.Book, chapter, verseStart, verseEnd int) (scripture.Reference, bool) {
 	if chapter <= 0 || chapter > book.Chapters {
 		return scripture.Reference{}, false
@@ -205,7 +188,7 @@ func buildReference(book bible.Book, chapter, verseStart, verseEnd int) (scriptu
 	return ref, true
 }
 
-// tokenNumber parses an all-digit token as a plausible chapter/verse number.
+// tokenNumber accepts only 1..999, the plausible chapter/verse range.
 func tokenNumber(token string) (int, bool) {
 	value := 0
 	for _, r := range token {

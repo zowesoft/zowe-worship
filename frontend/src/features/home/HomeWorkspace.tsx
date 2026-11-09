@@ -4,8 +4,6 @@ import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import type { PageId } from '../../layouts/AppShell';
 
-// ── new-service inline form ───────────────────────────────────────────────────
-
 function NewServiceForm({ onCreated }: { onCreated: () => void }) {
   const studio = useStudio();
   const [open, setOpen] = useState(false);
@@ -15,7 +13,7 @@ function NewServiceForm({ onCreated }: { onCreated: () => void }) {
 
   function expand() {
     setOpen(true);
-    // Wait a tick for the element to mount
+    // The input does not exist until this render commits.
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
@@ -30,7 +28,6 @@ function NewServiceForm({ onCreated }: { onCreated: () => void }) {
       setOpen(false);
       onCreated();
     } catch {
-      // error visible in sidebar
     } finally {
       setBusy(false);
     }
@@ -81,8 +78,6 @@ function NewServiceForm({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-// ── service card ──────────────────────────────────────────────────────────────
-
 type ServiceCardProps = {
   id: string;
   name: string;
@@ -105,7 +100,6 @@ function ServiceCard({ id, name, isActive, itemCount, onSelect, onNavigate }: Se
       await onSelect(id);
       onNavigate('service');
     } catch {
-      // studio error shown in sidebar
     } finally {
       setBusy(false);
     }
@@ -156,8 +150,6 @@ function ServiceCard({ id, name, isActive, itemCount, onSelect, onNavigate }: Se
     </article>
   );
 }
-
-// ── root ──────────────────────────────────────────────────────────────────────
 
 export function HomeWorkspace({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const studio = useStudio();

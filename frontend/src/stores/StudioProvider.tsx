@@ -105,9 +105,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [mediaAspects, setMediaAspects] = useState<Aspect[]>([]);
   const [importResult, setImportResult] = useState<models.MediaImportResult | null>(null);
 
-  // v3 has no `window.go` to sniff, so the bridge is whatever the first load
-  // proves: opening in a plain browser rejects every call and the studio stays
-  // in its read-only state.
+  // v3 has no `window.go` to sniff, so the first load proves the bridge: in a
+  // plain browser every call rejects and the studio stays read-only.
   useEffect(() => {
     let active = true;
 
@@ -149,12 +148,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // The app republishes the slide pair whenever anything changes it, including a
-  // theme edited in its own window, so the studio never shows a stale preview.
+  // Anything that changes the slide pair republishes it, including a theme
+  // edited in its own window, so the studio never shows a stale preview.
   useEffect(() => Events.On('presentation', (event) => {
     setPresentationState(event.data as models.PresentationView);
   }), []);
 
+  // Records the failure for the error area and rethrows, so a caller that
+  // swallows it still leaves the message visible.
   const run = useCallback(async <T,>(action: () => Promise<T>, apply?: (value: T) => void): Promise<T> => {
     try {
       const value = await action();
@@ -168,16 +169,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Every service mutation can add or rename a row in the switcher, so the
-  // list is reread alongside the schedule instead of patched in the client.
+  // A mutation can add or rename a row in the switcher, so the list is reread
+  // rather than patched in the client.
   const orderWithList = useCallback(async (action: () => Promise<models.ServiceOrderView>) => {
     const value = await action();
     setServices((await App.ListServices()) ?? []);
     return value;
   }, []);
 
-  // The media grid is reread after every change so a rejected import leaves it
-  // showing exactly what the library holds, rather than what was guessed.
+  // Reread the grid after every change so a rejected import still shows what
+  // the library actually holds.
   const mediaAction = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
     const value = await action();
     setMedia((await App.ListMedia()) ?? []);

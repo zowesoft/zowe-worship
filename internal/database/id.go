@@ -6,7 +6,6 @@ import (
 	"fmt"
 )
 
-// NewID returns an opaque identifier for user data rows.
 func NewID() (string, error) {
 	var raw [16]byte
 	if _, err := rand.Read(raw[:]); err != nil {

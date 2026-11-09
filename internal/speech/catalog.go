@@ -1,9 +1,5 @@
-// Package speech provisions the offline speech engine Live Detection runs on.
-// Two things place an engine on disk: the installer ships one (Moonshine)
-// beside the executable, read-only, and the app downloads any other into the
-// user's data root. This package owns the catalogue — what to fetch, from
-// where, and the hash each byte must match — plus verifying that a bundled
-// engine is intact before the detector is allowed to use it.
+// Package speech owns the engine catalogue: what to fetch, from where, and the
+// hash every byte must match before the detector may use it.
 package speech
 
 import (
@@ -13,51 +9,41 @@ import (
 	"strings"
 )
 
-// Engine is one downloadable speech engine: a model shared by every platform
-// plus the transcribe binary and its runtime library, which differ per OS and
-// architecture.
+// Engine is a model shared by every platform plus the per-OS runtime that runs
+// it.
 type Engine struct {
-	// ID is the stable key stored in settings and used for the on-disk folder.
+	// ID is the settings key and the on-disk folder name.
 	ID string
-	// Command is the spec name before "=" — the family the engine runner keys
-	// on. It is what discovery emits too ("moonshine=…"), so a bundled, a
-	// downloaded and a hand-picked engine all read as the same family.
-	Command string
-	// Name is what the operator sees.
-	Name string
-	// Description explains the trade-off in one line.
+	// Command is the family name before "=" in a spec, matching what discovery
+	// emits, so a bundled, downloaded or hand-picked engine all read the same.
+	Command     string
+	Name        string
 	Description string
-	// ModelDir is the folder the model files land in, under engines/models/.
+	// ModelDir is where the model files land, under engines/models/.
 	ModelDir string
-	// Model is the platform-independent set of files that define the engine.
-	Model []File
-	// Runtimes maps GOOS/GOARCH to the transcribe binary and its library.
+	Model    []File
 	Runtimes map[string]Runtime
 }
 
-// Runtime is the per-platform half of an engine. The two files are extracted
-// from one release archive; keeping their hashes here lets a download be
-// verified byte for byte before it is trusted.
+// Runtime is the per-platform half: one release archive plus the hashes that
+// prove it.
 type Runtime struct {
 	// Archive is the release asset file name the two files come from.
 	Archive string
-	// ArchiveURL is the full download address for the archive. Empty means it
-	// is built from the release base, which is what the real catalogue does.
+	// ArchiveURL is optional; empty means derive it from Archive.
 	ArchiveURL string
 	// ArchiveSHA256 pins the whole download; empty means unverified.
 	ArchiveSHA256 string
-	// Binary is the transcriber's file name inside the archive's bin/ folder.
-	Binary string
+	Binary        string
 	// BinarySHA256 pins the transcriber after extraction.
 	BinarySHA256 string
-	// Library is the runtime library's file name inside the archive's bin/ (or
-	// lib/) folder, e.g. onnxruntime.dll. Empty when the engine needs none.
+	// Library is the runtime library inside the archive, e.g. onnxruntime.dll;
+	// empty when the engine needs none.
 	Library string
 	// LibrarySHA256 pins the library after extraction.
 	LibrarySHA256 string
 }
 
-// URL is where the archive is fetched from.
 func (r Runtime) URL() string {
 	if r.ArchiveURL != "" {
 		return r.ArchiveURL
@@ -65,30 +51,25 @@ func (r Runtime) URL() string {
 	return RuntimeArchiveURL(r.Archive)
 }
 
-// File is one downloaded file and the hash it must match.
 type File struct {
 	Name   string
 	SHA256 string
 	URL    string
 }
 
-// Key is the GOOS/GOARCH key used in Engine.Runtimes.
 func Key(goos, goarch string) string {
 	return goos + "/" + goarch
 }
 
-// HostKey is Key for the machine this build runs on.
 func HostKey() string {
 	return Key(runtime.GOOS, runtime.GOARCH)
 }
 
-// RuntimeFor returns the runtime half for a platform, if the engine ships one.
 func (e Engine) RuntimeFor(goos, goarch string) (Runtime, bool) {
 	r, ok := e.Runtimes[Key(goos, goarch)]
 	return r, ok
 }
 
-// HostRuntime returns the runtime half for the machine this build runs on.
 func (e Engine) HostRuntime() (Runtime, bool) {
 	return e.RuntimeFor(runtime.GOOS, runtime.GOARCH)
 }
@@ -100,12 +81,11 @@ const releaseBase = "https://github.com/k2-fsa/sherpa-onnx/releases/download"
 // Moonshine tiny int8 model.
 const moonshineModelBase = "https://huggingface.co/csukuangfj/sherpa-onnx-moonshine-tiny-en-int8/resolve/main"
 
-// Catalog lists the engines the app knows how to fetch. The first entry is the
-// one the installer bundles; the rest are download-only.
+// Catalog's first entry is the engine the installer bundles; the rest are
+// download-only.
 //
-// Hashes are pinned from the v2.0.1 release. A model file's hash is the same
-// on every platform (the model is portable), so one entry pins all OSes; only
-// the runtime differs and carries its own hashes.
+// Hashes are pinned from the v2.0.1 release. The model is portable, so one hash
+// covers every platform; each runtime pins its own files.
 func Catalog() []Engine {
 	return []Engine{Moonshine()}
 }
@@ -179,10 +159,8 @@ func Moonshine() Engine {
 	}
 }
 
-// Spec builds the engine command line for one root, in the "name=bin args
-// {audio}" form asr.ParseEngineSpec accepts. It mirrors what the discovery
-// scanner produces for an on-disk Moonshine, so a downloaded engine and a
-// bundled one are selected identically.
+// Spec builds the engine command line in the "name=bin args {audio}" form
+// discovery emits.
 func (e Engine) Spec(root string) (string, error) {
 	r, ok := e.HostRuntime()
 	if !ok {
@@ -193,7 +171,6 @@ func (e Engine) Spec(root string) (string, error) {
 	}
 
 	modelDir := ModelPath(root, e)
-	// Each model file becomes one --flag=value argument, quoted for spaces.
 	flag := func(name string) string {
 		return "--moonshine-" + name + "=" + quoteArg(filepath.Join(modelDir, modelFiles[name]))
 	}
@@ -210,7 +187,6 @@ func (e Engine) Spec(root string) (string, error) {
 	return strings.Join(args, " "), nil
 }
 
-// modelFiles maps the flag name to the model file it points at.
 var modelFiles = map[string]string{
 	"preprocessor":     "preprocess.onnx",
 	"encoder":          "encode.int8.onnx",
@@ -227,7 +203,6 @@ func quoteArg(path string) string {
 	return path
 }
 
-// Find returns the catalogue entry with the given id.
 func Find(id string) (Engine, error) {
 	for _, engine := range Catalog() {
 		if engine.ID == id {
@@ -237,15 +212,12 @@ func Find(id string) (Engine, error) {
 	return Engine{}, fmt.Errorf("unknown speech engine %q", id)
 }
 
-// RuntimeArchiveURL is the download address for a runtime archive.
 func RuntimeArchiveURL(asset string) string {
 	return releaseBase + "/v2.0.1/" + asset
 }
 
-// SpecCommand recovers the family name from an engine spec — the text before
-// "=", e.g. "moonshine". A stored spec matches a catalogue engine when their
-// commands agree, regardless of which binary or folder the spec points at, so
-// a bundled, downloaded or hand-picked Moonshine all read as the same engine.
+// SpecCommand matches stored specs to catalogue engines by family name, not by
+// binary path.
 func SpecCommand(spec string) string {
 	name, _, found := strings.Cut(strings.TrimSpace(spec), "=")
 	if !found {
@@ -254,7 +226,6 @@ func SpecCommand(spec string) string {
 	return strings.TrimSpace(name)
 }
 
-// Matches reports whether a stored spec runs this engine.
 func (e Engine) Matches(spec string) bool {
 	return e.Command != "" && SpecCommand(spec) == e.Command
 }

@@ -1,7 +1,7 @@
 # Zowe Worship — Feature Implementation Tracker
 
-Living status of the work described in `Zowe_Worship_Full_PRD_and_Design_Guide.txt`
-(§17 Feature Workstreams). The PRD describes intent; this file records what is
+Living status of the work described in `Zowe_Worship_Full_PRD_and_Design_Guide.txt`.
+The PRD describes intent; this file records what is
 actually built, where it lives, and what is still open, so any agent can pick up
 the next slice without re-deriving the state of the repo.
 
@@ -28,7 +28,7 @@ real text* on a machine without that env var.
 
 - **Done** — implemented, wired to the UI, and covered by tests or a documented
   manual check.
-- **Partial** — working slice exists but a named part of the PRD scope is
+- **Partial** — working slice exists but a named part of the scope is
   missing (listed).
 - **Planned** — not started. Empty packages (`.gitkeep` only) do not count as
   implementation.
@@ -63,9 +63,9 @@ Done:
 - [x] Single-instance guard (`main.go` `SingleInstance`, id
       `com.zowesoft.zowe-worship`). A second launch is refused and the running
       studio is restored and focused instead. Keyed on the identifier, not the
-      executable name, so a renamed copy is refused too. Not a PRD requirement;
-      added because two studios would each hold their own preview/live state
-      while driving one projector and one database.
+      executable name, so a renamed copy is refused too. Two studios would each
+      hold their own preview/live state while driving one projector and one
+      database.
 
 Open:
 - [ ] Packaging / recovery round-trip beyond a manual backup (`BackupNow` writes a
@@ -94,7 +94,7 @@ Done:
       Measured against the real `kjv-1.0.0.db` (31,102 verses):
       - "God love world": exact-AND found 4 verses and missed John 3:16;
         prefix-AND finds 5 with John 3:16 at #2 (behind 1 John 4:9, which also
-        carries all three words). This is the PRD §5 example.
+        carries all three words).
       - "believe saved": exact-AND 5 → prefix-AND 8, reaching "believeth", with
         Mark 16:16 on top.
       - "God loved shepherd" (no verse has all three): stage 1 empty, stage 2
@@ -157,10 +157,9 @@ Open:
 - [ ] Reopen/restore past output from history — rows carry the schedule item id
       in `payload`, so a restore slice has what it needs.
 - [ ] Mixed-DPI, disconnect/reconnect recovery tests for the audience display.
-- [ ] Configured operator shortcuts (PRD §10: "must be configurable") — shortcuts
-      are hard-coded, no settings UI.
+- [ ] Configurable operator shortcuts — shortcuts are hard-coded, no settings UI.
 - [ ] Additional audience outputs (intentionally deferred past single-output).
-- [ ] §14 acceptance evidence for navigation-not-interrupting-live, display error
+- [ ] Acceptance evidence for navigation-not-interrupting-live, display error
       preserving last live slide, etc.
 
 ## F04 — Songs and lyric presentation (Partial)
@@ -176,8 +175,8 @@ Done:
 - [x] Songs workspace + editor window (`frontend/src/features/songs/`).
 
 Open:
-- [ ] §14 acceptance evidence: "preview lyric slides, advance the intended section
-      without changing live output during editing".
+- [ ] Acceptance evidence: preview lyric slides and advance the intended section
+      without changing live output during editing.
 - [ ] Confirm song FTS is exercised by tests against real lyrics (currently
       fixture-level).
 
@@ -194,10 +193,9 @@ Done:
 - [x] Preview playback kept separate from audience playback.
 
 Open:
-- [ ] Stop / seek / volume controls beyond play-pause-restart (PRD §8: "where
-      supported").
+- [ ] Stop / seek / volume controls beyond play-pause-restart, where supported.
 - [ ] Explicit declared-format/codec list surfaced to the user.
-- [ ] §14 evidence: missing file, unsupported codec, relink, failure without
+- [ ] Acceptance evidence: missing file, unsupported codec, relink, failure without
       blanking a valid live slide.
 
 ## F06 — Custom theme editor (Done)
@@ -224,7 +222,7 @@ Done:
 Open:
 - [ ] Arbitrary-script rejection is by construction (themes are data, no code
       fields) — no explicit test asserting a malicious theme payload is refused.
-- [ ] §14 evidence: theme overflow across output aspect ratios captured.
+- [ ] Acceptance evidence: theme overflow across output aspect ratios captured.
 
 ## F07 — Offline AI scripture detection (Partial)
 
@@ -236,7 +234,7 @@ from settings, transcribes, and queues every reference `DetectReferences`
 finds. `internal/detection` holds the candidate queue in memory and records
 every approve/dismiss/clear in `detection_history` (previously unwritten).
 Approving previews the passage in the default translation — the operator still
-sends it live, per PRD §9. `F8` toggles listening, `F12` persists the
+sends it live by hand. `F8` toggles listening, `F12` persists the
 emergency disable (`detection_disabled`), and the engine command is set in
 Settings → Live detection.
 
@@ -244,7 +242,7 @@ Still open (later slices): continuous listening with automatic segmentation
 (currently manual chunks only), Whisper model lifecycle management, finalized
 transcripts, calibrated confidence bands, gated auto-projection with the
 safety checklist, and the remaining `internal/audio` / `internal/speech` /
-`internal/confidence` packages from the PRD §7 plan.
+`internal/confidence` packages.
 
 `F9` (pause auto-projection) remains a placeholder notice because nothing
 auto-projects yet.
@@ -395,17 +393,17 @@ list still renders from the embedded texts, with the file link absent.
 
 `internal/search` is empty. No embedding model, no versioned index, no
 `search_embeddings` migration. Prerequisite: benchmark a local model on the
-Windows baseline before selecting it (PRD §5).
+Windows baseline before selecting it.
 
 ## F09 — Online lyrics discovery (Planned)
 
 No package, no UI, no credential-store integration. Discovery only — must never
-become a dependency of the offline core (PRD §8, §17).
+become a dependency of the offline core.
 
 ## F10 — EasyWorship migration (Planned)
 
 No read-only adapters, no preflight, no `import_runs` migration. Preserve source
-DB and existing library on failure (PRD §8, §14).
+DB and existing library on failure.
 
 ## Data model status
 
@@ -426,10 +424,10 @@ Tables in `internal/database/migrations/`:
 | `search_embeddings` | not created (F08) |
 | `import_runs` | not created (F10) |
 
-Note: the PRD §11 also lists `song_fts` in the app DB; song search currently uses
-the FTS index created in `003_songs.sql`.
+Note: song search uses the FTS index created in `003_songs.sql`; there is no
+separate `song_fts` table in the app DB.
 
-## Application events (PRD §11)
+## Application events
 
 Implemented: a single `presentation` event republishes the slide pair to the
 studio and audience windows (`display.go` `publishToDisplay`,
@@ -440,7 +438,7 @@ belong to F07.
 
 ## Cross-cutting deviations to keep in mind
 
-- **F07/F08 placeholders vs. roadmap.** The PRD §17 baseline said only the
+- **F07/F08 placeholders vs. roadmap.** The original baseline claimed only the
   scaffold existed; that is now stale. F01–F07 have working slices (F06 fully),
   while F08–F10 remain genuinely unstarted.
 - **Keyboard shortcuts look done but aren't.** Navigation/projection shortcuts

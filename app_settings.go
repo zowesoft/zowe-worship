@@ -16,12 +16,11 @@ import (
 	"zowe-worship/internal/settings"
 )
 
-// settingsWindow names the settings window so opening it again moves the same
-// window instead of stacking a second one.
+// settingsWindow doubles as the reuse key: opening Settings again moves the
+// existing window instead of stacking another.
 const settingsWindow = "settings"
 
-// maxBackupRows keeps the backup list to the copies an operator can scan at a
-// glance; the folder may hold more, and the count says so.
+// maxBackupRows caps the list; BackupCount still reports the whole folder.
 const maxBackupRows = 8
 
 type BackupView struct {
@@ -30,8 +29,6 @@ type BackupView struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-// StorageView answers the two questions Settings exists for: where the
-// church's data sits on this computer, and whether it is safe.
 type StorageView struct {
 	Version            string            `json:"version"`
 	DataRoot           string            `json:"dataRoot"`
@@ -44,9 +41,8 @@ type StorageView struct {
 	BackupCount        int               `json:"backupCount"`
 }
 
-// OpenSettings shows the storage and library summary in its own window. It
-// opens even when storage failed, because that is exactly when the operator
-// needs to see where the app looked.
+// OpenSettings opens even when storage failed, which is exactly when the
+// operator needs to see where the app looked.
 func (a *App) OpenSettings() (EditorView, error) {
 	return openUtilityWindow(settingsWindow, "Settings", "/?view=settings", 680, 620, 520, 460)
 }
@@ -67,8 +63,8 @@ func (a *App) GetStorage() (StorageView, error) {
 		view.DatabaseBytes = coreSize
 	}
 
-	// The folder holds thumbnails beside the imported files, so the bytes are
-	// read from disk and the item count from the library.
+	// The folder holds thumbnails too, so bytes come from disk and the item
+	// count from the library.
 	mediaBytes, err := folderBytes(paths.Media())
 	if err == nil {
 		view.MediaBytes = mediaBytes
@@ -100,8 +96,7 @@ func (a *App) GetStorage() (StorageView, error) {
 	return view, nil
 }
 
-// GetSetting returns the value stored for key. If the key has never been set,
-// it returns an empty string without error.
+// An unset key returns an empty string.
 func (a *App) GetSetting(key string) (string, error) {
 	if a.settings == nil {
 		return "", errStorageUnavailable
@@ -109,7 +104,6 @@ func (a *App) GetSetting(key string) (string, error) {
 	return a.settings.GetDefault(a.context(), key, ""), nil
 }
 
-// SetSetting writes a key/value setting.
 func (a *App) SetSetting(key, value string) error {
 	if a.settings == nil {
 		return errStorageUnavailable
@@ -117,10 +111,8 @@ func (a *App) SetSetting(key, value string) error {
 	return a.settings.Set(a.context(), key, value)
 }
 
-// oneVersePerSlide reports how a multi-verse passage becomes slides. Anything
-// other than "all" keeps the default of one verse per slide, so a setting that
-// was never written — or written badly — still gives the operator the readable
-// wall-sized verse rather than a paragraph.
+// oneVersePerSlide defaults to true for anything but "all", so a missing or
+// malformed setting still gives the readable wall-sized verse.
 func (a *App) oneVersePerSlide(ctx context.Context) bool {
 	if a.settings == nil {
 		return true
@@ -128,7 +120,6 @@ func (a *App) oneVersePerSlide(ctx context.Context) bool {
 	return a.settings.GetDefault(ctx, settings.KeyVersesPerSlide, "one") != "all"
 }
 
-// SetDefaultTranslation updates the default translation setting and returns the refreshed storage view.
 func (a *App) SetDefaultTranslation(id string) (StorageView, error) {
 	if a.settings == nil {
 		return StorageView{}, errStorageUnavailable
@@ -139,8 +130,6 @@ func (a *App) SetDefaultTranslation(id string) (StorageView, error) {
 	return a.GetStorage()
 }
 
-// BackupNow writes a snapshot the operator asked for and returns the refreshed
-// view, so the new file appears in the list without a second call.
 func (a *App) BackupNow() (StorageView, error) {
 	if a.core == nil {
 		return StorageView{}, errStorageUnavailable
@@ -160,13 +149,13 @@ func (a *App) BackupNow() (StorageView, error) {
 var restoreMu sync.Mutex
 
 // RestoreBackup swaps the live database for a named backup and reopens storage
-// on it. Media files and translation packages live outside the core database
-// and are untouched.
+// on it; media and translation packages live outside the core database and are
+// untouched.
 //
-// Safety: the file must sit in the backups folder and pass an integrity check
-// with a schema this build can read; the current data is backed up first; and
-// the old files are kept until the restored copy opens, migrates and checks
-// out — any failure rolls straight back.
+// The name must resolve inside the backups folder and pass an integrity check;
+// the current data is backed up first; and the old files are kept until the
+// restored copy opens, migrates and checks out — any failure rolls straight
+// back.
 func (a *App) RestoreBackup(name string) (StorageView, error) {
 	if a.core == nil {
 		return StorageView{}, errStorageUnavailable
@@ -243,15 +232,13 @@ func fileSize(path string) (int64, error) {
 	return info.Size(), nil
 }
 
-// folderBytes totals the files under a directory. A missing folder is reported
-// as empty rather than as an error: nothing has been imported yet is a normal
-// state, not a fault.
+// folderBytes counts a missing folder as empty: nothing imported yet is normal,
+// not a fault.
 func folderBytes(dir string) (int64, error) {
 	var total int64
 
 	err := filepath.WalkDir(dir, func(_ string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			// A folder that is not there yet simply holds nothing.
 			if os.IsNotExist(err) {
 				return fs.SkipAll
 			}

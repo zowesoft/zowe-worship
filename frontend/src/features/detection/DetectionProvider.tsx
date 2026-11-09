@@ -8,9 +8,8 @@ import { MicCapture, listAudioInputs, toBase64 } from './mic';
 import type { AudioInput } from './mic';
 import { decodeAudioFile } from './audioFile';
 
-// How much audio one "analyze" request transcribes. Twenty seconds holds a
-// spoken reference plus the sentence around it without making the engine
-// chew through dead air.
+// How much audio one analyze request transcribes: a spoken reference plus the
+// sentence around it, without making the engine chew through dead air.
 export const ANALYZE_SECONDS = 20;
 
 type DetectionValue = {
@@ -72,7 +71,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     try {
       setCandidates((await App.ListDetections()) ?? []);
     } catch {
-      // Same as above: read-only without the bridge.
+      // Read-only without the bridge.
     }
   }, []);
 
@@ -81,8 +80,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     void refreshQueue();
   }, [refreshConfig, refreshQueue]);
 
-  // The backend streams the transcript while the engine is still running, so
-  // the panel fills in segment by segment instead of after the whole chunk.
+  // The backend streams the transcript while the engine runs, so the panel fills
+  // segment by segment instead of all at once.
   useEffect(() => {
     const cancel = Events.On('detection:progress', (event) => {
       const progress = event.data as { transcript: string; candidates: models.DetectionView[] };
@@ -92,9 +91,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     return () => { cancel(); };
   }, []);
 
-  // Settings is a separate window, so engine selection and the emergency switch
-  // arrive as an event; re-read the config when they do, or the studio would
-  // keep showing "No engine" after the operator just chose one.
+  // Settings is a separate window, so config arrives as an event; re-read it or
+  // the studio keeps showing "No engine" after the operator chose one.
   useEffect(() => {
     const cancel = Events.On('detection:config', () => { void refreshConfig(); });
     return () => { cancel(); };
@@ -117,9 +115,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const startCapture = useCallback(async () => {
     if (captureRef.current?.listening) return;
     const capture = new MicCapture();
-    // The worklet's level callback fires per audio block, so it doubles as the
-    // clock for the buffered-seconds readout — otherwise that number only moved
-    // after an analyze and the panel looked frozen while listening.
+    // The level callback fires per audio block, which doubles as the clock for
+    // the buffered-seconds readout.
     capture.setLevelListener((next, seconds) => {
       setLevel(next);
       setBufferedSeconds(seconds);
@@ -157,9 +154,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     }
   }, [analyzing]);
 
-  // analyzeFile runs a recording through the same pipeline as a captured
-  // chunk, so generated or downloaded audio can test detection without a
-  // microphone.
+  // A recording goes through the same pipeline, so detection can be tried
+  // without a microphone.
   const analyzeFile = useCallback(async (file: File) => {
     if (analyzing) return;
     setAnalyzing(true);
@@ -175,8 +171,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   }, [analyzing]);
 
   const approve = useCallback(async (id: string) => {
-    // Approval previews the passage through the studio, exactly like a manual
-    // preview; sending it live stays a separate operator action.
+    // Approval previews through the studio; sending it live stays a separate
+    // operator action.
     await studio.approveDetection(id);
     await refreshQueue();
   }, [studio, refreshQueue]);
@@ -190,8 +186,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     setTranscript('');
   }, []);
 
-  // Stop the microphone when the studio window goes away, so the device is
-  // not held after a reload or close.
+  // Release the microphone when the studio window goes away.
   useEffect(() => () => stopCapture(), [stopCapture]);
 
   const value = useMemo<DetectionValue>(() => ({

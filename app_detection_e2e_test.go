@@ -11,11 +11,11 @@ import (
 	"zowe-worship/internal/bible"
 )
 
-// F07 end-to-end over the real engines on disk: a spoken clip goes through the
+// End-to-end over the real engines on disk: a spoken clip goes through the
 // same pipeline the studio uses — engine spec from settings -> DetectScripture
 // -> candidate queue -> approve (preview only) / dismiss / clear — with a real
-// engine and model. Each case is skipped when its binaries or the fixture are
-// absent, so the suite still runs on a bare checkout.
+// engine and model. Cases skip when their binaries or the fixture are absent,
+// so the suite still runs on a bare checkout.
 func TestDetectionEndToEndWithRealEngines(t *testing.T) {
 	root, err := os.Getwd()
 	if err != nil {

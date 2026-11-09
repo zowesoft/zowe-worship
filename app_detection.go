@@ -23,9 +23,7 @@ const detectionAudioRate = 16000
 // into a decode loop that pins the CPU and starves small machines of memory.
 const maxDetectionAudioBytes = 30 * detectionAudioRate * 2
 
-// DetectionView is one candidate in the approval queue. The reference fields
-// mirror ScriptureRequest so the frontend can preview the passage without a
-// second lookup.
+// DetectionView is one candidate in the approval queue.
 type DetectionView struct {
 	ID         string `json:"id"`
 	Transcript string `json:"transcript"`
@@ -37,42 +35,31 @@ type DetectionView struct {
 	CreatedAt  string `json:"createdAt"`
 }
 
-// DetectionResult answers one analyze request: what was heard and what the
-// detector made of it. The transcript is returned even when nothing was
-// detected, so the panel can show why the queue stayed empty.
+// DetectionResult returns the transcript even when nothing was detected, so
+// the panel can show why the queue stayed empty.
 type DetectionResult struct {
 	Transcript string          `json:"transcript"`
 	Candidates []DetectionView `json:"candidates"`
 }
 
-// detectionProgressEvent streams the transcript to the studio while the
-// engine is still running, so the operator reads along instead of waiting for
-// the whole chunk to finish.
 const detectionProgressEvent = "detection:progress"
 
-// detectionConfigEvent tells the studio its Live Detection settings changed.
-// The engine and the emergency switch are set in the Settings window, which is
-// a different webview; without this the studio panel keeps showing "No engine"
-// or a stale disabled state until the app is restarted.
+// detectionConfigEvent exists because engine and switch settings live in a
+// different webview; without it the studio panel stays stale until restart.
 const detectionConfigEvent = "detection:config"
 
-// DetectionProgressView is one streaming update: the transcript so far and
-// the queue as it now stands.
 type DetectionProgressView struct {
 	Transcript string          `json:"transcript"`
 	Candidates []DetectionView `json:"candidates"`
 }
 
-// DetectionConfigView is the Live Detection settings card: which engine
-// transcribes and whether the emergency switch is on.
 type DetectionConfigView struct {
 	EngineSpec string `json:"engineSpec"`
 	Disabled   bool   `json:"disabled"`
 }
 
-// DetectScripture transcribes one chunk of captured audio and queues every
-// reference the detector finds. Nothing is projected here: the operator
-// approves a candidate first, per the PRD.
+// DetectScripture queues what the detector finds; nothing is projected until
+// the operator approves a candidate.
 func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	if a.detection == nil || a.settings == nil {
 		return DetectionResult{}, errStorageUnavailable
@@ -92,9 +79,7 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 		return DetectionResult{}, err
 	}
 
-	// The engine works file-based, so the chunk becomes a temporary WAV. The
-	// frontend already delivers 16 kHz mono 16-bit PCM, which is exactly what
-	// the WAV wrapper stores.
+	// The engine reads files, not buffers.
 	dir, err := os.MkdirTemp("", "zowe-detect-")
 	if err != nil {
 		return DetectionResult{}, fmt.Errorf("prepare audio temp dir: %w", err)
@@ -127,9 +112,8 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	}, nil
 }
 
-// streamDetectionProgress runs on every transcript segment the engine emits.
-// Growing hearings of the same passage replace their pending candidate, and
-// the studio receives the transcript so far plus the refreshed queue.
+// streamDetectionProgress merges each segment so a growing hearing replaces its
+// pending candidate, and forwards the partial transcript to the studio.
 func (a *App) streamDetectionProgress(partial string) {
 	if a.detection == nil {
 		return
@@ -150,7 +134,6 @@ func (a *App) streamDetectionProgress(partial string) {
 	}
 }
 
-// ListDetections returns the candidates waiting for a decision.
 func (a *App) ListDetections() ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
@@ -158,9 +141,7 @@ func (a *App) ListDetections() ([]DetectionView, error) {
 	return toDetectionViews(a.detection.List()), nil
 }
 
-// ApproveDetection previews the candidate's passage in the default
-// translation. Per the PRD the operator still sends it live by hand, so
-// approval alone never changes what the audience sees.
+// ApproveDetection previews only; it never changes what the audience sees.
 func (a *App) ApproveDetection(id string) (PresentationView, error) {
 	if a.detection == nil || a.settings == nil {
 		return PresentationView{}, errStorageUnavailable
@@ -179,7 +160,6 @@ func (a *App) ApproveDetection(id string) (PresentationView, error) {
 		a.oneVersePerSlide(ctx)))
 }
 
-// DismissDetection drops one candidate and returns the queue that remains.
 func (a *App) DismissDetection(id string) ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
@@ -190,8 +170,6 @@ func (a *App) DismissDetection(id string) ([]DetectionView, error) {
 	return toDetectionViews(a.detection.List()), nil
 }
 
-// ClearDetections empties the queue and returns the empty list, so the
-// frontend can adopt the result directly.
 func (a *App) ClearDetections() ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
@@ -202,15 +180,13 @@ func (a *App) ClearDetections() ([]DetectionView, error) {
 	return []DetectionView{}, nil
 }
 
-// EngineOption is one speech engine discovered on this computer, ready to be
-// selected in Settings without typing a path.
+// EngineOption is one engine found on this computer, ready to select without
+// typing a path.
 type EngineOption struct {
 	Label string `json:"label"`
 	Spec  string `json:"spec"`
 }
 
-// ListDetectionEngines scans the usual engine locations and returns every
-// engine/model pair found there.
 func (a *App) ListDetectionEngines() ([]EngineOption, error) {
 	cwd, _ := os.Getwd()
 	exe, _ := os.Executable()
@@ -227,10 +203,8 @@ func (a *App) ListDetectionEngines() ([]EngineOption, error) {
 	return options, nil
 }
 
-// detectionEngineRoots lists where an engine may sit, in the order they are
-// scanned. Kept separate from the binding so the layout — which is what the
-// installer and the downloader must agree on — can be tested without a real
-// installation.
+// detectionEngineRoots is in scan order. It lives outside the binding so the
+// installer, downloader and detector can be tested against one layout.
 //
 //   - <cwd>/benchmarks: the repository's fetched toolchain during development.
 //   - <exe dir>/benchmarks: a dev build run from the repo root.
@@ -254,7 +228,6 @@ func detectionEngineRoots(cwd, exe, dataRoot string) []string {
 	return roots
 }
 
-// GetDetectionConfig reads the Live Detection settings card.
 func (a *App) GetDetectionConfig() (DetectionConfigView, error) {
 	if a.settings == nil {
 		return DetectionConfigView{}, errStorageUnavailable
@@ -266,8 +239,8 @@ func (a *App) GetDetectionConfig() (DetectionConfigView, error) {
 	}, nil
 }
 
-// SetDetectionEngine stores the engine spec after parsing it, so a typo is
-// rejected here instead of failing mid-service.
+// SetDetectionEngine parses before storing, so a typo fails at save rather than
+// mid-service.
 func (a *App) SetDetectionEngine(spec string) error {
 	if a.settings == nil {
 		return errStorageUnavailable
@@ -282,8 +255,7 @@ func (a *App) SetDetectionEngine(spec string) error {
 	return nil
 }
 
-// SetDetectionDisabled writes the F12 emergency switch. It only stops new
-// detections; the audience display is left exactly as it is.
+// SetDetectionDisabled stops new detections only; the display is left as it is.
 func (a *App) SetDetectionDisabled(disabled bool) error {
 	if a.settings == nil {
 		return errStorageUnavailable
@@ -299,8 +271,8 @@ func (a *App) SetDetectionDisabled(disabled bool) error {
 	return nil
 }
 
-// notifyDetectionConfig nudges the studio to re-read its Live Detection
-// settings. Best-effort: a missing window just means nobody is listening.
+// notifyDetectionConfig is best-effort: a missing window means nobody is
+// listening.
 func (a *App) notifyDetectionConfig() {
 	desktop := application.Get()
 	if desktop == nil {

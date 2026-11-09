@@ -7,11 +7,8 @@ type DropdownState = {
   close: () => void;
 };
 
-// The menus that hang off a control - the service switcher, the display picker,
-// the theme size field - all need the same thing: a trigger that opens a
-// floating panel, and a click anywhere outside that panel to close it again.
-// The trigger and the panel are both handed the open state so a caller can draw
-// its own chevron rotation and close the menu when an option is picked.
+// Both halves get the open state, so a caller can draw its own chevron and close
+// the menu when an option is picked.
 export function Dropdown({ trigger, menu, align = 'left', offset = 12, role = 'menu', wrapperClassName = 'relative', panelClassName = '' }: {
   trigger: (state: DropdownState) => ReactNode;
   menu: (state: DropdownState) => ReactNode;

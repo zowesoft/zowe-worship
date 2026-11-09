@@ -3,16 +3,11 @@ import type { CSSProperties, Ref } from 'react';
 import type { Theme } from '../../bindings/zowe-worship/internal/themes/models';
 import { BackgroundKind, TextCase } from '../../bindings/zowe-worship/internal/themes/models';
 
-// How far a slide may shrink before we accept that it will not fit. A theme's
-// text size is a ceiling: a single verse wants to fill the wall, but a long
-// passage at that size runs off the slide, so we step the size down until the
-// words fit. Below this the words stop being readable across a room, so we leave
-// them at the floor rather than shrinking to nothing.
+// Below this the words stop being readable across a room.
 const minScale = 0.3;
 
-// The readable look the app falls back to, matching themes.DefaultTheme on the
-// Go side. A slide built by an older build, or before any theme existed, still
-// has to be legible on the wall.
+// Mirrors themes.DefaultTheme on the Go side, for slides written by an older
+// build or before any theme existed.
 const fallback = {
   fontFamily: 'Georgia, "Times New Roman", serif',
   fontSize: 4.6,
@@ -37,9 +32,8 @@ function caseVars(value: TextCase | undefined): { transform: string; variant: st
   }
 }
 
-// A theme stores a picture by media id, so each surface supplies the address it
-// can actually load. The colour sits under the picture so a deleted file shows a
-// plain background rather than a broken image icon.
+// The colour sits under the picture so a deleted file shows a plain background
+// rather than a broken image icon.
 function backgroundOf(theme: Theme | undefined, urlFor?: (mediaID: string) => string): string {
   const color = theme?.background.color || '#081A2E';
   const background = theme?.background;
@@ -61,8 +55,8 @@ export function themeVars(theme: Theme | undefined, urlFor?: (mediaID: string) =
   const bodySize = theme?.style.fontSize || fallback.fontSize;
   const reference = theme?.reference;
 
-  // Anything the reference leaves unset follows the slide text, resolved here so
-  // the stylesheet never has to guess which properties were meant to inherit.
+  // Unset reference properties follow the slide text, resolved here so the
+  // stylesheet never has to guess which properties were meant to inherit.
   return {
     '--ff': theme?.style.fontFamily || fallback.fontFamily,
     '--fs': `${bodySize}cqh`,
@@ -88,19 +82,15 @@ export function themeVars(theme: Theme | undefined, urlFor?: (mediaID: string) =
 }
 
 // fitScale finds the largest fraction of the theme's text size at which the
-// whole passage still fits inside the slide body, measured on the real box so
-// every surface that draws the slide lands on the same answer. It writes the
-// result to --fit on the stage, the node every length in the slide is measured
-// against, so the text size, the gap and the reference all shrink together.
+// passage still fits, writing it to --fit on the stage every length is measured
+// against so the text, gap and reference shrink together.
 function fitScale(stage: HTMLElement, element: HTMLElement, box: HTMLElement): number {
   const setScale = (scale: number) => stage.style.setProperty('--fit', String(scale));
 
-  // Start at the theme's own size. A passage that fits is drawn full size.
   for (let scale = 1; scale >= minScale - 1e-6; scale -= 0.05) {
     setScale(scale);
     if (element.scrollHeight <= box.clientHeight + 1) return scale;
   }
-  // Nothing fit, so take the smallest readable size we allow.
   setScale(minScale);
   return minScale;
 }
@@ -114,13 +104,12 @@ type ThemedSlideProps = {
   linesRef?: Ref<HTMLParagraphElement>;
   urlFor?: (mediaID: string) => string;
   className?: string;
-  // Reports the scale the words were drawn at, so a caller that wants to explain
-  // auto-sizing (the editor) can tell when a passage was shrunk to fit.
+  // Reports the drawn scale so the editor can tell when a passage was shrunk.
   onFit?: (scale: number) => void;
 };
 
-// The reference label shares one look wherever it is placed; only its row in
-// the slide's grid differs between the top and bottom placements.
+// The reference label shares one look wherever it is placed; only its grid row
+// differs between the top and bottom placements.
 const refClasses = 'm-0 [font-family:var(--rff)] [font-size:calc(var(--rfs)*var(--fit,1))] [color:var(--rfg)] [text-align:var(--rta)] [text-transform:var(--rtransform)] [font-variant:var(--rvariant)] [font-weight:var(--rweight)] [font-style:var(--rslant)] [text-shadow:var(--lift)]';
 
 export function ThemedSlide({ theme, lines, reference, linesRef, urlFor, className, onFit }: ThemedSlideProps) {
@@ -129,9 +118,8 @@ export function ThemedSlide({ theme, lines, reference, linesRef, urlFor, classNa
   const ownLines = useRef<HTMLParagraphElement>(null);
   const linesNode = linesRef ?? ownLines;
 
-  // Re-fit whenever the words, the reference or the theme change. The theme text
-  // size is the ceiling the fit shrinks from, so a bigger theme still gives a
-  // bigger slide until the words stop fitting.
+  // Re-fit whenever the words, reference or theme change; the theme's size is
+  // the ceiling the fit shrinks from.
   const fitKey = `${lines.join('\n')}\u0000${reference}\u0000${JSON.stringify(theme?.style ?? null)}\u0000${JSON.stringify(theme?.reference ?? null)}`;
 
   useLayoutEffect(() => {
@@ -140,19 +128,15 @@ export function ThemedSlide({ theme, lines, reference, linesRef, urlFor, classNa
     const box = element?.parentElement;
     if (!stage || !element || !box) return;
 
-    // The fit itself must always run; only the report back to the caller is
-    // optional, so the studio panes and the audience display fit themselves
-    // even though nothing is listening for the scale.
+    // The fit always runs; only the report back to the caller is optional.
     const apply = () => {
       const scale = fitScale(stage, element, box);
       onFit?.(scale);
     };
     apply();
 
-    // A resize can change the shape of the box, and the audience display follows
-    // whatever monitor it is on, so refit when the stage changes size. The stage
-    // is sized by its container, never by the words, so the fit cannot re-trigger
-    // the observer and loop.
+    // The stage is sized by its container, never by the words, so the fit cannot
+    // re-trigger the observer and loop.
     const observer = new ResizeObserver(apply);
     observer.observe(stage);
     return () => observer.disconnect();

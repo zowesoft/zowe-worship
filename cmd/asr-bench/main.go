@@ -1,17 +1,15 @@
-// Command asr-bench runs the spoken-reference benchmark: it transcribes a
-// set of sermon clips through one or more pluggable ASR engine sidecars,
-// feeds each transcript through the detector (internal/asr), and scores how
-// many spoken references survived — plus word error rate when a gold
-// transcript is provided for the clip.
+// Command asr-bench transcribes benchmark clips through one or more ASR engine
+// sidecars, runs each transcript through the detector, and scores reference
+// recall plus word error rate where gold text is available.
 //
 // Usage:
 //
 //	go run ./cmd/asr-bench -set benchmarks/sermon-set ^
 //	  -engine whisper-cli=bin\whisper-cli.exe -m models\ggml-small.en.bin -np -f {audio}
 //
-// With no -engine flags the manifest's gold transcripts (or .txt files beside
-// the clips) run through the detector alone, isolating detector behavior from
-// engine behavior. See benchmarks/README.md.
+// With no -engine flags the gold transcripts (or .txt files beside the clips)
+// run through the detector alone, isolating the detector from engine behavior.
+// See benchmarks/README.md.
 package main
 
 import (
@@ -139,8 +137,8 @@ func main() {
 	}
 }
 
-// setPath is the root directory of the active benchmark set; a single
-// process run examines one set at a time.
+// setPath is the directory of the active benchmark set; one process examines
+// one set at a time.
 var setPath string
 
 func readManifest(path string) (manifest, error) {
@@ -157,8 +155,6 @@ func readManifest(path string) (manifest, error) {
 	return m, nil
 }
 
-// transcribeClips drives the engine over every clip, converting audio to
-// 16 kHz mono first where the recording needs it.
 func transcribeClips(engine asr.Engine, set manifest, workDir, dump string) ([]string, []error, int64) {
 	texts := make([]string, len(set.Clips))
 	errs := make([]error, len(set.Clips))
@@ -193,8 +189,7 @@ func transcribeClips(engine asr.Engine, set manifest, workDir, dump string) ([]s
 	return texts, errs, elapsed
 }
 
-// detectorOnlyTranscripts resolves transcript text for clips when no engine
-// is configured: gold manifest text wins, else a sibling .txt file.
+// detectorOnlyTranscripts prefers gold manifest text, then a sibling .txt file.
 func detectorOnlyTranscripts(set manifest) ([]string, []error) {
 	texts := make([]string, len(set.Clips))
 	errs := make([]error, len(set.Clips))
@@ -229,7 +224,6 @@ func clipName(clip benchClip, index int) string {
 	return fmt.Sprintf("clip-%02d", index)
 }
 
-// goldRefs stores parsed gold references per clip index.
 type goldRefs = [][]scripture.Reference
 
 func parseGold(clips []benchClip) goldRefs {

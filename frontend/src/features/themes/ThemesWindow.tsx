@@ -27,8 +27,7 @@ const references = [
   { value: 'bottom', label: 'Bottom' },
 ];
 
-// The lettering options, spelled the way they will look on the screen so the
-// button previews its own result.
+// Each option is spelled the way it will look, so the button previews itself.
 const cases: { value: TextCase; label: string }[] = [
   { value: TextCase.CaseAsWritten, label: 'As written' },
   { value: TextCase.CaseCapitalized, label: 'Capitalize' },
@@ -37,8 +36,8 @@ const cases: { value: TextCase; label: string }[] = [
   { value: TextCase.CaseSmallCaps, label: 'Small caps' },
 ];
 
-// The words a theme is judged on. The long form is what the overflow warning
-// measures, because a theme that fits one verse is no use for a whole chapter.
+// The overflow warning measures the long form, because a theme that fits one
+// verse is no use for a whole chapter.
 const samples: Record<string, { lines: string[]; reference: string }> = {
   scripture: {
     lines: [
@@ -76,8 +75,6 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
-// The editor's fields, labels, inputs and chips all dress the same way, so the
-// shared strings keep the JSX below readable.
 const field = 'grid gap-[5px]';
 const fieldLabel = 'flex justify-between gap-2 text-secondary text-[9.5px] tracking-[1px] uppercase';
 const fieldInput = 'min-w-0 h-[30px] px-2 border border-[#35445C] rounded-md bg-app text-text text-[11.5px]';
@@ -137,9 +134,8 @@ function Slider({ label, value, min, max, step, unit, display, onPick }: {
   );
 }
 
-// A typed size box with a dropdown of the sizes an operator reaches for most,
-// the way a word processor offers a ramp of points next to a writable field. A
-// size the presets do not cover can still be typed straight in.
+// A writable size box with a dropdown of common sizes, like a word processor; a
+// size the presets miss can still be typed.
 function SizePicker({ label, value, min, max, step, presets, onPick }: {
   label: string;
   value: number;
@@ -151,12 +147,12 @@ function SizePicker({ label, value, min, max, step, presets, onPick }: {
 }) {
   const [text, setText] = useState(String(value));
 
-  // The field is writable, so its text has to follow the value when the value
-  // changes from elsewhere - picking a preset, or switching theme.
+  // The field is writable, so its text must follow a value changed elsewhere:
+  // a preset click, or switching theme.
   useEffect(() => { setText(String(value)); }, [value]);
 
-  // Clamp to the range and round to the step so a typed value lands on the same
-  // grid a drag would have chosen, then commit it.
+  // Clamp and round to the step, so a typed value lands on the same grid a drag
+  // would have chosen.
   function commit(raw: string) {
     const parsed = Number(raw);
     if (raw.trim() === '' || Number.isNaN(parsed)) { setText(String(value)); return; }
@@ -266,10 +262,9 @@ export function ThemesWindow() {
 
   const sample = samples[draft?.kind ?? 'scripture'] ?? samples.scripture;
 
-  // A slide shrinks its own text until the words fit, so the sample on screen is
-  // already the readable answer for the longest passage the theme will be given.
-  // The editor reports how far it had to shrink so an operator can see when their
-  // chosen size is being pulled back for a long passage.
+  // A slide shrinks its text until the words fit, so the editor reports how far
+  // it shrank: an operator can see a chosen size being pulled back for a long
+  // passage.
   const shrunk = fitted < 0.98;
 
   function patch(change: Partial<Theme>) {
@@ -320,9 +315,8 @@ export function ThemesWindow() {
     setDraft(await App.NewTheme(kind));
   }
 
-  // Duplicate, delete and "make default" all come back as the whole list, so one
-  // helper refreshes the rows and keeps the editor pointed at a theme that still
-  // exists.
+  // Every mutation returns the whole list, so one helper refreshes the rows and
+  // keeps the editor pointed at a theme that still exists.
   async function run(action: () => Promise<Theme[] | null>, message: string) {
     setBusy(true);
     setProblem(null);
@@ -351,8 +345,8 @@ export function ThemesWindow() {
     items: themes.filter((theme) => theme.kind === kind.value),
   }));
 
-  // The preview draws through the same component the studio and the projector
-  // use, so a theme cannot look right in the editor and wrong on the wall.
+  // The preview draws through the same component the studio and projector use, so
+  // a theme cannot look right here and wrong on the wall.
   const pictureURL = (mediaID: string) => images.find((image) => image.id === mediaID)?.url ?? '';
 
   return (
@@ -557,8 +551,8 @@ export function ThemesWindow() {
                     min={0}
                     max={8}
                     step={0.2}
-                    // Zero is not a size - it is the "follow the slide text" choice,
-                    // so it sits at the top of the ramp where an operator looks first.
+                    // Zero is the "follow the slide text" choice, so it sits where
+                    // an operator looks first.
                     presets={[0, 2, 3, 4, 5, 6, 7, 8]}
                     onPick={(value) => patchReference({ fontSize: value })}
                   />

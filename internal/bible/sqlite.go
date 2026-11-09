@@ -326,7 +326,6 @@ func (r *SQLiteRepository) runSearch(
 	return scanSearchResultsWithSnippet(rows)
 }
 
-// Passage returns a chapter, or a verse range inside it, in verse order.
 func (r *SQLiteRepository) Passage(
 	ctx context.Context, translationID string, bookID, chapter, startVerse, endVerse int,
 ) ([]SearchResult, error) {

@@ -13,22 +13,16 @@ import (
 	"unicode"
 )
 
-// Engine converts one audio file into transcript text. Implementations back
-// the pluggable ASR adapter: whisper.cpp, Parakeet via sherpa-onnx, Moonshine
-// builds, or any process that prints a transcript to stdout.
 type Engine interface {
 	Name() string
 	Transcribe(path string) (string, error)
 }
 
-// DefaultTranscribeTimeout bounds one clip of a live service length; infers
-// from a generously sized church recording.
+// DefaultTranscribeTimeout is sized for a full live church-service recording.
 const DefaultTranscribeTimeout = 30 * time.Minute
 
-// ExecutableEngine runs a sidecar command-line transcriber. Placeholders in
-// Args are substituted per clip: "{audio}" becomes the prepared 16 kHz mono
-// WAV path. This keeps engines decoupled from Go builds — the same adapter
-// drives whisper-cli today and a Moonshine or Parakeet ONNX binary later.
+// ExecutableEngine runs a sidecar transcriber; "{audio}" in Args is replaced
+// per clip with the prepared 16 kHz mono WAV path.
 type ExecutableEngine struct {
 	name    string
 	bin     string
@@ -36,7 +30,7 @@ type ExecutableEngine struct {
 	timeout time.Duration
 }
 
-// ParseEngineSpec builds an ExecutableEngine from a spec string such as
+// ParseEngineSpec parses a spec such as
 //
 //	whisper-cli="C:\tools\whisper-cli.exe" -m "%MODELS%\ggml-small.en.bin" -np -f {audio}
 //
@@ -67,10 +61,8 @@ func ParseEngineSpec(spec string) (*ExecutableEngine, error) {
 		name = strings.TrimSuffix(filepath.Base(bin), filepath.Ext(bin))
 	}
 
-	// Membership in the filesystem is deliberately NOT validated here: specs
-	// may reference PATH-resolved executables and the engine may be fetched
-	// after the spec was written. exec.Command reports a clear error when the
-	// binary is absent.
+	// The binary path is deliberately not validated here: specs may reference
+	// PATH-resolved or not-yet-fetched executables; exec.Command reports absence.
 
 	return &ExecutableEngine{
 		name:    name,
@@ -109,18 +101,12 @@ func splitSpec(spec string) ([]string, error) {
 
 func (e *ExecutableEngine) Name() string { return e.name }
 
-// Transcribe runs the sidecar process and returns its stdout, cleaned of
-// engine log noise. Failures include the stderr tail to speed up debugging
-// engine downloads and flags.
 func (e *ExecutableEngine) Transcribe(path string) (string, error) {
 	return e.TranscribeStream(path, nil)
 }
 
-// TranscribeStream runs the sidecar and reports the transcript as it grows.
-// whisper.cpp prints one stamped segment at a time, so onPartial fires while
-// the engine is still working and the operator can read along; engines that
-// only speak at the end (sherpa-onnx offline) never call it mid-run. The
-// returned transcript is the same cleaned text Transcribe returns.
+// TranscribeStream fires onPartial as stamped segments arrive (whisper.cpp);
+// engines that only speak at the end (sherpa-onnx offline) never call it mid-run.
 func (e *ExecutableEngine) TranscribeStream(path string, onPartial func(partial string)) (string, error) {
 	args := make([]string, 0, len(e.args))
 	for _, arg := range e.args {
@@ -168,10 +154,8 @@ func (e *ExecutableEngine) TranscribeStream(path string, onPartial func(partial 
 	return CleanTranscript(stdout.String()), nil
 }
 
-// segmentText extracts the spoken words from one whisper.cpp segment line,
-// reporting false for log noise, blank lines, and engines whose output only
-// arrives at the end. Only stamped segments stream: everything else is
-// unreliable to read mid-run.
+// segmentText accepts only stamped whisper.cpp segments; log noise and
+// end-of-run output are unreliable to stream mid-run.
 func segmentText(line string) (string, bool) {
 	trimmed := strings.TrimSpace(line)
 	loc := segmentStamp.FindStringIndex(trimmed)
@@ -193,20 +177,16 @@ func stderrTail(text string) string {
 }
 
 var (
-	// sherpa-onnx-offline prints a result line like
-	//   result: {"text": "...", "tokens": [...], "timestamps": [...]}
-	// in recent versions. Extracting the text keeps every sherpa model family
-	// (Moonshine, Parakeet TDT, Whisper) on the same clean path.
+	// sherpa-onnx-offline prints result: {"text": "...", ...}; extracting text
+	// keeps every sherpa family (Moonshine, Parakeet TDT, Whisper) on one path.
 	sherpaResultText = regexp.MustCompile(`"text"\s*:\s*"((?:\\.|[^"\\])*)"`)
 
 	// whisper.cpp stamps each segment: [00:00:00.000 --> 00:00:07.000] text.
 	segmentStamp = regexp.MustCompile(`\[\d{1,2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{1,2}:\d{2}:\d{2}\.\d{3}\]\s*`)
-	// Engine log prefixes that occasionally land on stdout (older builds,
-	// verbose flags). Anything else stays in the transcript.
+	// Engine log prefixes that leak onto stdout (older builds, verbose flags).
 	noiseLine = regexp.MustCompile(`(?m)^\s*(whisper_|ggml_|main\s*:|system_info|load_|print_|wav |sherpa|#)\S*.*$`)
 )
 
-// CleanTranscript normalizes engine stdout into flowing text.
 func CleanTranscript(raw string) string {
 	// sherpa-onnx JSON result line(s) beat plain text extraction.
 	if matches := sherpaResultText.FindAllStringSubmatch(raw, -1); len(matches) > 0 {
@@ -231,8 +211,6 @@ func CleanTranscript(raw string) string {
 	return strings.Join(kept, " ")
 }
 
-// unescapeJSONString resolves the escapes sherpa-onnx emits inside its result
-// JSON (\\, \", \n, \uXXXX basic cases).
 func unescapeJSONString(value string) string {
 	replacements := [][2]string{
 		{`\n`, "\n"}, {`\t`, "\t"},

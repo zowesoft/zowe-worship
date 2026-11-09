@@ -6,10 +6,8 @@ import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
 
-// ─── styles ──────────────────────────────────────────────────────────────────
 
-// Shared with the Songs screen, which reuses the same row/action look. Kept as
-// constants because the string repeats on every row; everything else is inline.
+// The Songs screen reuses this row/action look; everything else stays inline.
 const ROW_ACTION =
   'inline-flex items-center gap-[5px] px-[7px] py-1.5 border border-transparent ' +
   'rounded-[5px] bg-transparent text-secondary text-[10px] whitespace-nowrap ' +
@@ -38,7 +36,6 @@ const BADGE =
   'inline-flex justify-center px-1 py-px border border-border rounded-[4px] ' +
   'text-secondary text-[9px] tracking-[0.4px]';
 
-// ─── constants ───────────────────────────────────────────────────────────────
 
 const modes = [
   { value: 'auto', label: 'References + text' },
@@ -59,7 +56,6 @@ const PAGE_SIZE = 50;
 const BROWSE_INPUT_HINT =
   'Browse takes references from book names only, like John 3:16. Use search mode for words.';
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -87,16 +83,12 @@ function SnippetText({ snippet, text, selected }: { snippet?: string; text: stri
   return <span className={cls}>{text}</span>;
 }
 
-// ─── types ───────────────────────────────────────────────────────────────────
 
 type SearchState =
   | { kind: 'idle' }
   | { kind: 'error'; message: string }
   | { kind: 'results'; results: models.BibleVerse[]; hasMore: boolean };
 
-// A chapter block is one chapter's verses. Reading straight through the Bible
-// means several blocks stacked in order, so the list grows downward instead of
-// swapping the chapter out from under the operator's scroll wheel.
 type ChapterBlock = { bookId: number; chapter: number; results: models.BibleVerse[] };
 
 type BrowseState =
@@ -105,8 +97,6 @@ type BrowseState =
   | { kind: 'error'; message: string }
   | { kind: 'results'; chapters: ChapterBlock[]; bookId: number; chapter: number };
 
-// The selection an action operates on: a single verse, or the range a
-// reference search or browse jump named ("Job 29:15-20" selects 15-20).
 type Selection = { bookId: number; chapter: number; start: number; end: number };
 
 type ActionState = {
@@ -114,13 +104,11 @@ type ActionState = {
   status: { kind: 'message' | 'error'; text: string } | null;
 };
 
-// ─── component ───────────────────────────────────────────────────────────────
 
 export function BibleWorkspace() {
   const studio = useStudio();
   const bridgeAvailable = studio.bridgeAvailable;
 
-  // — translations ——————————————————————————————————————————————
   const [translations, setTranslations] = useState<models.TranslationView[]>([]);
   const [translationId, setTranslationId] = useState('');
   const [translationError, setTranslationError] = useState<string | null>(
@@ -128,13 +116,10 @@ export function BibleWorkspace() {
   );
   const [loadingTranslations, setLoadingTranslations] = useState(bridgeAvailable);
 
-  // — books (for filter dropdowns and browse) ———————————————————
   const [books, setBooks] = useState<models.BibleBookView[]>([]);
 
-  // — tabs ——————————————————————————————————————————————————————
   const [activeTab, setActiveTab] = useState<ActiveTab>('browse');
 
-  // — search state ——————————————————————————————————————————————
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('auto');
   const [testament, setTestament] = useState('');   // '' | 'old' | 'new'
@@ -143,14 +128,11 @@ export function BibleWorkspace() {
   const [pending, setPending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
-  // The selection an action operates on: one verse, or the range the search or
-  // jump named. Rows inside it highlight together and act together.
   const [selection, setSelection] = useState<Selection | null>(null);
   const [action, setAction] = useState<ActionState>({ busy: null, status: null });
 
-  // — guided reference entry ————————————————————————————————————
-  // Whether the field has focus; the inline book-name ghost only shows while
-  // focused and while the operator is still typing the book portion in "auto".
+  // The inline book-name ghost only shows while focused and still typing the
+  // book portion in "auto".
   const [fieldFocused, setFieldFocused] = useState(false);
 
   const requestId = useRef(0);
@@ -172,13 +154,11 @@ export function BibleWorkspace() {
   // never let a stale response overwrite the pane the operator moved to next.
   const loadSeq = useRef(0);
 
-  // — browse state ——————————————————————————————————————————————
   const [browseBookId, setBrowseBookId] = useState(1);
   const [browseChapter, setBrowseChapter] = useState(1);
   const [browseState, setBrowseState] = useState<BrowseState>({ kind: 'idle' });
   const [browseMore, setBrowseMore] = useState(false);
 
-  // ─── load translations + books on mount ──────────────────────────────────
 
   useEffect(() => {
     if (!bridgeAvailable) return;
@@ -212,28 +192,21 @@ export function BibleWorkspace() {
     };
   }, [bridgeAvailable]);
 
-  // ─── derived ─────────────────────────────────────────────────────────────
-
   const activeTranslation = translations.find((t) => t.id === translationId);
   const trimmedQuery = query.trim();
   const canSearch =
     bridgeAvailable && translationId !== '' && trimmedQuery.length >= MIN_QUERY_LENGTH;
   const canAct = bridgeAvailable && translationId !== '' && action.busy === null;
-  // Going live must not wait for an in-flight action to settle: the first click
-  // of a double-click starts a preview (which sets busy), and Enter can arrive
-  // while a previous send is still resolving. Only the bridge gate applies.
+  // Going live must not wait on an in-flight action: the first click of a
+  // double-click sets busy, and Enter can arrive mid-send. Only the bridge gates.
   const canGoLive = bridgeAvailable && translationId !== '';
 
-  // Books filtered by current testament selection (for "All Books" dropdown)
   const filteredBooks =
     testament === '' ? books : books.filter((b) => b.testament === testament);
 
-  // — guided reference entry ————————————————————————————————————————————————
-  // The operator is still naming a book while the text after the book portion
-  // holds no chapter digit or colon and the mode resolves references ("auto").
-  // Keying off the chapter position, not "any digit", keeps a leading book
-  // number like the "1" in "1 John" in the book stage. Once a whole book name is
-  // committed there is nothing left to complete.
+  // The operator is still naming a book while the text after it holds no
+  // chapter digit or colon. Keying off the chapter position, not "any digit",
+  // keeps the "1" in "1 John" in the book stage.
   const bookText = bookPortion(query);
   const bookCommitted = Boolean(resolveBook(query, books)) && /\s$/.test(query);
   const inBookStage =
@@ -242,9 +215,8 @@ export function BibleWorkspace() {
     !bookCommitted &&
     !/[0-9:]/.test(query.slice(bookText.length));
 
-  // The one book the typed prefix completes to, and the remainder to ghost after
-  // the caret. Only while focused and still in the book stage, and only when a
-  // remainder is actually left to show.
+  // The book the typed prefix completes to, and the remainder to ghost after the
+  // caret while in the book stage.
   const completion = useMemo(
     () => (inBookStage ? inlineBookCompletion(query, books) : undefined),
     [inBookStage, query, books],
@@ -273,10 +245,8 @@ export function BibleWorkspace() {
     const caretAtEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
 
     // Accept the ghosted book name. Tab and Enter always accept; Right and End
-    // accept only when the caret already sits at the end, so ordinary caret
-    // movement through the typed text still behaves normally. Enter accepting
-    // here also keeps a half-typed book from sending its partial query's top
-    // hit live before the operator has finished the reference.
+    // only when the caret is at the end, so caret movement stays normal. Enter
+    // accepting here also stops a half-typed book sending its partial query live.
     if (completion && completion.remainder !== '') {
       const accepts =
         event.key === 'Tab' ||
@@ -333,10 +303,8 @@ export function BibleWorkspace() {
       void perform('live', highlighted ?? search.results[0]);
       return;
     }
-    // Otherwise let the form submit and run the search.
   }
 
-  // ─── search helpers ───────────────────────────────────────────────────────
 
   function cancelDebounce() {
     if (debounceRef.current !== null) {
@@ -414,7 +382,6 @@ export function BibleWorkspace() {
     [mode, testament, bookFilter],
   );
 
-  // Debounced search trigger
   useEffect(() => {
     if (!bridgeAvailable || translationId === '') return;
     if (skipQuerySync.current) {
@@ -504,17 +471,14 @@ export function BibleWorkspace() {
     setPending(false);
     setQuery('');
     setSearch({ kind: 'idle' });
-    // The empty-query branch of the search effect restores the reading
-    // position (browseReturn), so clearing and backspacing behave the same.
     setSelection(null);
     setOffset(0);
-    // Clearing the search returns to reading: the pane goes back to where the
+    // The empty-query branch of the search effect puts the pane back where the
     // operator had been browsing.
     setActiveTab('browse');
     inputRef.current?.focus();
   }
 
-  // ─── action handler ───────────────────────────────────────────────────────
 
   // The address an action on this row operates on: inside the selection the
   // whole range (Job 29:15-20 sends all six verses to the schedule), outside
@@ -582,15 +546,9 @@ export function BibleWorkspace() {
     }
   }
 
-  // ─── browse ───────────────────────────────────────────────────────────────
 
-  // Browse moves by reference only: the typed text resolves to a book and
-  // chapter and the reading pane goes there. Typing jumps once a chapter number
-  // appears; Enter also accepts a bare book name as its first chapter. A named
-  // verse becomes the selected row, centred in the pane. The position before the
-  // move is recorded so clearing the field returns there (Genesis on a fresh
-  // workspace). Text naming no reference returns null, so keywords never run
-  // from here.
+  // The text resolves to a book and chapter, and the pane goes there. Text
+  // naming no reference returns null, so keywords never run from here.
   async function jumpToReference(
     text: string,
     options: { bookOnly: boolean },
@@ -634,12 +592,9 @@ export function BibleWorkspace() {
     return resolved;
   }
 
-  // Enter in browse: jump the pane to the reference and send it live - the
-  // same contract as Enter in search mode, which sends its top hit. Text that
-  // names no reference only gets the hint; keywords never run from here.
+  // Send whatever the pane is highlighting — a stepper or search result — not
+  // the stale text still sitting in the field.
   async function browseEnter(): Promise<void> {
-    // A highlighted verse (arrow-stepping or a search result) is what Enter
-    // sends, not the stale text still sitting in the field.
     const highlighted =
       selection === null
         ? undefined
@@ -679,8 +634,6 @@ export function BibleWorkspace() {
     }
   }
 
-  // Enter in browse fallback: say why nothing moved. Keywords belong to the
-  // search mode behind the field's toggle icon.
   function browseJumpHint() {
     return 'Browse moves by reference, like John 3:16. Use search mode for words.';
   }
@@ -716,9 +669,8 @@ export function BibleWorkspace() {
     }
   }
 
-  // nextChapter is the chapter after this one, rolling into the next book at the
-  // end. It stops at the last chapter of the last book, which is the end of the
-  // translation rather than a page that has not loaded yet.
+  // The chapter after this one, rolling into the next book; null at the end of
+  // the translation, which is not the same as a page that has not loaded yet.
   function nextChapter(bookId: number, chapter: number): { bookId: number; chapter: number } | null {
     const book = books.find((candidate) => candidate.id === bookId);
     const chapters = book?.chapters ?? 1;
@@ -749,8 +701,8 @@ export function BibleWorkspace() {
     return [];
   }
 
-  // Nudge the pane just enough to keep a row fully on screen - unlike
-  // scrollVerseToTop this preserves the operator's place when stepping by arrow.
+  // Nudge the pane just enough to keep the row on screen; unlike
+  // scrollVerseToTop this preserves the operator's place while stepping.
   function keepRowVisible(key: string) {
     const pane = paneRef.current;
     const row = pane?.querySelector(`[data-verse="${key}"]`);
@@ -820,8 +772,7 @@ export function BibleWorkspace() {
     void loadChapter(next.bookId, next.chapter, true);
   }
 
-  // The Bible tab never opens on an empty pane. Genesis 1 is what a person
-  // expects to find there, and they can scroll forward from it.
+  // The tab never opens empty: Genesis 1 is where reading starts.
   useEffect(() => {
     if (!bridgeAvailable || translationId === '') return;
     setBrowseBookId(1);
@@ -858,7 +809,6 @@ export function BibleWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, browseState]);
 
-  // ─── renderers ────────────────────────────────────────────────────────────
 
   function renderVerseRow(result: models.BibleVerse, showRef = true) {
     const target = actionTarget(result);
@@ -1024,10 +974,6 @@ export function BibleWorkspace() {
     return renderReadingPane();
   }
 
-  // The reading pane itself: chapter blocks of verses rendered top to bottom.
-  // Browse shows it directly and search falls back to it while no query is
-  // active, so the workspace opens on Genesis 1:1 instead of a poster telling
-  // the operator to type.
   function renderReadingPane() {
     if (browseState.kind === 'idle') {
       return (
@@ -1088,22 +1034,18 @@ export function BibleWorkspace() {
     return renderReadingPane();
   }
 
-  // ─── computed counts ──────────────────────────────────────────────────────
 
   const resultCount = search.kind === 'results' ? search.results.length : null;
 
-  // ─── JSX ─────────────────────────────────────────────────────────────────
 
   return (
     <section className="bg-panel border border-border rounded-[10px] grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden flex-1 min-h-0" aria-label="Bible" onKeyDown={handleWorkspaceKeyDown}>
       {/* The search area is pinned: results and chapters scroll in the pane
           beneath it, so nothing pushes the field out of reach. */}
       <div className="grid gap-2.5 px-3 pt-3 pb-2.5 content-start max-[959px]:px-2.5 max-[959px]:pt-2.5 max-[959px]:pb-2">
-        {/* ── SEARCH FIELD ROW ─────────────────────────────────────────
-            Always visible in both modes: the leading icon names the current
-            mode and toggles to the other one, and the translation selector
-            sits where a submit button would have been — typing is enough,
-            there is no button to hit. */}
+        {/* Always visible in both modes: the leading icon names the current
+            mode and toggles to the other; the translation selector sits where a
+            submit button would have been, since typing is enough. */}
         <form className="flex items-stretch gap-2.5 max-[959px]:gap-2" onSubmit={handleSubmit} role="search">
           <div className={SEARCH_FIELD}>
             <button
@@ -1111,17 +1053,14 @@ export function BibleWorkspace() {
               className="grid place-items-center w-6 h-6 shrink-0 border-0 rounded-[4px] bg-transparent text-secondary hover:bg-elevated hover:text-text"
               onClick={() => {
                 if (activeTab === 'search') {
-                  // Entering browse: a word query is not browse input, so the
-                  // field starts over for a reference. A typed reference stays
-                  // and the pane jumps to it. The debounce effect resets the
-                  // stale results once the query clears.
+                  // Entering browse drops a word query, which is not browse
+                  // input, and keeps a typed reference.
                   if (!acceptsBrowseInput(query, books)) setQuery('');
                   setActiveTab('browse');
                 } else {
                   setActiveTab('search');
                 }
-                // Hand focus straight back: the operator switches panes without
-                // leaving the field they were typing in.
+                // The operator stays in the field while switching panes.
                 inputRef.current?.focus();
               }}
               aria-label={
@@ -1135,8 +1074,8 @@ export function BibleWorkspace() {
                   : 'Browse mode — click to search the Bible'
               }
             >
-              {/* The icon names the mode you are IN, matching the placeholder
-                  and what typing does; clicking it switches to the other one. */}
+              {/* The icon names the mode you are in, matching the placeholder
+                  and what typing does. */}
               <Icon name={activeTab === 'search' ? 'search' : 'bible'} size={15} />
             </button>
             {/* The input and its ghost share this box: an invisible copy of
@@ -1150,10 +1089,8 @@ export function BibleWorkspace() {
                 value={query}
                 onChange={(event) => {
                   const next = event.target.value;
-                  // Browse refuses text that is not building toward a book
-                  // name - the suggestion only knows books, so a word query
-                  // never even reaches the field. Cutting text back is always
-                  // safe: every prefix of an acceptable input stays acceptable.
+                  // Browse only accepts text building toward a book name; cutting
+                  // back is safe because every prefix of acceptable input is too.
                   if (activeTab === 'browse' && !acceptsBrowseInput(next, books)) {
                     setAction({ busy: null, status: { kind: 'message', text: BROWSE_INPUT_HINT } });
                     return;
@@ -1218,7 +1155,6 @@ export function BibleWorkspace() {
         </form>
         {activeTab === 'search' && (
           <div className="flex items-center gap-2 flex-wrap">
-              {/* Testament filter */}
               <select
                 className={FILTER}
                 aria-label="Filter by testament"
@@ -1234,7 +1170,6 @@ export function BibleWorkspace() {
                 <option value="new">New Testament</option>
               </select>
 
-              {/* Book filter */}
               <select
                 className={FILTER}
                 aria-label="Filter by book"
@@ -1250,7 +1185,6 @@ export function BibleWorkspace() {
                 ))}
               </select>
 
-              {/* Mode filter */}
               <select
                 className={FILTER}
                 aria-label="Search mode"
@@ -1291,7 +1225,6 @@ export function BibleWorkspace() {
           </div>
         )}
 
-        {/* ── BROWSE TAB ────────────────────────────────────────────── */}
         {activeTab === 'browse' && renderBrowse()}
       </div>
     </section>

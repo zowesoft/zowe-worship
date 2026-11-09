@@ -59,7 +59,6 @@ func (r *SQLiteRepository) Add(ctx context.Context, asset Asset) error {
 	return nil
 }
 
-// SavePresentation stores the framing for one asset.
 func (r *SQLiteRepository) SavePresentation(ctx context.Context, id string, presentation Presentation) error {
 	result, err := r.db.ExecContext(ctx,
 		`UPDATE media_assets SET aspect = ?, fit = ? WHERE id = ?`,

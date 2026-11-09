@@ -38,8 +38,8 @@ func InspectBackup(ctx context.Context, path string) (int, error) {
 	return version, nil
 }
 
-// LatestMigrationVersion reports the newest schema version this build ships,
-// so a backup from a newer app is refused instead of half-restored.
+// LatestMigrationVersion is where this build's schema stops, so a backup from a
+// newer app is refused instead of half-restored.
 func LatestMigrationVersion() (int, error) {
 	migrations, err := loadMigrations()
 	if err != nil {
@@ -74,7 +74,6 @@ func ReplaceDatabase(live, replacement, keep string) error {
 	return nil
 }
 
-// RollbackDatabase undoes a failed ReplaceDatabase.
 func RollbackDatabase(live, keep string) error {
 	if err := os.Remove(live); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove the failed copy: %w", err)
@@ -94,7 +93,6 @@ func RollbackDatabase(live, keep string) error {
 	return nil
 }
 
-// DiscardDatabase deletes the kept files of a verified restore.
 func DiscardDatabase(keep string) {
 	_ = os.Remove(keep)
 	_ = unsidecars(keep)

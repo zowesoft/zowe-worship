@@ -17,9 +17,6 @@ import (
 // pinned hash. The caller must treat the file as unusable rather than run it.
 var ErrChecksum = errors.New("file checksum does not match")
 
-// Progress reports how far a download has come: Done of Total files finished,
-// and Bytes of TotalBytes within the file in flight, so a caller can show both
-// a count and a bar.
 type Progress struct {
 	File       string
 	Done       int
@@ -38,18 +35,15 @@ type Layout struct {
 	DownloadRoot string
 }
 
-// ModelPath is where an engine's model files land under a root.
 func ModelPath(root string, engine Engine) string {
 	return filepath.Join(root, "models", engine.ModelDir)
 }
 
-// BinaryPath is the transcribe binary's path under a root.
 func BinaryPath(root string, r Runtime) string {
 	return filepath.Join(root, "bin", r.Binary)
 }
 
-// LibraryPath is the runtime library's path under a root, or "" if the engine
-// needs none.
+// LibraryPath returns "" when the runtime ships no separate library.
 func LibraryPath(root string, r Runtime) string {
 	if r.Library == "" {
 		return ""
@@ -57,14 +51,13 @@ func LibraryPath(root string, r Runtime) string {
 	return filepath.Join(root, "bin", r.Library)
 }
 
-// Present reports whether the engine's files for a platform all sit under
-// root. It checks existence only; use VerifyFor to also check integrity.
+// Present checks existence only; use VerifyFor to also check integrity.
 func Present(root string, engine Engine) bool {
 	return PresentFor(root, engine, runtime.GOOS, runtime.GOARCH)
 }
 
-// PresentFor is Present for a specific target platform, so a packaging step can
-// check an engine staged for another OS.
+// PresentFor takes an explicit platform so a packaging step can check an engine
+// staged for another OS.
 func PresentFor(root string, engine Engine, goos, goarch string) bool {
 	r, ok := engine.RuntimeFor(goos, goarch)
 	if !ok {
@@ -87,14 +80,12 @@ func PresentFor(root string, engine Engine, goos, goarch string) bool {
 	return true
 }
 
-// Verify checks that the engine for this machine is present AND intact.
 func Verify(root string, engine Engine) error {
 	return VerifyFor(root, engine, runtime.GOOS, runtime.GOARCH)
 }
 
-// VerifyFor checks that the engine's files for a target platform are present
-// AND match their pinned hashes. A bundled engine that fails this is corrupt or
-// was tampered with, and must not be run.
+// VerifyFor checks presence and pinned hashes together. A bundled engine that
+// fails this is corrupt or was tampered with, and must not be run.
 func VerifyFor(root string, engine Engine, goos, goarch string) error {
 	r, ok := engine.RuntimeFor(goos, goarch)
 	if !ok {
@@ -118,8 +109,7 @@ func VerifyFor(root string, engine Engine, goos, goarch string) error {
 	return nil
 }
 
-// verifyHash hashes one file and compares it to want. An empty want means the
-// file is not pinned and is accepted as-is.
+// An empty want means the file is not pinned and is accepted as-is.
 func verifyHash(path, want string) error {
 	if want == "" {
 		return nil
@@ -134,7 +124,6 @@ func verifyHash(path, want string) error {
 	return nil
 }
 
-// hashFile returns the SHA-256 of a file as lowercase hex.
 func hashFile(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -149,8 +138,7 @@ func hashFile(path string) (string, error) {
 	return hex.EncodeToString(sum.Sum(nil)), nil
 }
 
-// Installer fetches engine files over HTTP and verifies each before accepting
-// it. It never runs an engine; it only places files the detector later uses.
+// Installer only places verified files; it never runs an engine.
 type Installer struct {
 	client *http.Client
 	// Progress, when set, is called as a download advances.
@@ -170,18 +158,14 @@ func NewInstaller() *Installer {
 	}
 }
 
-// Install places the engine for this machine under root, downloading only what
-// is missing or fails its hash. It is safe to re-run: an intact engine is left
-// untouched.
+// Install downloads only what is missing or fails its hash, so re-running it
+// leaves an intact engine untouched.
 func (i *Installer) Install(root string, engine Engine) error {
 	return i.InstallFor(root, engine, runtime.GOOS, runtime.GOARCH)
 }
 
-// InstallFor places the engine for a target platform under root. The runtime
-// archive is fetched, its members extracted, and everything hash-verified;
-// nothing is registered until every byte checks out. A packaging step calls
-// this with an explicit platform so a Windows installer can be assembled from a
-// non-Windows host — the model is shared, only the runtime differs.
+// InstallFor takes an explicit platform so a Windows installer can be assembled
+// from any host: the model is shared, only the runtime differs.
 func (i *Installer) InstallFor(root string, engine Engine, goos, goarch string) error {
 	r, ok := engine.RuntimeFor(goos, goarch)
 	if !ok {
@@ -191,7 +175,6 @@ func (i *Installer) InstallFor(root string, engine Engine, goos, goarch string) 
 	total := len(engine.Model) + 2
 	done := 0
 
-	// Model files: platform-independent, one download each.
 	modelDir := ModelPath(root, engine)
 	for _, f := range engine.Model {
 		dest := filepath.Join(modelDir, f.Name)
@@ -205,27 +188,20 @@ func (i *Installer) InstallFor(root string, engine Engine, goos, goarch string) 
 		done++
 	}
 
-	// Runtime: one archive whose members become the binary and the library.
 	if err := i.installRuntime(root, engine, r, done, total); err != nil {
 		return err
 	}
 
-	// The license terms must travel with the bytes we put on disk, whether they
-	// arrived through the installer or a download. Writing here means both paths
-	// end up with the notices beside the engine.
+	// The notices sit beside every engine, however its bytes arrived.
 	if err := writeNotices(root); err != nil {
 		return err
 	}
 
-	// Final gate: the engine is only usable if it verifies end to end.
 	return VerifyFor(root, engine, goos, goarch)
 }
 
-// NoticesFile is the name of the license file placed beside an installed
-// engine.
 const NoticesFile = "THIRD-PARTY-NOTICES.txt"
 
-// writeNotices drops the third-party notices into an engine root.
 func writeNotices(root string) error {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
@@ -234,8 +210,8 @@ func writeNotices(root string) error {
 	return os.WriteFile(path, []byte(Notices()), 0o644)
 }
 
-// installRuntime fetches the platform archive and extracts the transcribe
-// binary and its library into root/bin, verifying each against its hash.
+// installRuntime extracts the binary and library into root/bin, verifying each
+// against its hash.
 func (i *Installer) installRuntime(root string, engine Engine, r Runtime, done, total int) error {
 	binOK := verifyHash(BinaryPath(root, r), r.BinarySHA256) == nil
 	libOK := r.Library == "" || verifyHash(LibraryPath(root, r), r.LibrarySHA256) == nil
@@ -282,8 +258,7 @@ func (i *Installer) installRuntime(root string, engine Engine, r Runtime, done, 
 	return nil
 }
 
-// installFile moves one extracted file into place, checking its hash first and
-// marking the binary executable.
+// installFile verifies src before moving it into place.
 func installFile(src, dest, want string) error {
 	if err := verifyHash(src, want); err != nil {
 		return err
@@ -295,14 +270,12 @@ func installFile(src, dest, want string) error {
 	return os.Rename(src, dest)
 }
 
-// download fetches a model file to dest, verifying the hash.
 func (i *Installer) download(url, dest, want, name string, done, total int) error {
 	return i.downloadFile(url, dest, want, name, done, total)
 }
 
-// downloadFile streams url into dest, hashing as it goes, and only publishes
-// the result when it matches want. It writes to a temporary file first so a
-// partial download never looks like a finished one.
+// downloadFile writes to a temporary file first so a partial download never
+// looks like a finished one.
 func (i *Installer) downloadFile(url, dest, want, name string, done, total int) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
@@ -348,10 +321,8 @@ func (i *Installer) downloadFile(url, dest, want, name string, done, total int) 
 	return os.Rename(tmpName, dest)
 }
 
-// progressWriter reports bytes written so a download can show a bar. It emits
-// at most once per whole percent (and once at the end), because a naive
-// per-write callback fires thousands of times for a 53 MB model and would
-// flood any listener that forwards it to a display.
+// progressWriter emits at most once per whole percent, because a per-write
+// callback would fire thousands of times for a 53 MB model.
 type progressWriter struct {
 	w             io.Writer
 	name          string

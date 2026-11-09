@@ -1,9 +1,8 @@
 package asr
 
-// Audio preparation: church recordings arrive in whatever format the mixer or
-// capture device produced. Engines that work file-based (whisper.cpp CLI)
-// need 16 kHz mono 16-bit PCM WAV. Everything here is pure Go so the harness
-// runs identically on Windows, macOS and Linux.
+// Recordings arrive in whatever the mixer or capture device produced; engines
+// that work file-based need 16 kHz mono PCM. Kept pure Go so the harness behaves
+// the same on every platform.
 
 import (
 	"encoding/binary"
@@ -168,7 +167,6 @@ func readSampleFloat(data []byte, bits int, formatTag int) float32 {
 	return 0
 }
 
-// WriteWAV writes a 16 kHz mono 16-bit WAV plus canonical RIFF header.
 func WriteWAV(path string, spec AudioSpec) error {
 	size := len(spec.Data)
 	header := make([]byte, 44)

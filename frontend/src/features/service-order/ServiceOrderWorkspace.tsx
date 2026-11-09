@@ -68,7 +68,6 @@ export function ServiceOrderWorkspace() {
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<{ kind: 'message' | 'error'; text: string } | null>(null);
 
-  // Add Custom Item dialog state
   const [showAddModal, setShowAddModal] = useState(false);
   const [addKind, setAddKind] = useState<'text' | 'announcement' | 'blank'>('text');
   const [addTitle, setAddTitle] = useState('');
@@ -76,7 +75,6 @@ export function ServiceOrderWorkspace() {
   const [addNotes, setAddNotes] = useState('');
   const [addMinutes, setAddMinutes] = useState('');
 
-  // Inline meta editing state
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [editMinutes, setEditMinutes] = useState('');

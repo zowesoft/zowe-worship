@@ -2,8 +2,8 @@
 
 Measures how many **spoken scripture references survive transcription and
 detection** — the accuracy metric that decides which ASR engine backs the
-future Live Detection workspace (PRD section 9: AI detection is a suggestion
-only; the operator always confirms).
+Live Detection workspace, where detection is a suggestion only and the
+operator always confirms.
 
 The pipeline: recording → 16 kHz mono conversion → engine sidecar → transcript
 → `asr.DetectReferences` → matched against gold references in `manifest.json`.

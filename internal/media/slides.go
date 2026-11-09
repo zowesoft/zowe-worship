@@ -73,15 +73,14 @@ type Presentation struct {
 	Fit    string `json:"fit"`
 }
 
-// FullFrame shows the whole picture at its own shape, which is what an asset
-// nobody has adjusted should do.
+// FullFrame is what an asset nobody has adjusted should do.
 func FullFrame() Presentation {
 	return Presentation{Aspect: AspectAuto, Fit: FitContain}
 }
 
-// Normalised replaces anything unrecognised with the default rather than
-// refusing the save: an unknown aspect can only come from an older build or a
-// hand-edited row, and "show all of it" is the safe answer for both.
+// Normalised falls back to the default instead of refusing the save: an unknown
+// aspect can only come from an older build or a hand-edited row, and "show all
+// of it" is the safe answer for both.
 func (p Presentation) Normalised() Presentation {
 	out := p
 	if !knownAspect(out.Aspect) {
@@ -93,9 +92,8 @@ func (p Presentation) Normalised() Presentation {
 	return out
 }
 
-// Slide is everything a viewer needs to draw a media slide. The ratio is already
-// resolved so the frontend never has to look an aspect name up, and the name
-// travels with it because "fill the screen" has no ratio to derive from.
+// Slide carries the resolved ratio so the frontend never looks an aspect name up,
+// plus the name itself because "fill the screen" has no ratio to derive from.
 type Slide struct {
 	Kind   string  `json:"kind"`
 	Title  string  `json:"title"`
@@ -105,10 +103,8 @@ type Slide struct {
 	Fit    string  `json:"fit"`
 }
 
-// FileURL is the address a browser would fetch the asset's own bytes from.
 func FileURL(id string) string { return FileRoute + id }
 
-// ThumbURL is the address of the generated tile for the library grid.
 func ThumbURL(id string) string { return ThumbRoute + id }
 
 // Slide resolves any playable asset into a slide. It refuses rather than handing

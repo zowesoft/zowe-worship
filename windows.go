@@ -6,7 +6,6 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// EditorView reports a utility window as the frontend sees it.
 type EditorView struct {
 	Open  bool   `json:"open"`
 	Title string `json:"title"`

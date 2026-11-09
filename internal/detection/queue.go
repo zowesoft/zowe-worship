@@ -1,7 +1,6 @@
 // Package detection holds the candidate queue between spoken-reference
-// detection and operator confirmation. The PRD is explicit that detection is
-// a suggestion only: a candidate never reaches the room on its own, so the
-// queue is the contract the operator works against.
+// detection and operator confirmation. A candidate never reaches the room on
+// its own; this queue is that gate.
 package detection
 
 import (
@@ -17,17 +16,17 @@ import (
 	"zowe-worship/internal/scripture"
 )
 
-// ErrCandidateNotFound is returned when an id no longer sits in the queue,
-// either because it was already decided or because the app restarted.
+// ErrCandidateNotFound covers both an id already decided and one lost to a
+// restart.
 var ErrCandidateNotFound = errors.New("detection candidate not found")
 
-// Candidate is one detected reference waiting for the operator's decision.
+// Candidate is one detected reference waiting for a decision.
 type Candidate struct {
 	ID         string
 	Transcript string
 	Reference  scripture.Reference
-	// Raw is the normalized candidate string the detection was parsed from,
-	// useful for debugging ASR errors that produced a near miss.
+	// Raw is what the detector parsed, useful when an ASR near miss needs
+	// explaining.
 	Raw       string
 	CreatedAt time.Time
 }
@@ -39,25 +38,21 @@ const (
 	decisionIgnored  = "ignored"
 )
 
-// Queue keeps pending candidates in memory and records every decision the
-// operator makes in detection_history. Pending candidates are deliberately
-// not persisted: after a restart the room has moved on, and a stale candidate
-// inviting a wrong projection is worse than an empty queue.
+// Queue keeps pending candidates in memory and records decisions in
+// detection_history. Pending candidates are not persisted: after a restart the
+// room has moved on, and a stale candidate inviting a wrong projection is worse
+// than an empty queue.
 type Queue struct {
 	mu      sync.Mutex
 	pending []Candidate
 	db      *sql.DB
 }
 
-// New returns a Queue that records decisions in the given database. A nil db
-// is allowed for callers without storage; decisions are then dropped instead
-// of recorded.
+// A nil db drops decisions instead of recording them.
 func New(db *sql.DB) *Queue {
 	return &Queue{db: db}
 }
 
-// Add queues every detection found in one transcript and returns the new
-// candidates in detection order.
 func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -82,13 +77,9 @@ func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate,
 	return added, nil
 }
 
-// MergeLive queues detections heard in a transcript that is still growing.
-// whisper.cpp streams one segment at a time, so a hearing can start wide
-// ("Philippians chapter 4") and narrow moments later ("verses 6 and 7") as the
-// sentence continues, or grow the other way. Either direction, the latest
-// hearing of the same passage replaces the pending candidate in place — same
-// id, so the panel updates the card instead of stacking a second one.
-// Passages that do not overlap stay separate candidates.
+// MergeLive replaces the pending candidate for the same passage in place, so a
+// hearing that grows or narrows as the sentence continues updates the card
+// instead of stacking a second one. Non-overlapping passages stay separate.
 func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Candidate, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -133,9 +124,8 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 	return added, nil
 }
 
-// overlaps reports whether two verse ranges from the same book and chapter
-// share any verse, the test for whether one hearing of a passage refines
-// another. A zero range is the whole chapter, reaching every verse in it.
+// overlaps tests whether one hearing refines another. A zero end is the whole
+// chapter.
 func overlaps(a, b scripture.Reference) bool {
 	aEnd, bEnd := a.VerseEnd, b.VerseEnd
 	if aEnd == 0 {
@@ -147,7 +137,6 @@ func overlaps(a, b scripture.Reference) bool {
 	return a.VerseStart <= bEnd && b.VerseStart <= aEnd
 }
 
-// List returns the pending candidates, oldest first.
 func (q *Queue) List() []Candidate {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -157,20 +146,18 @@ func (q *Queue) List() []Candidate {
 	return pending
 }
 
-// Approve removes the candidate from the queue and records the decision. The
-// caller projects the reference afterwards; approval alone never touches the
-// audience display.
+// Approve records the decision. The caller projects afterwards; approval alone
+// never touches the display.
 func (q *Queue) Approve(ctx context.Context, id string) (Candidate, error) {
 	return q.decide(ctx, id, decisionApproved)
 }
 
-// Dismiss removes the candidate from the queue and records the decision.
 func (q *Queue) Dismiss(ctx context.Context, id string) (Candidate, error) {
 	return q.decide(ctx, id, decisionDismissed)
 }
 
-// Clear drops every pending candidate, recording them as ignored so the
-// history still shows what was heard and let go.
+// Clear records the dropped candidates as ignored, so history still shows what
+// was heard and let go.
 func (q *Queue) Clear(ctx context.Context) error {
 	q.mu.Lock()
 	cleared := q.pending
@@ -208,8 +195,7 @@ func (q *Queue) decide(ctx context.Context, id, decision string) (Candidate, err
 	return candidate, nil
 }
 
-// record writes one history row. A failure after the queue was updated is
-// reported to the caller, but the decision itself already happened.
+// A record failure is reported, but the decision has already happened.
 func (q *Queue) record(ctx context.Context, candidate Candidate, decision string) error {
 	if q.db == nil {
 		return nil
@@ -226,6 +212,6 @@ func (q *Queue) record(ctx context.Context, candidate Candidate, decision string
 	return nil
 }
 
-// confidence is the fixed score the rule-based detector earns. It is stored
-// for the history schema; the operator's own judgement is what counts.
+// confidence is a fixed score for the rule-based detector, stored for the
+// history schema only.
 const confidence = 1.0

@@ -185,7 +185,6 @@ func (r *SQLiteRepository) MakeDefault(ctx context.Context, id string) error {
 	return tx.Commit()
 }
 
-// Default reports the theme a kind projects with when nothing else is chosen.
 func (r *SQLiteRepository) Default(ctx context.Context, kind Kind) (Theme, error) {
 	theme, err := scanTheme(r.db.QueryRowContext(ctx,
 		`SELECT `+themeColumns+` FROM slide_templates WHERE kind = ? AND is_default = 1`, kind))
