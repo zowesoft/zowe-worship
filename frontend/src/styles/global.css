@@ -11,8 +11,8 @@
   html, body, #root { width: 100%; height: 100%; margin: 0; }
   body { background: var(--color-app); color: var(--color-text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; }
   button, input, select { font: inherit; }
-  /* The chrome is a native control surface, not a document: nothing is
-     drag-selectable except the fields the operator actually types into. */
+  /* The chrome is a control surface, not a document: only the fields the
+     operator types into are selectable. */
   input, textarea, [contenteditable="true"] { user-select: text; -webkit-user-select: text; }
   button { color: inherit; }
   button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }

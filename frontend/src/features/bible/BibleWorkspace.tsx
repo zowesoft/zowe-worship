@@ -166,8 +166,7 @@ export function BibleWorkspace() {
   // row exists in the DOM.
   const pinnedScrollKey = useRef<string | null>(null);
   // Arrow-stepping writes the highlighted reference into the field for display;
-  // that write must not re-run the search/jump debounce, or stepping would keep
-  // resetting the pane to whatever the field says.
+  // that write must not re-trigger the search debounce and reset the pane.
   const skipQuerySync = useRef(false);
   // Where the reading pane was before a search moved it, so clearing the search
   // can put it back.
@@ -648,8 +647,8 @@ export function BibleWorkspace() {
   // same contract as Enter in search mode, which sends its top hit. Text that
   // names no reference only gets the hint; keywords never run from here.
   async function browseEnter(): Promise<void> {
-    // If a verse is highlighted (arrow-stepping or a search result), Enter sends
-    // that exact verse - not whatever stale text still sits in the field.
+    // A highlighted verse (arrow-stepping or a search result) is what Enter
+    // sends, not the stale text still sitting in the field.
     const highlighted =
       selection === null
         ? undefined
@@ -794,9 +793,8 @@ export function BibleWorkspace() {
       if (index === -1 || next === undefined) return;
       event.preventDefault();
       setSelection({ bookId: next.bookId, chapter: next.chapter, start: next.verse, end: next.verse });
-      // Keep the field showing the verse under the highlight so Enter and the
-      // operator's eyes agree on what is selected. The flag stops this write
-      // from re-running the search/jump debounce and snapping the pane back.
+      // Show the highlighted reference in the field so it matches what Enter
+      // sends; the flag keeps this write from re-running the search debounce.
       skipQuerySync.current = true;
       setQuery(next.reference);
       void perform('preview', next);
@@ -1290,9 +1288,8 @@ export function BibleWorkspace() {
               </span>
           </div>
         )}
-        {/* Errors live in the pinned header, not over the verses: a failed
-            projection stays readable without burying the chapter below it.
-            Ordinary hints are gone - the controls speak for themselves. */}
+        {/* Errors surface in the pinned header so a failed projection stays
+            visible without covering the verses below. */}
         {action.status?.kind === 'error' && (
           <p className="text-error text-[10px] leading-snug" role="alert">
             {action.status.text}
