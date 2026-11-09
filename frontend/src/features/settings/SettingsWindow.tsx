@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Window } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import type { EngineOption, ShortcutsView, StorageView } from '../../../bindings/zowe-worship/models';
@@ -15,6 +16,22 @@ function errorMessage(error: unknown): string {
 
 // Select value for a spec typed by hand rather than discovered on disk.
 const CUSTOM_ENGINE = '__custom';
+
+// The window is tall, so each group gets its own tab instead of stacking every
+// card into one long scroll.
+type SettingsTabId = 'bible' | 'slides' | 'detection' | 'shortcuts' | 'backups';
+
+const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
+  { id: 'bible', label: 'Bible' },
+  { id: 'slides', label: 'Slides' },
+  { id: 'detection', label: 'Detection' },
+  { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'backups', label: 'Backups' },
+];
+
+// Every group shares this card look; the show/hide choice adds the display so a
+// hidden group leaves no gap behind.
+const SECTION = 'gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary';
 
 export function SettingsWindow() {
   const [storage, setStorage] = useState<StorageView | null>(null);
@@ -34,6 +51,13 @@ export function SettingsWindow() {
   // The action whose capture button is armed; a window keydown listener fills it.
   const [capturing, setCapturing] = useState<ShortcutAction | null>(null);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
+  const [tab, setTab] = useState<SettingsTabId>('bible');
+  const scroller = useRef<HTMLDivElement>(null);
+
+  // A tab opens at its own top rather than wherever the last one was scrolled.
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+  }, [tab]);
 
   useEffect(() => {
     App.GetStorage()
@@ -231,12 +255,30 @@ export function SettingsWindow() {
     }
   }
 
+  // The groups that are not showing stay mounted but hidden, so a speech engine
+  // download keeps its progress listener and comes back exactly where it was.
+  const pane = (id: SettingsTabId) => `${SECTION} ${tab === id ? 'grid' : 'hidden'}`;
+
+  function onTabKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const current = SETTINGS_TABS.findIndex((entry) => entry.id === tab);
+    let next = current;
+    if (event.key === 'ArrowRight') next = (current + 1) % SETTINGS_TABS.length;
+    else if (event.key === 'ArrowLeft') next = (current - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = SETTINGS_TABS.length - 1;
+    else return;
+    event.preventDefault();
+    const target = SETTINGS_TABS[next].id;
+    setTab(target);
+    document.getElementById(`settings-tab-${target}`)?.focus();
+  }
+
   const translations = storage?.translations ?? [];
   const backups = storage?.backups ?? [];
   const defaultTranslationId = storage?.defaultTranslation || 'kjv';
 
   return (
-    <main className="h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3.5 pt-3.5 px-4 pb-4 overflow-hidden" aria-label="Settings">
+    <main className="h-full grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3.5 pt-3.5 px-4 pb-4 overflow-hidden" aria-label="Settings">
       <header className="flex items-end justify-between gap-3.5 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h2]:mt-[3px]">
         <div>
           <p className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">Zowe Worship {storage?.version ?? ''}</p>
@@ -247,8 +289,40 @@ export function SettingsWindow() {
         </button>
       </header>
 
-      <div className="min-h-0 overflow-y-auto grid gap-3 content-start pr-1">
-        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-translations-title">
+      <div
+        className="flex gap-1 p-[3px] bg-[#0F1722] rounded-[7px] border border-[#243449]"
+        role="tablist"
+        aria-label="Settings groups"
+        onKeyDown={onTabKeyDown}
+      >
+        {SETTINGS_TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`settings-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls={`settings-panel-${id}`}
+            tabIndex={tab === id ? 0 : -1}
+            className={[
+              'flex-1 border-0 rounded-[5px] bg-transparent text-secondary text-[11px] py-1.5 px-2 whitespace-nowrap transition-all duration-150 hover:text-text',
+              tab === id ? 'bg-[#23344B]! text-text! font-medium shadow-[0_1px_3px_rgba(0,0,0,0.25)]' : '',
+            ].filter(Boolean).join(' ')}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        ref={scroller}
+        className="min-h-0 overflow-y-auto grid gap-3 content-start pr-1"
+        role="tabpanel"
+        id={`settings-panel-${tab}`}
+        aria-labelledby={`settings-tab-${tab}`}
+      >
+        <section className={pane('bible')} aria-labelledby="settings-translations-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="settings-translations-title">Bible translations</h3>
             <span className="text-secondary text-[10px]">{translations.length}</span>
@@ -287,7 +361,7 @@ export function SettingsWindow() {
           )}
         </section>
 
-        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-scripture-title">
+        <section className={pane('slides')} aria-labelledby="settings-scripture-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="settings-scripture-title">Scripture slides</h3>
           </div>
@@ -316,7 +390,7 @@ export function SettingsWindow() {
           </div>
         </section>
 
-        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-detection-title">
+        <section className={pane('detection')} aria-labelledby="settings-detection-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="settings-detection-title">Live detection</h3>
             <button
@@ -397,7 +471,7 @@ export function SettingsWindow() {
           </p>
         </section>
 
-        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-shortcuts-title">
+        <section className={pane('shortcuts')} aria-labelledby="settings-shortcuts-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="settings-shortcuts-title">Shortcuts</h3>
             <button
@@ -440,7 +514,7 @@ export function SettingsWindow() {
           )}
         </section>
 
-        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-backups-title">
+        <section className={pane('backups')} aria-labelledby="settings-backups-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="settings-backups-title">Backups</h3>
             <button
