@@ -1040,11 +1040,9 @@ export function AppShell({ activePage, onNavigate, children }: {
 
   // Home has its own live hero so the presentation dock is redundant there.
   const showDock = activePage !== 'home';
-  // Most workspaces grow as tall as their content and let this column scroll.
-  // Bible is different: it keeps a search header on screen at all times and
-  // scrolls only the reading pane under it. For that its pane needs a real
-  // height to overflow, so the workspace is stretched to fill the column and
-  // its own inner scroller does the scrolling — the column never moves.
+  // Bible pins its search header and scrolls only the reading pane, so that
+  // pane needs a real height to overflow - stretch the workspace to fill the
+  // column. Other pages grow with their content and let this column scroll.
   const selfScrolls = activePage === 'bible';
 
   return (
