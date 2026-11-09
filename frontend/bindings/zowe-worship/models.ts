@@ -113,19 +113,14 @@ export interface CustomItemRequest {
     "duration": number;
 }
 
-/**
- * DetectionConfigView is the Live Detection settings card: which engine
- * transcribes and whether the emergency switch is on.
- */
 export interface DetectionConfigView {
     "engineSpec": string;
     "disabled": boolean;
 }
 
 /**
- * DetectionResult answers one analyze request: what was heard and what the
- * detector made of it. The transcript is returned even when nothing was
- * detected, so the panel can show why the queue stayed empty.
+ * DetectionResult returns the transcript even when nothing was detected, so
+ * the panel can show why the queue stayed empty.
  */
 export interface DetectionResult {
     "transcript": string;
@@ -133,9 +128,7 @@ export interface DetectionResult {
 }
 
 /**
- * DetectionView is one candidate in the approval queue. The reference fields
- * mirror ScriptureRequest so the frontend can preview the passage without a
- * second lookup.
+ * DetectionView is one candidate in the approval queue.
  */
 export interface DetectionView {
     "id": string;
@@ -164,17 +157,14 @@ export interface EditSongRequest {
     "sections": SongSectionEdit[] | null;
 }
 
-/**
- * EditorView reports a utility window as the frontend sees it.
- */
 export interface EditorView {
     "open": boolean;
     "title": string;
 }
 
 /**
- * EngineOption is one speech engine discovered on this computer, ready to be
- * selected in Settings without typing a path.
+ * EngineOption is one engine found on this computer, ready to select without
+ * typing a path.
  */
 export interface EngineOption {
     "label": string;
@@ -194,9 +184,26 @@ export interface LyricHitView {
     "position": number;
 }
 
+/**
+ * MediaCommand is one transport instruction to the audience player. Seek takes
+ * a fraction of the clip (0..1); volume is a percentage (0..100).
+ */
+export interface MediaCommand {
+    "action": string;
+    "value": number;
+}
+
 export interface MediaImportResult {
     "added": MediaView[] | null;
     "problems": media$0.ImportProblem[] | null;
+}
+
+/**
+ * MediaProgressView is the clip clock reported from the player window.
+ */
+export interface MediaProgressView {
+    "timeMs": number;
+    "durationMs": number;
 }
 
 export interface MediaView {
@@ -369,9 +376,8 @@ export interface SongsView {
 }
 
 /**
- * SpeechAttributionView is the attribution payload: the components the app
- * ships, the license text for each, and where the combined notices file sits
- * in the install so an operator can open it.
+ * SpeechAttributionView is the same text as the shipped notices file, plus its
+ * location so an operator can open it.
  */
 export interface SpeechAttributionView {
     "components": SpeechComponentView[] | null;
@@ -379,8 +385,7 @@ export interface SpeechAttributionView {
 }
 
 /**
- * SpeechComponentView is one redistributed component and its license, for the
- * attribution list in Settings.
+ * SpeechComponentView is one redistributed component and its license.
  */
 export interface SpeechComponentView {
     "name": string;
@@ -390,40 +395,26 @@ export interface SpeechComponentView {
 }
 
 /**
- * SpeechEngineView is one row in the Settings engine list: what it is, whether
- * it is already on disk, and whether it is the one currently selected.
+ * SpeechEngineView is one row in the Settings engine list.
  */
 export interface SpeechEngineView {
     "id": string;
     "name": string;
     "description": string;
-
-    /**
-     * Installed is true when the engine's files are present.
-     */
     "installed": boolean;
 
     /**
-     * Bundled is true when the engine's files come from beside the app rather
-     * than a download.
+     * Bundled means the files come from beside the app, not a download.
      */
     "bundled": boolean;
-
-    /**
-     * Active is true when this engine is the one Live Detection uses.
-     */
     "active": boolean;
 
     /**
-     * Supported is false when no runtime exists for this machine's platform.
+     * Supported is false when no runtime exists for this platform.
      */
     "supported": boolean;
 }
 
-/**
- * StorageView answers the two questions Settings exists for: where the
- * church's data sits on this computer, and whether it is safe.
- */
 export interface StorageView {
     "version": string;
     "dataRoot": string;

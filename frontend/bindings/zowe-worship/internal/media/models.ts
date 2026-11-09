@@ -31,9 +31,8 @@ export interface Presentation {
 }
 
 /**
- * Slide is everything a viewer needs to draw a media slide. The ratio is already
- * resolved so the frontend never has to look an aspect name up, and the name
- * travels with it because "fill the screen" has no ratio to derive from.
+ * Slide carries the resolved ratio so the frontend never looks an aspect name up,
+ * plus the name itself because "fill the screen" has no ratio to derive from.
  */
 export interface Slide {
     "kind": string;

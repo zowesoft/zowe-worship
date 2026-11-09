@@ -19,6 +19,11 @@ export const MediaControl = "media-control";
 export const MediaEnded = "media-ended";
 
 /**
+ * Name of the custom event "media-progress".
+ */
+export const MediaProgress = "media-progress";
+
+/**
  * Name of the custom event "presentation".
  */
 export const Presentation = "presentation";

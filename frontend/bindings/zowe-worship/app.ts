@@ -21,8 +21,8 @@ export function AddCustomItemToService(request: $models.CustomItemRequest): $Can
 }
 
 /**
- * AddMediaToService puts a library asset into the running order. The item keeps
- * a reference rather than a second copy, so one file can serve two services.
+ * AddMediaToService references the asset rather than copying it, so one file can
+ * serve two services.
  */
 export function AddMediaToService(mediaID: string): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(1388766008, mediaID);
@@ -41,18 +41,12 @@ export function AddSongSectionToService(request: $models.SongSectionRequest): $C
 }
 
 /**
- * ApproveDetection previews the candidate's passage in the default
- * translation. Per the PRD the operator still sends it live by hand, so
- * approval alone never changes what the audience sees.
+ * ApproveDetection previews only; it never changes what the audience sees.
  */
 export function ApproveDetection(id: string): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(1190351181, id);
 }
 
-/**
- * BackupNow writes a snapshot the operator asked for and returns the refreshed
- * view, so the new file appears in the list without a second call.
- */
 export function BackupNow(): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(666389681);
 }
@@ -65,10 +59,6 @@ export function BrowsePassage(req: $models.BrowsePassageRequest): $CancellablePr
     return $Call.ByID(1549292557, req);
 }
 
-/**
- * ClearDetections empties the queue and returns the empty list, so the
- * frontend can adopt the result directly.
- */
 export function ClearDetections(): $CancellablePromise<$models.DetectionView[] | null> {
     return $Call.ByID(2358866802);
 }
@@ -89,10 +79,6 @@ export function CreateSong(request: $models.NewSongRequest): $CancellablePromise
     return $Call.ByID(800922996, request);
 }
 
-/**
- * CreateTheme stores one theme and returns the whole list, so the editor can
- * show the new entry without a second call racing the save.
- */
 export function CreateTheme(theme: themes$0.Theme): $CancellablePromise<themes$0.Theme[] | null> {
     return $Call.ByID(1128641746, theme);
 }
@@ -114,17 +100,13 @@ export function DeleteTheme(id: string): $CancellablePromise<themes$0.Theme[] | 
 }
 
 /**
- * DetectScripture transcribes one chunk of captured audio and queues every
- * reference the detector finds. Nothing is projected here: the operator
- * approves a candidate first, per the PRD.
+ * DetectScripture queues what the detector finds; nothing is projected until
+ * the operator approves a candidate.
  */
 export function DetectScripture(pcm: string | null): $CancellablePromise<$models.DetectionResult> {
     return $Call.ByID(4119490829, pcm);
 }
 
-/**
- * DismissDetection drops one candidate and returns the queue that remains.
- */
 export function DismissDetection(id: string): $CancellablePromise<$models.DetectionView[] | null> {
     return $Call.ByID(881939450, id);
 }
@@ -138,8 +120,8 @@ export function DuplicateSong(songID: string): $CancellablePromise<$models.Songs
 }
 
 /**
- * DuplicateTheme copies one under a fresh name, because the usual reason to
- * duplicate is to keep a working theme while trying a change on it.
+ * DuplicateTheme exists because the usual reason to duplicate is to keep a
+ * working theme while trying a change on it.
  */
 export function DuplicateTheme(id: string): $CancellablePromise<themes$0.Theme[] | null> {
     return $Call.ByID(742395031, id);
@@ -153,9 +135,6 @@ export function GetAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
     return $Call.ByID(733832149);
 }
 
-/**
- * GetDetectionConfig reads the Live Detection settings card.
- */
 export function GetDetectionConfig(): $CancellablePromise<$models.DetectionConfigView> {
     return $Call.ByID(3689408216);
 }
@@ -173,8 +152,7 @@ export function GetServiceOrder(): $CancellablePromise<$models.ServiceOrderView>
 }
 
 /**
- * GetSetting returns the value stored for key. If the key has never been set,
- * it returns an empty string without error.
+ * An unset key returns an empty string.
  */
 export function GetSetting(key: string): $CancellablePromise<string> {
     return $Call.ByID(48053349, key);
@@ -191,9 +169,7 @@ export function GetShortcuts(): $CancellablePromise<$models.ShortcutsView> {
 }
 
 /**
- * GetSpeechAttribution returns the licenses for the speech engine the app
- * redistributes. The installer ships the same text as THIRD-PARTY-NOTICES.txt
- * beside the engine; this surfaces it in-app so it is readable without hunting
+ * GetSpeechAttribution surfaces the licenses in Settings so nobody has to hunt
  * through the install folder.
  */
 export function GetSpeechAttribution(): $CancellablePromise<$models.SpeechAttributionView> {
@@ -205,18 +181,16 @@ export function GetStorage(): $CancellablePromise<$models.StorageView> {
 }
 
 /**
- * ImportMedia copies the chosen files into the library. Files that cannot be
- * taken come back explained rather than failing the whole import, because the
- * usual case is a folder dropped with a mix of usable and unusable things in it.
+ * ImportMedia reports unusable files individually rather than failing the whole
+ * import, because a dropped folder usually mixes usable and unusable things.
  */
 export function ImportMedia(paths: string[] | null): $CancellablePromise<$models.MediaImportResult> {
     return $Call.ByID(3099520704, paths);
 }
 
 /**
- * InstallSpeechEngine downloads an engine into the user's data root and streams
- * progress to the settings window. It returns as soon as the download starts so
- * the window stays responsive; the outcome arrives as speech:config.
+ * InstallSpeechEngine returns once the download starts, so the window stays
+ * responsive; the outcome arrives as speech:config.
  */
 export function InstallSpeechEngine(id: string): $CancellablePromise<void> {
     return $Call.ByID(3019342572, id);
@@ -230,17 +204,10 @@ export function ListBooks(): $CancellablePromise<$models.BibleBookView[] | null>
     return $Call.ByID(635303021);
 }
 
-/**
- * ListDetectionEngines scans the usual engine locations and returns every
- * engine/model pair found there.
- */
 export function ListDetectionEngines(): $CancellablePromise<$models.EngineOption[] | null> {
     return $Call.ByID(3213204963);
 }
 
-/**
- * ListDetections returns the candidates waiting for a decision.
- */
 export function ListDetections(): $CancellablePromise<$models.DetectionView[] | null> {
     return $Call.ByID(2091494841);
 }
@@ -250,9 +217,8 @@ export function ListMedia(): $CancellablePromise<$models.MediaView[] | null> {
 }
 
 /**
- * ListScreens feeds the display picker. The screen the studio is on is left out
- * rather than assumed to be "the primary", because which physical monitor is
- * primary depends on how the room is wired.
+ * ListScreens leaves the studio's own screen out rather than assuming "the
+ * primary", because which monitor is primary depends on how the room is wired.
  */
 export function ListScreens(): $CancellablePromise<$models.ScreenOption[] | null> {
     return $Call.ByID(1081669978);
@@ -266,10 +232,6 @@ export function ListSongs(query: string): $CancellablePromise<$models.SongsView>
     return $Call.ByID(554409833, query);
 }
 
-/**
- * ListSpeechEngines returns the engine catalogue with the state each row needs:
- * installed, bundled, active and platform support.
- */
 export function ListSpeechEngines(): $CancellablePromise<$models.SpeechEngineView[] | null> {
     return $Call.ByID(851174066);
 }
@@ -287,34 +249,37 @@ export function MakeThemeDefault(id: string): $CancellablePromise<themes$0.Theme
 }
 
 /**
- * MediaAspects is the framing menu. It comes from the backend so the chips the
- * operator sees, the values that get stored and the ratio the renderer uses are
- * one list rather than three.
+ * MediaAspects comes from the backend so the chips, the stored values and the
+ * renderer ratio are one list rather than three.
  */
 export function MediaAspects(): $CancellablePromise<media$0.Aspect[] | null> {
     return $Call.ByID(1442082748);
 }
 
 /**
- * MediaControl sends play, pause or restart to the audience display. That window
+ * MediaControl sends a transport command to the audience display. That window
  * is the only player, so the studio's panes never drift out of step with it.
  */
-export function MediaControl(action: string): $CancellablePromise<void> {
-    return $Call.ByID(1547765932, action);
+export function MediaControl(command: $models.MediaCommand): $CancellablePromise<void> {
+    return $Call.ByID(1547765932, command);
 }
 
 /**
- * MediaEnded is the display's own report that a clip reached its end. The studio
- * is told because it is the window showing the transport button.
+ * MediaEnded is the display's own report that a clip reached its end. The
+ * studio is told because it is the window showing the transport button.
  */
 export function MediaEnded(): $CancellablePromise<void> {
     return $Call.ByID(2523104073);
 }
 
 /**
- * NewTheme hands the editor an unsaved theme with the app's readable defaults,
- * so "a new theme looks like this" is stated once rather than in two languages.
+ * MediaProgress is the player's report of where the clip is, twice a second
+ * while it runs.
  */
+export function MediaProgress(timeMS: number, durationMS: number): $CancellablePromise<void> {
+    return $Call.ByID(1423589668, timeMS, durationMS);
+}
+
 export function NewTheme(kind: themes$0.Kind): $CancellablePromise<themes$0.Theme> {
     return $Call.ByID(3981138590, kind);
 }
@@ -324,34 +289,32 @@ export function NextServiceItem(): $CancellablePromise<$models.PresentationView>
 }
 
 /**
- * OpenAudienceDisplay puts a fullscreen slide-only window on a second display.
- * The display shows whatever is already live rather than starting blank, so an
- * operator can open it mid-service.
+ * OpenAudienceDisplay shows whatever is already live rather than starting blank,
+ * so an operator can open it mid-service.
  */
 export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$models.DisplayView> {
     return $Call.ByID(3719972303, screenID);
 }
 
 /**
- * OpenMediaEditor frames one image in its own small window, which keeps the
- * studio a production view rather than a workspace with drawers in it.
+ * OpenMediaEditor keeps framing in its own small window, so the studio stays a
+ * production view.
  */
 export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(1808648114, mediaID);
 }
 
 /**
- * OpenPath reveals a file or folder in the OS file manager, so an operator can
- * read the shipped notices without knowing the install path.
+ * OpenPath is how an operator reaches the notices without knowing the install
+ * path.
  */
 export function OpenPath(path: string): $CancellablePromise<void> {
     return $Call.ByID(1591734570, path);
 }
 
 /**
- * OpenSettings shows the storage and library summary in its own window. It
- * opens even when storage failed, because that is exactly when the operator
- * needs to see where the app looked.
+ * OpenSettings opens even when storage failed, which is exactly when the
+ * operator needs to see where the app looked.
  */
 export function OpenSettings(): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(2024983644);
@@ -366,23 +329,20 @@ export function OpenSongEditor(songID: string): $CancellablePromise<$models.Edit
 }
 
 /**
- * OpenThemeWindow edits themes in their own window, which keeps the studio a
- * production view.
+ * OpenThemeWindow keeps theme editing out of the studio, which stays a production
+ * view.
  */
 export function OpenThemeWindow(): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(2269568954);
 }
 
-/**
- * PickMediaFile asks for one file, which is what putting a lost copy back needs.
- */
 export function PickMediaFile(): $CancellablePromise<string> {
     return $Call.ByID(467196498);
 }
 
 /**
- * PickMediaFiles opens the native picker so an operator can reach any folder
- * without learning where Zowe keeps its own copies.
+ * PickMediaFiles opens the native picker, so an operator never needs to know
+ * where the library keeps its copies.
  */
 export function PickMediaFiles(): $CancellablePromise<string[] | null> {
     return $Call.ByID(4150223347);
@@ -424,10 +384,6 @@ export function RecentProjections(): $CancellablePromise<$models.ProjectionView[
     return $Call.ByID(3667402832);
 }
 
-/**
- * RelinkMedia adopts a new copy of a file the library lost, then returns the
- * whole grid so the tile stops saying Missing.
- */
 export function RelinkMedia(mediaID: string, path: string): $CancellablePromise<$models.MediaView[] | null> {
     return $Call.ByID(2207098652, mediaID, path);
 }
@@ -449,15 +405,6 @@ export function ReorderServiceItems(itemIDs: string[] | null): $CancellablePromi
 }
 
 /**
- * RestoreProjection puts a history entry's schedule item back on the wall
- * live, writing a new history row as any projection does. Ad hoc projections
- * carry no schedule item and cannot be restored.
- */
-export function RestoreProjection(historyID: string): $CancellablePromise<$models.PresentationView> {
-    return $Call.ByID(3520303596, historyID);
-}
-
-/**
  * ResetShortcuts drops the stored map and returns the defaults, so the studio
  * picks them straight back up.
  */
@@ -467,22 +414,27 @@ export function ResetShortcuts(): $CancellablePromise<$models.ShortcutsView> {
 
 /**
  * RestoreBackup swaps the live database for a named backup and reopens storage
- * on it. Media files and translation packages live outside the core database
- * and are untouched.
- *
- * Safety: the file must sit in the backups folder and pass an integrity check
- * with a schema this build can read; the current data is backed up first; and
- * the old files are kept until the restored copy opens, migrates and checks
- * out — any failure rolls straight back.
+ * on it; media and translation packages live outside the core database and are
+ * untouched.
+ * 
+ * The name must resolve inside the backups folder and pass an integrity check;
+ * the current data is backed up first; and the old files are kept until the
+ * restored copy opens, migrates and checks out — any failure rolls straight
+ * back.
  */
 export function RestoreBackup(name: string): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(1800244779, name);
 }
 
 /**
- * SaveMediaPresentation stores the framing and reports what the slide now looks
- * like, so a live image updates from the same reply the editor shows.
+ * RestoreProjection puts a history entry's schedule item back on the wall
+ * live, writing a new history row as any projection does. Ad hoc projections
+ * carry no schedule item and cannot be restored.
  */
+export function RestoreProjection(historyID: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(3520303596, historyID);
+}
+
 export function SaveMediaPresentation(mediaID: string, presentation: media$0.Presentation): $CancellablePromise<media$0.Slide> {
     return $Call.ByID(2615786972, mediaID, presentation);
 }
@@ -496,10 +448,8 @@ export function SearchBible(request: $models.BibleSearchRequest): $CancellablePr
 }
 
 /**
- * SelectSpeechEngine makes an already-installed engine the one Live Detection
- * uses. It looks the engine up under both roots — the bundled one beside the
- * app or a downloaded one — builds the command line and stores it, so the
- * operator never handles a path.
+ * SelectSpeechEngine looks under both roots, so the operator never handles a
+ * path.
  */
 export function SelectSpeechEngine(id: string): $CancellablePromise<string> {
     return $Call.ByID(1278482473, id);
@@ -509,24 +459,20 @@ export function SendPreviewLive(): $CancellablePromise<$models.PresentationView>
     return $Call.ByID(2243982563);
 }
 
-/**
- * SetDefaultTranslation updates the default translation setting and returns the refreshed storage view.
- */
 export function SetDefaultTranslation(id: string): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(1460585431, id);
 }
 
 /**
- * SetDetectionDisabled writes the F12 emergency switch. It only stops new
- * detections; the audience display is left exactly as it is.
+ * SetDetectionDisabled stops new detections only; the display is left as it is.
  */
 export function SetDetectionDisabled(disabled: boolean): $CancellablePromise<void> {
     return $Call.ByID(3818048626, disabled);
 }
 
 /**
- * SetDetectionEngine stores the engine spec after parsing it, so a typo is
- * rejected here instead of failing mid-service.
+ * SetDetectionEngine parses before storing, so a typo fails at save rather than
+ * mid-service.
  */
 export function SetDetectionEngine(spec: string): $CancellablePromise<void> {
     return $Call.ByID(1383556960, spec);
@@ -542,19 +488,16 @@ export function SetItemTheme(itemID: string, themeID: string): $CancellablePromi
     return $Call.ByID(345195545, itemID, themeID);
 }
 
+export function SetSetting(key: string, value: string): $CancellablePromise<void> {
+    return $Call.ByID(4214292049, key, value);
+}
+
 /**
  * SetShortcuts validates and stores a full key map, then nudges the studio to
  * re-read it so the change takes effect without a restart.
  */
 export function SetShortcuts(view: $models.ShortcutsView): $CancellablePromise<void> {
     return $Call.ByID(2916301934, view);
-}
-
-/**
- * SetSetting writes a key/value setting.
- */
-export function SetSetting(key: string, value: string): $CancellablePromise<void> {
-    return $Call.ByID(4214292049, key, value);
 }
 
 export function ThemeFonts(): $CancellablePromise<themes$0.FontFamily[] | null> {
