@@ -166,7 +166,6 @@ export function SettingsWindow() {
 
   const translations = storage?.translations ?? [];
   const backups = storage?.backups ?? [];
-  const mediaItems = storage?.mediaItems ?? 0;
   const defaultTranslationId = storage?.defaultTranslation || 'kjv';
 
   return (
@@ -182,29 +181,6 @@ export function SettingsWindow() {
       </header>
 
       <div className="min-h-0 overflow-y-auto grid gap-3 content-start pr-1">
-        <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-storage-title">
-          <h3 id="settings-storage-title">Where your data lives</h3>
-          <p className="px-2.5 py-2 border border-border rounded-md bg-app font-mono text-[11px] leading-[1.5] break-all select-text">{storage?.dataRoot ?? 'Not available yet'}</p>
-          <dl className="m-0 grid gap-[5px]">
-            <div className="flex items-baseline justify-between gap-3.5 text-[11.5px] [&_dt]:text-secondary [&_dd]:m-0">
-              <dt>Library database</dt>
-              <dd>{formatBytes(storage?.databaseBytes ?? 0)}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3.5 text-[11.5px] [&_dt]:text-secondary [&_dd]:m-0">
-              <dt>Media</dt>
-              <dd>
-                {formatBytes(storage?.mediaBytes ?? 0)}
-                {' · '}
-                {mediaItems} {mediaItems === 1 ? 'item' : 'items'}
-              </dd>
-            </div>
-          </dl>
-          <p className="text-[#6F809B] text-[10.5px] leading-[1.6]">
-            Everything stays on this computer. Copying the folder above moves the songs, services and media to
-            another machine.
-          </p>
-        </section>
-
         <section className="grid gap-[9px] py-3 px-[13px] bg-panel border border-border rounded-[10px] [&_h3]:text-[10px] [&_h3]:tracking-[1.1px] [&_h3]:uppercase [&_h3]:text-secondary" aria-labelledby="settings-translations-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="settings-translations-title">Bible translations</h3>
