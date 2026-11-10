@@ -28,13 +28,15 @@ jobs:
           node-version: 22
       - name: Install the Wails CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+      # NSIS is preinstalled on the runner but not on the PATH that task's
+      # process tree sees. GITHUB_PATH injects it runner-side so makensis is
+      # found regardless of how the task shell resolves PATH.
+      - name: Put the preinstalled NSIS on PATH
+        shell: bash
+        run: echo "C:\\Program Files (x86)\\NSIS" >> "$GITHUB_PATH"
       - name: Package (NSIS installer, engine staged and bundled)
         shell: bash
-        # NSIS is preinstalled on the runner but not on the PATH the task
-        # shell sees, so makensis would not be found.
-        run: |
-          export PATH="/c/Program Files (x86)/NSIS:$PATH"
-          wails3 task package INSTALL_SCOPE=machine
+        run: wails3 task package INSTALL_SCOPE=machine
       - uses: actions/upload-artifact@v4
         with:
           name: zowe-worship-windows
