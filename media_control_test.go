@@ -1,11 +1,10 @@
 package main
 
 import (
-	"errors"
 	"testing"
 )
 
-func TestMediaControlNeedsAPlayer(t *testing.T) {
+func TestMediaControlValidatesCommands(t *testing.T) {
 	app := newTestApp(t)
 
 	if err := app.MediaControl(MediaCommand{Action: "spin"}); err == nil {
@@ -17,11 +16,11 @@ func TestMediaControlNeedsAPlayer(t *testing.T) {
 	if err := app.MediaControl(MediaCommand{Action: "volume", Value: 140}); err == nil {
 		t.Fatal("a volume over 100 was accepted")
 	}
-	if err := app.MediaControl(MediaCommand{Action: "pause"}); !errors.Is(err, errNoAudienceDisplay) {
-		t.Fatalf("err = %v, want errNoAudienceDisplay", err)
-	}
-	if err := app.MediaControl(MediaCommand{Action: "stop"}); !errors.Is(err, errNoAudienceDisplay) {
-		t.Fatalf("stop to no player err = %v, want errNoAudienceDisplay", err)
+
+	// The studio itself plays when no display is connected, so a valid command
+	// is accepted even though these tests have no desktop to deliver it to.
+	if err := app.MediaControl(MediaCommand{Action: "pause"}); err != nil {
+		t.Fatalf("pause with no display err = %v, want nil", err)
 	}
 
 	// The display's own report must not fall over when there is no desktop to

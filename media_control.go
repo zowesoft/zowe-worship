@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -31,16 +30,15 @@ type MediaProgressView struct {
 	DurationMS int64 `json:"durationMs"`
 }
 
-var errNoAudienceDisplay = errors.New("open the audience display to control playback")
-
 func init() {
 	application.RegisterEvent[MediaCommand](MediaControlEvent)
 	application.RegisterEvent[MediaProgressView](MediaProgressEvent)
 	application.RegisterEvent[string](MediaEndedEvent)
 }
 
-// MediaControl sends a transport command to the audience display. That window
-// is the only player, so the studio's panes never drift out of step with it.
+// MediaControl sends a transport command to every window; whichever element is
+// actually playing — the audience display, or the studio itself when no display
+// is connected — acts on it.
 func (a *App) MediaControl(command MediaCommand) error {
 	switch command.Action {
 	case "play", "pause", "restart", "stop":
@@ -55,11 +53,12 @@ func (a *App) MediaControl(command MediaCommand) error {
 	default:
 		return fmt.Errorf("unknown media command %q", command.Action)
 	}
-	if a.display == nil {
-		return errNoAudienceDisplay
+	dest := application.Get()
+	if dest == nil {
+		return nil // tests, or a window that has just closed: nothing to deliver to
 	}
 
-	a.display.DispatchWailsEvent(&application.CustomEvent{Name: MediaControlEvent, Data: command})
+	dest.Event.Emit(MediaControlEvent, command)
 	return nil
 }
 

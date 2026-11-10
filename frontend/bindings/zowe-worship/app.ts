@@ -265,8 +265,9 @@ export function MediaAspects(): $CancellablePromise<media$0.Aspect[] | null> {
 }
 
 /**
- * MediaControl sends a transport command to the audience display. That window
- * is the only player, so the studio's panes never drift out of step with it.
+ * MediaControl sends a transport command to every window; whichever element is
+ * actually playing — the audience display, or the studio itself when no display
+ * is connected — acts on it.
  */
 export function MediaControl(command: $models.MediaCommand): $CancellablePromise<void> {
     return $Call.ByID(1547765932, command);

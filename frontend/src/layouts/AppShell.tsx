@@ -8,6 +8,7 @@ import type { IconName } from '../components/Icon';
 import { SlideMedia } from '../components/SlideMedia';
 import { ThemedSlide } from '../components/ThemedSlide';
 import { useStudio, type MediaAction } from '../stores/StudioProvider';
+import { useTransportPlayer } from '../lib/mediaTransport';
 import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
 import { useShortcuts } from '../stores/ShortcutsProvider';
 import { TEXT_GUARDED, actionForCombo, comboFromEvent } from '../lib/shortcuts';
@@ -441,12 +442,63 @@ function PresentationPanes() {
   const live = studio.presentation?.live ?? null;
   const scheduleCount = studio.order?.items?.length ?? 0;
   const liveIsMedia = live?.kind === 'video' || live?.kind === 'audio';
+  const previewIsMedia = preview?.kind === 'video' || preview?.kind === 'audio';
   const [playing, setPlaying] = useState(true);
   // The clip clock reported by the audience player, for the transport bar.
   const [clock, setClock] = useState({ timeMS: 0, durationMS: 0 });
   // The room volume persists across clips; the display re-applies the last
   // commanded value when a new element starts playing.
   const [volume, setVolume] = useState(100);
+
+  // With no display connected the studio's own live pane is the player, so the
+  // room clip is still watchable and the transport still works.
+  const liveMediaRef = useRef<HTMLMediaElement>(null);
+  useTransportPlayer(liveMediaRef, live?.source);
+
+  // The preview player is local: it never reaches the room and keeps its own
+  // clock, so the operator can check a clip before sending it live.
+  const previewMediaRef = useRef<HTMLMediaElement>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewClock, setPreviewClock] = useState({ timeMS: 0, durationMS: 0 });
+
+  useEffect(() => {
+    setPreviewPlaying(false);
+    setPreviewClock({ timeMS: 0, durationMS: 0 });
+  }, [preview?.source]);
+
+  useEffect(() => {
+    const element = previewMediaRef.current;
+    if (!element) return;
+
+    const tick = () => setPreviewClock({
+      timeMS: Math.round(element.currentTime * 1000),
+      durationMS: Number.isFinite(element.duration) ? Math.round(element.duration * 1000) : 0,
+    });
+    const markPlaying = () => setPreviewPlaying(true);
+    const markStopped = () => setPreviewPlaying(false);
+    element.addEventListener('timeupdate', tick);
+    element.addEventListener('loadedmetadata', tick);
+    element.addEventListener('play', markPlaying);
+    element.addEventListener('pause', markStopped);
+    element.addEventListener('ended', markStopped);
+    return () => {
+      element.removeEventListener('timeupdate', tick);
+      element.removeEventListener('loadedmetadata', tick);
+      element.removeEventListener('play', markPlaying);
+      element.removeEventListener('pause', markStopped);
+      element.removeEventListener('ended', markStopped);
+    };
+  }, [preview?.source]);
+
+  function runPreview(action: 'play' | 'pause' | 'seek', value?: number) {
+    const element = previewMediaRef.current;
+    if (!element) return;
+    if (action === 'play') element.play().catch(() => undefined);
+    if (action === 'pause') element.pause();
+    if (action === 'seek' && Number.isFinite(element.duration)) {
+      element.currentTime = Math.min(value ?? 0, 1) * element.duration;
+    }
+  }
 
   // A new clip starts from the beginning, so the button returns to Pause and
   // the slider to zero.
@@ -512,12 +564,42 @@ function PresentationPanes() {
         </div>
 
         {preview ? (
-          <div className="aspect-[16/9] w-full bg-[#0B1321]! p-0! flex flex-col items-center justify-center text-center"><SlideContent content={preview} /></div>
+          <div className="aspect-[16/9] w-full bg-[#0B1321]! p-0! flex flex-col items-center justify-center text-center">
+            {previewIsMedia
+              ? <SlideMedia content={preview} player autoPlay={false} mediaRef={previewMediaRef} />
+              : <SlideContent content={preview} />}
+          </div>
         ) : (
           <div className="aspect-[16/9] w-full bg-[#0B1321]! px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
             <Icon name="layers" size={30} />
             <strong>No content selected</strong>
             <p>Search scripture or choose a schedule item to prepare a slide.</p>
+          </div>
+        )}
+
+        {previewIsMedia && (
+          <div className="border-t border-border px-2.5 py-1.5 flex items-center gap-2 text-secondary text-[9.5px] tabular-nums">
+            <button
+              type="button"
+              className="inline-grid place-items-center w-7 h-7 shrink-0 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text"
+              onClick={() => void runPreview(previewPlaying ? 'pause' : 'play')}
+              aria-label={previewPlaying ? 'Pause the preview' : 'Play the preview'}
+            >
+              <Icon name={previewPlaying ? 'pause' : 'play'} size={13} />
+            </button>
+            <span className="w-[38px] shrink-0 text-right">{clockTime(previewClock.timeMS)}</span>
+            <input
+              type="range"
+              className="flex-1 min-w-0 h-1 accent-blue"
+              min={0}
+              max={1}
+              step={0.01}
+              value={previewClock.durationMS > 0 ? previewClock.timeMS / previewClock.durationMS : 0}
+              disabled={previewClock.durationMS <= 0}
+              onChange={(event) => runPreview('seek', Number(event.target.value))}
+              aria-label="Seek in the preview"
+            />
+            <span className="w-[38px] shrink-0">{clockTime(previewClock.durationMS)}</span>
           </div>
         )}
 
@@ -541,7 +623,11 @@ function PresentationPanes() {
         </div>
 
         {live ? (
-          <div className="aspect-[16/9] w-full bg-[#060B14] p-0! flex flex-col items-center justify-center text-center"><SlideContent content={live} /></div>
+          <div className="aspect-[16/9] w-full bg-[#060B14] p-0! flex flex-col items-center justify-center text-center">
+            {liveIsMedia && !studio.display?.open
+              ? <SlideMedia content={live} player mediaRef={liveMediaRef} onEnded={() => void App.MediaEnded()} />
+              : <SlideContent content={live} />}
+          </div>
         ) : (
           <div className="aspect-[16/9] w-full bg-[#060B14] px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
             <Icon name="display" size={30} />
