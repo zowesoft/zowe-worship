@@ -79,10 +79,23 @@ Done:
       this build does not know (`SchemaAheadError`), and the reason shows in
       Settings rather than storage failing silently (`app.go`
       `storageProblem`, `StorageView.Problem`).
+- [x] Cross-platform packaging wired: per-platform Taskfiles for macOS
+      (`build/darwin` — .app bundle, universal binary, DMG task) and Linux
+      (`build/linux` — deb/rpm/AppImage via nfpm, .desktop entry), with the
+      app's identity (com.zowesoft.zowe-worship) in Info.plist, nfpm.yaml and
+      the desktop file. `.github/workflows/release.yml` builds all three OSes
+      on native GitHub runners on every `v*` tag and attaches the packages to
+      the release — no local Mac or Linux machine needed.
 
 Open:
-- [ ] macOS/Linux packaging; Windows already builds an NSIS installer (see the
-      F07 installer notes). Needs a machine running those platforms.
+- [ ] First tagged release must prove the workflow end to end: packages built
+      on each runner, attached to the GitHub release, and at least smoke-run
+      on a real macOS/Linux machine. The repo is not on GitHub yet.
+- [ ] Package signing (Windows Authenticode, macOS Developer ID + notarization)
+      — the workflow ships unsigned packages until certificates exist.
+- [ ] Bundling the offline speech engine into the Linux/macOS packages (the
+      Windows installer already stages it; the darwin/linux Taskfiles do not
+      yet copy `common:engines:stage` output into their layouts).
 
 ## F02 — Bible library and translation search (Partial)
 

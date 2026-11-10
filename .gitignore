@@ -4,9 +4,13 @@
 # Engine tree staged for packaging by `task engines:stage`; the bytes come from
 # pinned releases, not the repo.
 /build/engines/
-# macOS icon generation hook currently assumes a Windows-only build; revisit
-# when macOS/Linux packaging tasks land.
-/build/darwin/
+# macOS packaging assets: the Taskfile and plists are tracked (the release
+# workflow needs them); generated icon/asset bytes stay untracked.
+/build/darwin/*
+!/build/darwin/Taskfile.yml
+!/build/darwin/Info.plist
+!/build/darwin/Info.dev.plist
+!/build/darwin/icons.icns
 /benchmarks/models/
 /benchmarks/tools/
 /benchmarks/dumps/

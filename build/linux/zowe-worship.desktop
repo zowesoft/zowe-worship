@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Zowe Worship
+Comment=Scripture-first worship presentation for a single operator and one audience display.
+Exec=/usr/local/bin/zowe-worship %u
+Terminal=false
+Type=Application
+Icon=zowe-worship
+Categories=AudioVideo;Utility;
+StartupWMClass=zowe-worship
