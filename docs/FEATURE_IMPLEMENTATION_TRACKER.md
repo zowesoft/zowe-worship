@@ -338,6 +338,15 @@ request is consumed once (`features/bible/focus.ts` keeps the one-shot
 passage + nonce), so returning to the Bible tab later does not reopen an old
 reference, while clicking Search twice moves the pane again.
 
+The pending queue is also keyboard-reachable: tab to the list, `↑`/`↓` (plus
+Home/End) move a highlighted card, and `P`/Enter project it live, `A` approves
+to preview, `D` dismisses — the same backend calls the buttons make, so the
+gate and recording behaviour is identical. Keys are handled only while the
+list itself has focus, so a focused card button cannot fire Enter twice; the
+highlight is clamped as cards leave the queue and the selected card is scrolled
+into view. It is local to the panel rather than a configurable shortcut, since
+bare letters are unsafe in the global map.
+
 Listening is continuous now: `segmenter.ts` feeds on the level the capture
 already reports and closes a segment after 700 ms of quiet (or cuts at 25 s, so
 a request never crosses the backend's 30 s cap). The microphone keeps running

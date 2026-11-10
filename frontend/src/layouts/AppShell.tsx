@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { Events } from '@wailsio/runtime';
 import { BackendStatus } from '../components/BackendStatus';
 import { Dropdown } from '../components/Dropdown';
@@ -741,6 +741,72 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
   const detection = useDetection();
   const [problem, setProblem] = useState<string | null>(null);
 
+  // Keyboard path through the queue: the list takes focus, arrows move the
+  // highlight and one key acts on it, so a reference can be served while the
+  // operator's hands are on the keyboard rather than hunting for a button.
+  const queueRef = useRef<HTMLUListElement>(null);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const queueLength = detection.candidates.length;
+  // Clamped, not stored: an action removes the highlighted card, and the next
+  // render must not point past the end of the list.
+  const activeIndex = queueLength === 0 ? -1 : Math.min(queueIndex, queueLength - 1);
+
+  function highlight(index: number) {
+    if (queueLength === 0) return;
+    const next = Math.min(queueLength - 1, Math.max(0, index));
+    setQueueIndex(next);
+    // Keep the highlighted card visible without moving the panel header; the
+    // sidebar is the only thing that scrolls.
+    requestAnimationFrame(() => {
+      queueRef.current
+        ?.querySelector(`[data-queue-index="${next}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  function handleQueueKeyDown(event: ReactKeyboardEvent<HTMLUListElement>) {
+    // Only when the list itself has focus: keys bubbling from a card's buttons
+    // must not act a second time on Enter or on their own letters.
+    if (event.target !== event.currentTarget) return;
+    const candidate = detection.candidates[activeIndex];
+    if (!candidate) return;
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        highlight(activeIndex + 1);
+        return;
+      case 'ArrowUp':
+        event.preventDefault();
+        highlight(activeIndex - 1);
+        return;
+      case 'Home':
+        event.preventDefault();
+        highlight(0);
+        return;
+      case 'End':
+        event.preventDefault();
+        highlight(queueLength - 1);
+        return;
+      case 'Enter':
+      case 'p':
+      case 'P':
+        event.preventDefault();
+        void run(() => detection.project(candidate.id));
+        return;
+      case 'a':
+      case 'A':
+        event.preventDefault();
+        void run(() => detection.approve(candidate.id));
+        return;
+      case 'd':
+      case 'D':
+        event.preventDefault();
+        void run(() => detection.dismiss(candidate.id));
+        return;
+      default:
+    }
+  }
+
   async function run(action: () => Promise<unknown>) {
     setProblem(null);
     try {
@@ -896,9 +962,33 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
           {detection.candidates.length === 0 ? (
             <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">Nothing waiting for confirmation.</p>
           ) : (
-            <ul className="m-0 p-0 list-none grid gap-1.5">
-              {detection.candidates.map((candidate) => (
-                <li key={candidate.id} className="grid gap-1.5 p-2.5 border border-border rounded-[7px] bg-app">
+            <ul
+              ref={queueRef}
+              className="m-0 p-0 list-none grid gap-1.5 rounded-[7px] focus-visible:outline-1 focus-visible:outline-blue"
+              role="listbox"
+              aria-label="Pending detections"
+              tabIndex={0}
+              onKeyDown={handleQueueKeyDown}
+            >
+              {detection.candidates.map((candidate, index) => (
+                <li
+                  key={candidate.id}
+                  data-queue-index={index}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  className={
+                    'grid gap-1.5 p-2.5 border rounded-[7px] bg-app '
+                    + (index === activeIndex
+                      ? 'border-[#304C80] bg-selected shadow-[inset_3px_0_var(--color-blue)]'
+                      : 'border-border')
+                  }
+                  onClick={(event) => {
+                    // Acting on a button must not steal the list's keyboard path.
+                    if ((event.target as HTMLElement).closest('button, summary, details')) return;
+                    highlight(index);
+                    queueRef.current?.focus();
+                  }}
+                >
                   <div className="flex items-baseline gap-2 min-w-0">
                     <Icon name="bible" size={14} className="text-[#B3A4FF] shrink-0 translate-y-px" />
                     <strong className="text-[11.5px] font-semibold truncate">{candidate.reference}</strong>
@@ -976,6 +1066,11 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
                 </li>
               ))}
             </ul>
+          )}
+          {detection.candidates.length > 0 && (
+            <p className="text-secondary text-[9px] leading-[1.5]">
+              Click the queue, then ↑↓ select · P or Enter project · A approve · D dismiss
+            </p>
           )}
         </section>
 
