@@ -45,7 +45,7 @@ func NewSQLiteRepository(core *sql.DB, translationsDir string) *SQLiteRepository
 
 func (r *SQLiteRepository) ListTranslations(ctx context.Context) ([]Translation, error) {
 	rows, err := r.core.QueryContext(ctx, `
-		SELECT id, name, abbreviation, language, version, verse_count, checksum, installed_at
+		SELECT id, name, abbreviation, language, version, verse_count, checksum, installed_at, license, attribution
 		FROM bible_translations
 		ORDER BY name COLLATE NOCASE`)
 	if err != nil {
@@ -75,7 +75,7 @@ func (r *SQLiteRepository) Translation(ctx context.Context, id string) (Translat
 func (r *SQLiteRepository) catalogEntry(ctx context.Context, id string) (Translation, string, error) {
 	var filename string
 	translation, err := scanTranslation(r.core.QueryRowContext(ctx, `
-		SELECT id, name, abbreviation, language, version, verse_count, checksum, installed_at, filename
+		SELECT id, name, abbreviation, language, version, verse_count, checksum, installed_at, license, attribution, filename
 		FROM bible_translations WHERE id = ?`, id), &filename)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Translation{}, "", ErrTranslationNotFound
@@ -87,6 +87,18 @@ func (r *SQLiteRepository) catalogEntry(ctx context.Context, id string) (Transla
 }
 
 func (r *SQLiteRepository) Install(ctx context.Context, data TranslationData) (Translation, error) {
+	// A translation the registry knows travels with its recorded license; an
+	// unknown one has to state its own through the importer's flags.
+	if data.License == "" || data.Attribution == "" {
+		if license, ok := LicenseFor(data.ID); ok {
+			if data.License == "" {
+				data.License = license.License
+			}
+			if data.Attribution == "" {
+				data.Attribution = license.Attribution
+			}
+		}
+	}
 	if err := validateTranslation(data); err != nil {
 		return Translation{}, err
 	}
@@ -150,8 +162,8 @@ func (r *SQLiteRepository) upsertCatalog(ctx context.Context, translation Transl
 
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO bible_translations
-			(id, name, abbreviation, language, version, filename, verse_count, checksum, installed_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(id, name, abbreviation, language, version, filename, verse_count, checksum, installed_at, license, attribution)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			abbreviation = excluded.abbreviation,
@@ -160,10 +172,12 @@ func (r *SQLiteRepository) upsertCatalog(ctx context.Context, translation Transl
 			filename = excluded.filename,
 			verse_count = excluded.verse_count,
 			checksum = excluded.checksum,
-			installed_at = excluded.installed_at`,
+			installed_at = excluded.installed_at,
+			license = excluded.license,
+			attribution = excluded.attribution`,
 		translation.ID, translation.Name, translation.Abbreviation, translation.Language,
 		translation.Version, filename, translation.VerseCount, translation.Checksum,
-		translation.InstalledAt.Format(time.RFC3339),
+		translation.InstalledAt.Format(time.RFC3339), translation.License, translation.Attribution,
 	)
 	if err != nil {
 		_ = tx.Rollback()
@@ -441,6 +455,7 @@ func scanTranslation(row interface{ Scan(...any) error }, extra ...*string) (Tra
 	dest := []any{
 		&translation.ID, &translation.Name, &translation.Abbreviation, &translation.Language,
 		&translation.Version, &translation.VerseCount, &translation.Checksum, &installedAt,
+		&translation.License, &translation.Attribution,
 	}
 	for _, ptr := range extra {
 		dest = append(dest, ptr)

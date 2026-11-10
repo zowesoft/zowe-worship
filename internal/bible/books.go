@@ -125,6 +125,22 @@ func NormalizeBookName(name string) string {
 	return strings.Join(strings.Fields(normalized), " ")
 }
 
+// MissingBooks names the canonical books a dataset does not carry, so a
+// package can be checked for completeness before it is bundled.
+func MissingBooks(data TranslationData) []string {
+	present := make(map[int]bool, len(CanonicalBooks))
+	for _, verse := range data.Verses {
+		present[verse.BookID] = true
+	}
+	missing := make([]string, 0)
+	for _, book := range CanonicalBooks {
+		if !present[book.ID] {
+			missing = append(missing, book.Name)
+		}
+	}
+	return missing
+}
+
 func LookupBook(name string) (Book, bool) {
 	book, ok := booksByName[NormalizeBookName(name)]
 	return book, ok

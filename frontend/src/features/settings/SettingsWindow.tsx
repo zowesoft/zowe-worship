@@ -343,7 +343,8 @@ export function SettingsWindow() {
                   <li key={translation.id}>
                     <span className="grid gap-0.5 min-w-0 [&_strong]:text-[11.5px] [&_strong]:font-semibold [&_span]:text-secondary [&_span]:text-[10px] [&_span]:overflow-hidden [&_span]:text-ellipsis [&_span]:whitespace-nowrap">
                       <strong>{translation.abbreviation || translation.name}</strong>
-                      <span>{translation.name}</span>
+                      <span title={translation.attribution || translation.license}>{translation.name}</span>
+                      {translation.license && <span>{translation.attribution || translation.license}</span>}
                     </span>
                     <span className="shrink-0 text-secondary text-[10.5px] inline-flex items-center gap-2">
                       <span>{translation.verseCount.toLocaleString()} verses</span>

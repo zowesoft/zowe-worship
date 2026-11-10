@@ -126,18 +126,25 @@ Done:
       The live path ignores the in-flight "busy" gate, because the first click
       of a double-click has already started a preview by the time the dblclick
       lands (that gate is what previously swallowed the double-click).
+- [x] License and attribution metadata per translation: a registry of known
+      translations' copyright facts (`internal/bible/licenses.go`), columns on
+      `bible_translations` (migration `017`), and the line shown under each
+      translation in Settings (`SettingsWindow.tsx`).
+- [x] Bundling gate and integrity checks in `cmd/bible-import`: a complete
+      dataset must carry all 66 canonical books (`bible.MissingBooks`), the
+      license/attribution can be stated with flags (a known translation falls
+      back to its registry entry), and importing a copyrighted translation
+      prints its copyright holder as a notice.
 
 Open:
-- [ ] `NIV`, `ESV`, `NLT`, `NASB` packages — only `KJV` (+ `AMP` in fixtures) are
-      targeted; add per-translation license/distribution metadata + integrity
-      checks before bundling.
+- [ ] `NIV`, `ESV`, `NLT`, `NASB` packages — datasets import through
+      `cmd/bible-import` from the operator's own copies; nothing is bundled
+      with the installer until the copyright holders' permission is on file.
 - [ ] Performance targets measured (reference p95 < 50 ms, full-text p95 < 150 ms)
       — no benchmark recorded. Note: a per-row coverage recount for the widened
       stage was rejected after measuring 29–58 s over 4,000+ OR candidates;
       plain bm25 ordering answers the same queries in 20–430 ms and still floats
       the highest-coverage verses to the top.
-- [ ] Attribution / license surface for installed translations in the UI.
-
 ## F03 — Service order and multi-display presentation (Partial)
 
 Done:

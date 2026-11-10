@@ -489,4 +489,10 @@ export interface TranslationView {
     "language": string;
     "version": string;
     "verseCount": number;
+
+    /**
+     * License and Attribution answer "whose words are these?" in the UI.
+     */
+    "license": string;
+    "attribution": string;
 }

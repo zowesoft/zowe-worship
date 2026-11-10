@@ -19,6 +19,11 @@ type TranslationMeta struct {
 	Abbreviation string
 	Language     string
 	Version      string
+	// License and Attribution travel with the text: what may be done with it
+	// and the line that must be shown beside it. Known translations get theirs
+	// from the registry; anything else has to state its own.
+	License     string
+	Attribution string
 }
 
 type Translation struct {

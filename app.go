@@ -60,6 +60,9 @@ type TranslationView struct {
 	Language     string `json:"language"`
 	Version      string `json:"version"`
 	VerseCount   int    `json:"verseCount"`
+	// License and Attribution answer "whose words are these?" in the UI.
+	License     string `json:"license"`
+	Attribution string `json:"attribution"`
 }
 
 // BibleSearchRequest is one operator query. Mode "auto" resolves a reference
@@ -222,6 +225,8 @@ func (a *App) ListTranslations() ([]TranslationView, error) {
 			Language:     translation.Language,
 			Version:      translation.Version,
 			VerseCount:   translation.VerseCount,
+			License:      translation.License,
+			Attribution:  translation.Attribution,
 		})
 	}
 	return views, nil
