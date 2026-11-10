@@ -139,6 +139,13 @@ export interface DetectionHistoryView {
 export interface DetectionResult {
     "transcript": string;
     "candidates": DetectionView[] | null;
+
+    /**
+     * Segment numbers the analysis that just closed; Repeats counts hearings
+     * that folded into an existing pending card.
+     */
+    "segment": number;
+    "repeats": number;
 }
 
 /**
@@ -156,6 +163,10 @@ export interface DetectionView {
     "method": string;
     "confidence": number;
     "explanation": string;
+    "segment": number;
+    "version": number;
+    "finalized": boolean;
+    "repeats": number;
     "bookId": number;
     "chapter": number;
     "verseStart": number;

@@ -33,6 +33,10 @@ type DetectionView struct {
 	Method      string  `json:"method"`
 	Confidence  float64 `json:"confidence"`
 	Explanation string  `json:"explanation"`
+	Segment     int     `json:"segment"`
+	Version     int     `json:"version"`
+	Finalized   bool    `json:"finalized"`
+	Repeats     int     `json:"repeats"`
 	BookID      int     `json:"bookId"`
 	Chapter     int     `json:"chapter"`
 	VerseStart  int     `json:"verseStart"`
@@ -45,6 +49,10 @@ type DetectionView struct {
 type DetectionResult struct {
 	Transcript string          `json:"transcript"`
 	Candidates []DetectionView `json:"candidates"`
+	// Segment numbers the analysis that just closed; Repeats counts hearings
+	// that folded into an existing pending card.
+	Segment int `json:"segment"`
+	Repeats int `json:"repeats"`
 }
 
 const detectionProgressEvent = "detection:progress"
@@ -56,6 +64,7 @@ const detectionConfigEvent = "detection:config"
 type DetectionProgressView struct {
 	Transcript string          `json:"transcript"`
 	Candidates []DetectionView `json:"candidates"`
+	Segment    int             `json:"segment"`
 }
 
 type DetectionConfigView struct {
@@ -101,19 +110,23 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 		return DetectionResult{}, fmt.Errorf("write audio chunk: %w", err)
 	}
 
+	// Partials may only refine this segment's cards; the final transcript closes
+	// the segment and settles them under their existing IDs.
+	a.detection.BeginSegment()
 	transcript, err := spec.TranscribeStream(wavPath, a.streamDetectionProgress)
 	if err != nil {
+		a.detection.CloseSegment()
 		return DetectionResult{}, err
 	}
-
-	// The final transcript can still widen a hearing that streamed in narrow,
-	// so the queue settles through the same grow-in-place merge.
-	if _, err := a.detection.MergeLive(transcript, asr.DetectReferences(transcript)); err != nil {
+	settled, err := a.detection.Finalize(transcript, asr.DetectReferences(transcript))
+	if err != nil {
 		return DetectionResult{}, err
 	}
 	return DetectionResult{
 		Transcript: transcript,
 		Candidates: toDetectionViews(a.detection.List()),
+		Segment:    settled.Segment,
+		Repeats:    settled.Repeats,
 	}, nil
 }
 
@@ -133,6 +146,7 @@ func (a *App) streamDetectionProgress(partial string) {
 				Data: DetectionProgressView{
 					Transcript: partial,
 					Candidates: toDetectionViews(a.detection.List()),
+					Segment:    a.detection.CurrentSegment(),
 				},
 			})
 		}
@@ -368,6 +382,10 @@ func toDetectionViews(candidates []detection.Candidate) []DetectionView {
 			Method:      candidate.Method,
 			Confidence:  candidate.Confidence,
 			Explanation: candidate.Explanation,
+			Segment:     candidate.Segment,
+			Version:     candidate.Version,
+			Finalized:   candidate.Finalized,
+			Repeats:     candidate.Repeats,
 			BookID:      reference.Book.ID,
 			Chapter:     reference.Chapter,
 			VerseStart:  reference.VerseStart,

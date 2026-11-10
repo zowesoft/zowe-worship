@@ -25,6 +25,10 @@ type DetectionValue = {
   disabled: boolean;
   engineConfigured: boolean;
   bufferedSeconds: number;
+  // The last analysis segment and how many repeated hearings it folded into a
+  // pending card instead of queuing duplicates.
+  segment: number;
+  repeats: number;
   setDevice: (deviceID: string) => void;
   toggleListening: () => Promise<void>;
   analyze: () => Promise<void>;
@@ -55,6 +59,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const [disabled, setDisabled] = useState(false);
   const [engineConfigured, setEngineConfigured] = useState(false);
   const [bufferedSeconds, setBufferedSeconds] = useState(0);
+  const [segment, setSegment] = useState(0);
+  const [repeats, setRepeats] = useState(0);
 
   const captureRef = useRef<MicCapture | null>(null);
   const deviceIdRef = useRef('');
@@ -98,9 +104,10 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   // segment by segment instead of all at once.
   useEffect(() => {
     const cancel = Events.On('detection:progress', (event) => {
-      const progress = event.data as { transcript: string; candidates: models.DetectionView[] };
+      const progress = event.data as { transcript: string; candidates: models.DetectionView[]; segment: number };
       setTranscript(progress.transcript);
       setCandidates(progress.candidates);
+      setSegment(progress.segment);
     });
     return () => { cancel(); };
   }, []);
@@ -160,8 +167,11 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     try {
       const pcm = capture.takeLast(ANALYZE_SECONDS);
       setBufferedSeconds(pcm.length / 16000);
+      setRepeats(0);
       const result = await App.DetectScripture(toBase64(pcm));
       setTranscript(result.transcript);
+      setSegment(result.segment);
+      setRepeats(result.repeats);
       setCandidates((await App.ListDetections()) ?? []);
     } finally {
       setAnalyzing(false);
@@ -176,8 +186,11 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     try {
       const pcm = await decodeAudioFile(file);
       setBufferedSeconds(pcm.length / 16000);
+      setRepeats(0);
       const result = await App.DetectScripture(toBase64(pcm));
       setTranscript(result.transcript);
+      setSegment(result.segment);
+      setRepeats(result.repeats);
       setCandidates((await App.ListDetections()) ?? []);
     } finally {
       setAnalyzing(false);
@@ -217,6 +230,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     disabled,
     engineConfigured,
     bufferedSeconds,
+    segment,
+    repeats,
     setDevice: setDeviceId,
     toggleListening,
     analyze,
@@ -229,7 +244,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     },
   }), [
     listening, devices, deviceId, level, transcript, candidates, history, analyzing, disabled,
-    engineConfigured, bufferedSeconds, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
+    engineConfigured, bufferedSeconds, segment, repeats, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
     refreshConfig, refreshQueue, refreshHistory,
   ]);
 

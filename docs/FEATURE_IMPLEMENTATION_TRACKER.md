@@ -260,8 +260,16 @@ newest first for the panel's recent-decisions list (`app_detection.go`,
 score is still the fixed `ConfidenceRuleMatch` and is deliberately not shown as
 a percentage until bands are calibrated.
 
+`DetectScripture` now opens a numbered analysis segment, lets partials refine
+only that segment's cards, and settles them on the final transcript with stable
+IDs and versions. An identical hearing that arrives while a card is still
+pending and within `RepeatWindow` (two minutes) folds into it (`repeats` on the
+card) instead of queuing a duplicate the operator must dismiss twice; folding
+is not an operator decision, so `detection_history` keeps only what the
+operator actually decided.
+
 Still open (later slices): continuous listening with automatic segmentation
-(currently manual chunks only), finalized transcripts, calibrated confidence
+(currently manual chunks only), calibrated confidence
 bands, gated auto-projection with the safety checklist, and the empty
 `internal/audio` and `internal/confidence` packages. The shipped engine is
 Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
@@ -532,7 +540,8 @@ The tracker understated the app, which is why this audit was needed:
    reads decisions back, and method/confidence/explanation on `DetectionView`.
    Everything after this needs the data surface, and it closes three
    detection-panel requirements at once.
-2. **Finalized-segment lifecycle + repeat protection (M–L).** `DetectScripture`
+2. **Finalized-segment lifecycle + repeat protection (M–L) — landed
+   2026-11-09.** `DetectScripture`
    transcribes one 20 s blob today. Introduce finalized segments with stable
    candidate IDs/versions and the duplicate/rapid-repeat gate on top of the
    existing `MergeLive` merge. **Critical path.**

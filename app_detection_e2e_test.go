@@ -123,6 +123,14 @@ func verifyDetectionWithEngine(t *testing.T, clip, spec string) {
 	if result.Transcript == "" {
 		t.Fatal("engine returned an empty transcript")
 	}
+	if result.Segment < 1 {
+		t.Fatalf("segment = %d, want the analysis to open one", result.Segment)
+	}
+	for _, candidate := range result.Candidates {
+		if !candidate.Finalized {
+			t.Errorf("candidate %q is not finalized after a settled transcript", candidate.Reference)
+		}
+	}
 
 	// The clip says "Let us turn tonight to Romans 8, verse 28."
 	var romans *DetectionView
