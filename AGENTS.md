@@ -42,6 +42,48 @@ powershell -NoProfile -Command "Get-Process zowe-worship | Select-Object Id,Main
 The rebuilt binary is only verified when the exe timestamp has moved and the
 process is running with the `Zowe Worship` window title.
 
+## Commits and staging
+
+### Commit messages
+
+History follows Conventional Commits: `type(scope): imperative summary`, with a
+blank line and a body that says *why* the change was made. Types in use are
+`feat`, `fix`, `test`, `docs`, `refactor` and `chore`; the scope names the area
+(`detection`, `media`, `database`, `bible`, …) and is omitted for repository-wide
+docs. Keep the subject under ~72 characters, lowercase after the colon, no
+trailing period.
+
+No attribution trailers. Do not add `Co-Authored-By`, `Generated with …` or any
+other footer; the history has none and reviewers expect the message to end with
+the body.
+
+Write the message to a file and commit with `git commit -F <file>` when it
+contains quotes, backticks or em dashes. A `-m "$(cat <<'EOF' …)"` form breaks
+on an unbalanced quote inside the body.
+
+### Staging
+
+The working tree is shared and frequently holds someone else's unfinished work.
+Before staging anything:
+
+1. `git status --porcelain` and list only the paths this change actually touched.
+2. Stage by explicit path. Never use `git add -A`, `git add .` or `git commit -a`.
+3. If an owned file also carries someone else's hunks, stage only your hunks:
+   filter the patch and apply it with `git apply --cached --recount`, then check
+   that no removed lines were staged and that every staged line is yours.
+4. Commit one slice at a time, and only once its checks pass.
+5. Verify the result with `git show --stat <sha>` and confirm no unrelated file
+   (and none of the WIP paths from step 1) appears in it.
+
+Commit promptly after a slice passes its checks. Work left uncommitted has been
+swept into other people's commits on this tree, which loses the reason for the
+change and muddies the history.
+
+Update `docs/FEATURE_IMPLEMENTATION_TRACKER.md` in the same commit as the slice
+it describes, with claims that match what the code now does.
+
+Do not push, tag, rewrite history or reset branches unless asked.
+
 ### Build side effects to clean up
 
 - `wails3 build` stops running `zowe-worship` processes itself; relaunch after.
