@@ -135,16 +135,19 @@ Done:
       license/attribution can be stated with flags (a known translation falls
       back to its registry entry), and importing a copyrighted translation
       prints its copyright holder as a notice.
+- [x] Performance targets measured and enforced by `cmd/bible-bench` (reference
+      p95 < 50 ms, full-text p95 < 150 ms; exits non-zero on a miss). Measured
+      over 40 runs per workload after 3 warmups, on the real installed packages:
+      - NIV (31,087 verses): references p95 4.1–6.0 ms; searches p95 11.8–31.9 ms
+        ("shepherd still waters" worst at 31.9 ms).
+      - KJV (31,102 verses): references p95 6.0–9.0 ms; searches p95 10.8–30.9 ms.
+      The widened-stage bm25 ordering from the earlier note remains the
+      production behaviour; nothing regressed at 40 runs per workload.
 
 Open:
 - [ ] `NIV`, `ESV`, `NLT`, `NASB` packages — datasets import through
       `cmd/bible-import` from the operator's own copies; nothing is bundled
       with the installer until the copyright holders' permission is on file.
-- [ ] Performance targets measured (reference p95 < 50 ms, full-text p95 < 150 ms)
-      — no benchmark recorded. Note: a per-row coverage recount for the widened
-      stage was rejected after measuring 29–58 s over 4,000+ OR candidates;
-      plain bm25 ordering answers the same queries in 20–430 ms and still floats
-      the highest-coverage verses to the top.
 ## F03 — Service order and multi-display presentation (Partial)
 
 Done:
