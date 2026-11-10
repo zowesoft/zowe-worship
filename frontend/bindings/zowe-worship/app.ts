@@ -468,6 +468,22 @@ export function SendPreviewLive(): $CancellablePromise<$models.PresentationView>
     return $Call.ByID(2243982563);
 }
 
+/**
+ * SetAutoProjection is the operator's standing choice. Turning it on never
+ * clears a pause: F9 is the resume, so the switch alone cannot start projecting.
+ */
+export function SetAutoProjection(enabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(391097901, enabled);
+}
+
+/**
+ * SetAutoProjectionPaused is the F9 pause. It stops automatic projections only;
+ * detection keeps running and every candidate keeps queuing for the operator.
+ */
+export function SetAutoProjectionPaused(paused: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3884424947, paused);
+}
+
 export function SetDefaultTranslation(id: string): $CancellablePromise<$models.StorageView> {
     return $Call.ByID(1460585431, id);
 }

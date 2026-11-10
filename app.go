@@ -157,6 +157,15 @@ func (a *App) rewireStores(core *sql.DB, paths database.Paths) {
 	a.media = media.NewLibrary(media.NewSQLiteRepository(core), paths.Media(), paths.MediaThumbnails())
 	a.themes = themes.NewSQLiteRepository(core)
 	a.settings = settings.New(core)
+	// Auto-projection never resumes on its own: every start boots paused, so a
+	// service cannot begin projecting before the operator is at the desk.
+	pauseCtx := a.ctx
+	if pauseCtx == nil {
+		pauseCtx = context.Background()
+	}
+	if err := a.settings.Set(pauseCtx, settings.KeyAutoProjectionPaused, "true"); err != nil {
+		log.Printf("zowe: pause auto-projection on start: %v", err)
+	}
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
 	a.detection = detection.New(core)
 	a.history = history.New(core)

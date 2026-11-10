@@ -29,7 +29,15 @@ type DetectionValue = {
   // pending card instead of queuing duplicates.
   segment: number;
   repeats: number;
+  // The operator's standing auto-projection choice and the F9 pause. Both are
+  // backend policy state; the panel never decides a gate itself.
+  autoProjection: boolean;
+  autoProjectionPaused: boolean;
+  // References the safety gates projected during the last analysis.
+  autoProjected: string[];
   setDevice: (deviceID: string) => void;
+  setAutoProjection: (enabled: boolean) => Promise<void>;
+  toggleAutoProjectionPause: () => Promise<void>;
   toggleListening: () => Promise<void>;
   analyze: () => Promise<void>;
   analyzeFile: (file: File) => Promise<void>;
@@ -61,6 +69,9 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const [bufferedSeconds, setBufferedSeconds] = useState(0);
   const [segment, setSegment] = useState(0);
   const [repeats, setRepeats] = useState(0);
+  const [autoProjection, setAutoProjectionState] = useState(false);
+  const [autoProjectionPaused, setAutoProjectionPausedState] = useState(true);
+  const [autoProjected, setAutoProjected] = useState<string[]>([]);
 
   const captureRef = useRef<MicCapture | null>(null);
   const deviceIdRef = useRef('');
@@ -71,6 +82,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       const config = await App.GetDetectionConfig();
       setDisabled(config.disabled);
       setEngineConfigured(config.engineSpec !== '');
+      setAutoProjectionState(config.autoProjection);
+      setAutoProjectionPausedState(config.autoProjectionPaused);
     } catch {
       // Without the bridge the panel stays in its offline state.
     }
@@ -168,10 +181,12 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       const pcm = capture.takeLast(ANALYZE_SECONDS);
       setBufferedSeconds(pcm.length / 16000);
       setRepeats(0);
+      setAutoProjected([]);
       const result = await App.DetectScripture(toBase64(pcm));
       setTranscript(result.transcript);
       setSegment(result.segment);
       setRepeats(result.repeats);
+      setAutoProjected(result.autoProjected ?? []);
       setCandidates((await App.ListDetections()) ?? []);
     } finally {
       setAnalyzing(false);
@@ -187,15 +202,28 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       const pcm = await decodeAudioFile(file);
       setBufferedSeconds(pcm.length / 16000);
       setRepeats(0);
+      setAutoProjected([]);
       const result = await App.DetectScripture(toBase64(pcm));
       setTranscript(result.transcript);
       setSegment(result.segment);
       setRepeats(result.repeats);
+      setAutoProjected(result.autoProjected ?? []);
       setCandidates((await App.ListDetections()) ?? []);
     } finally {
       setAnalyzing(false);
     }
   }, [analyzing]);
+
+  const setAutoProjectionEnabled = useCallback(async (enabled: boolean) => {
+    await App.SetAutoProjection(enabled);
+    await refreshConfig();
+  }, [refreshConfig]);
+
+  // F9 pauses or resumes; it never changes the standing switch.
+  const toggleAutoProjectionPause = useCallback(async () => {
+    await App.SetAutoProjectionPaused(!autoProjectionPaused);
+    await refreshConfig();
+  }, [autoProjectionPaused, refreshConfig]);
 
   const approve = useCallback(async (id: string) => {
     // Approval previews through the studio; sending it live stays a separate
@@ -232,7 +260,12 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     bufferedSeconds,
     segment,
     repeats,
+    autoProjection,
+    autoProjectionPaused,
+    autoProjected,
     setDevice: setDeviceId,
+    setAutoProjection: setAutoProjectionEnabled,
+    toggleAutoProjectionPause,
     toggleListening,
     analyze,
     analyzeFile,
@@ -244,7 +277,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     },
   }), [
     listening, devices, deviceId, level, transcript, candidates, history, analyzing, disabled,
-    engineConfigured, bufferedSeconds, segment, repeats, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
+    engineConfigured, bufferedSeconds, segment, repeats, autoProjection, autoProjectionPaused, autoProjected,
+    setAutoProjectionEnabled, toggleAutoProjectionPause, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
     refreshConfig, refreshQueue, refreshHistory,
   ]);
 

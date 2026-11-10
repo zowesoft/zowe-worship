@@ -116,6 +116,13 @@ export interface CustomItemRequest {
 export interface DetectionConfigView {
     "engineSpec": string;
     "disabled": boolean;
+
+    /**
+     * AutoProjection is the operator's standing choice; AutoProjectionPaused is
+     * the F9 pause. They are separate so the panel can say "Hybrid" or "Paused".
+     */
+    "autoProjection": boolean;
+    "autoProjectionPaused": boolean;
 }
 
 /**
@@ -147,6 +154,12 @@ export interface DetectionResult {
      */
     "segment": number;
     "repeats": number;
+
+    /**
+     * AutoProjected lists what the safety gates sent to the room without the
+     * operator, so the panel can say so instead of the card vanishing.
+     */
+    "autoProjected": string[] | null;
 }
 
 /**

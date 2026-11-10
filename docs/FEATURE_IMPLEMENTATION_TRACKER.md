@@ -156,7 +156,7 @@ Done:
       Settings → Shortcuts (`app_shortcuts.go`, `frontend/src/lib/shortcuts.ts`,
       `SettingsWindow.tsx`; commit `6f3f5a4`). Defaults: Ctrl+L send live,
       Ctrl+F Bible search, F8 listening, F9 auto-projection, F12 emergency,
-      ←/→ previous/next schedule item. F9 still has nothing to pause — see F07.
+      ←/→ previous/next schedule item. F9 pauses/resumes auto-projection.
 - [x] Presentation history writing — every command that changes live output
       records a row (`app.go` `projected`/`recordProjection`, `internal/history`),
       exposed through `App.RecentProjections` and shown in
@@ -274,15 +274,27 @@ card) instead of queuing a duplicate the operator must dismiss twice; folding
 is not an operator decision, so `detection_history` keeps only what the
 operator actually decided.
 
+Auto-projection runs through `internal/policy`, the only code allowed to send a
+detection to the display (`app_detection.go` `autoProject`). The PRD's eight
+safety gates are named checks — finalized segment, unambiguous reference,
+passage exists in the selected translation, explicit intent, no competing
+candidate, not a repeat, switched on and not paused, high confidence — and a
+failing gate leaves the card in the operator's queue with the live slide
+untouched. The switch is off by default and every start boots paused, so
+nothing projects before the operator arms it; F9 pauses and resumes without
+stopping audio capture, a successful automatic projection is recorded as
+`auto_projected` in `detection_history`, and the panel names what went to the
+room instead of the card silently vanishing.
+
 Still open (later slices): continuous listening with automatic segmentation
 (currently manual chunks only), measured calibration of the confidence bands
-against labeled audio, gated auto-projection with the safety checklist, and the
-empty `internal/audio` package. The shipped engine is
+against labeled audio, and the empty `internal/audio` package. The shipped engine is
 Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
 and has no model lifecycle of its own.
 
-`F9` (pause auto-projection) remains a placeholder notice because nothing
-auto-projects yet.
+`F9` pauses and resumes auto-projection without stopping audio capture; the
+Production card carries the standing switch, its Hybrid/Paused status, and the
+plain statement of what the gates will and will not project.
 
 ### Engine provisioning (F07 slice — landed)
 
@@ -557,12 +569,12 @@ The tracker understated the app, which is why this audit was needed:
    band, and the panel draws `96% High` beside the method. Scoring is
    evidence-based, not yet measured against labeled audio, so auto-projection
    stays off and the bands remain the PRD's tuning values.
-4. **Policy, safety gates, auto-projection (M–L).** Only the policy layer may
-   send an automatic command to `internal/presentation`; each gate in PRD §7
-   gets its own test. UI: a real Auto Projection toggle and hybrid status in
-   `ProductionCard`, F9 becomes a real pause, Emergency becomes live, nothing
-   resumes after a restart, failures preserve the live slide. **Highest risk in
-   this file.**
+4. **Policy, safety gates, auto-projection (M–L) — landed 2026-11-10.**
+   `internal/policy` is the only path from a detection to `internal/presentation`
+   and each PRD §7 gate has its own test, plus app-level tests that a blocked
+   card stays queued and a refused passage leaves the live slide alone. UI: the
+   Production card carries the switch, Hybrid/Paused status and the gate
+   explainer; F9 pauses and resumes; every start boots paused.
 5. **Continuous listening and segmentation (M–L).** Silence-based segmentation
    over the bounded buffer; depends on slice 2.
 6. **Panel parity + candidate keyboard (S–M).** Project, Search and Preview per
@@ -607,7 +619,7 @@ All three are gated on external input, which is why they come last:
 
 ### Decisions needed before their phase
 
-- Auto-projection default and per-type enablement (before 1.4).
+- Per-type enablement for auto-projection (the switch defaults off and boots paused).
 - Whisper vs Moonshine as the V1 engine — it changes the model-lifecycle work
   (before 1.5 and the `internal/audio` decision).
 - Whether Live Detection stays a persistent panel or becomes a page (before 1.6).

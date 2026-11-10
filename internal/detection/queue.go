@@ -83,6 +83,9 @@ const (
 	decisionApproved  = "approved"
 	decisionDismissed = "dismissed"
 	decisionIgnored   = "ignored"
+	// decisionAutoProjected is written by the policy layer when every safety
+	// gate passed and the operator was not asked.
+	decisionAutoProjected = "auto_projected"
 )
 
 // Queue keeps pending candidates in memory and records decisions in
@@ -221,6 +224,9 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 type FinalizeResult struct {
 	Segment   int
 	Finalized int
+	// Settled lists the cards this final transcript settled. They keep their
+	// IDs; the policy layer weighs each one for auto-projection.
+	Settled []Candidate
 	// Repeats counts hearings folded into an already finalized pending card
 	// instead of queuing a duplicate.
 	Repeats int
@@ -268,6 +274,7 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 			updated.LastHeardAt = now
 			q.pending[live] = updated
 			result.Finalized++
+			result.Settled = append(result.Settled, updated)
 			continue
 		}
 
@@ -291,6 +298,7 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 		candidate.ID = id
 		q.pending = append(q.pending, candidate)
 		result.Finalized++
+		result.Settled = append(result.Settled, candidate)
 	}
 
 	// A partial the final transcript dropped was still a real hearing; settle it
@@ -387,6 +395,12 @@ func (q *Queue) Approve(ctx context.Context, id string) (Candidate, error) {
 
 func (q *Queue) Dismiss(ctx context.Context, id string) (Candidate, error) {
 	return q.decide(ctx, id, decisionDismissed)
+}
+
+// AutoProject records the policy layer's decision: the card was projected
+// without the operator and is listed as such in the panel's history.
+func (q *Queue) AutoProject(ctx context.Context, id string) (Candidate, error) {
+	return q.decide(ctx, id, decisionAutoProjected)
 }
 
 // Clear records the dropped candidates as ignored, so history still shows what

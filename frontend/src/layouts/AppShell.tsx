@@ -868,6 +868,9 @@ function DetectionPanel() {
               <button type="button" className="text-secondary text-[9.5px] hover:text-text" onClick={() => void run(detection.clear)}>Clear all</button>
             )}
           </div>
+          {detection.autoProjected.length > 0 && (
+            <p className="px-2 py-1.5 border border-[#1E4D40] rounded-md bg-[#0E2A24] text-[#6EE7C0] text-[9.5px] leading-[1.5]">Auto-projected {detection.autoProjected.join(', ')} — every safety gate passed.</p>
+          )}
           {detection.repeats > 0 && (
             <p className="px-2 py-1.5 border border-[#4D3F1E] rounded-md bg-[#2B2413] text-amber text-[9.5px] leading-[1.5]">Repeated reference — folded into the pending card instead of queuing a duplicate.</p>
           )}
@@ -978,7 +981,7 @@ function ProductionCard() {
     <section className="bg-panel border border-border rounded-[10px]" aria-label="Production controls">
       <div className="min-h-11 px-3.5 py-2.5 flex items-center justify-between gap-2.5 border-b border-border">
         <h2 className="text-[11px] flex items-center gap-[7px] uppercase tracking-[0.7px] text-secondary [&_svg]:text-secondary"><Icon name="display" size={16} />Production</h2>
-        <span className="inline-flex px-2 py-[3px] border border-[#2A3950]! rounded-[5px] bg-elevated! text-secondary! text-[9.5px] font-medium whitespace-nowrap">Manual</span>
+        <span className="inline-flex px-2 py-[3px] border border-[#2A3950]! rounded-[5px] bg-elevated! text-secondary! text-[9.5px] font-medium whitespace-nowrap">{detection.autoProjection && !detection.autoProjectionPaused ? 'Hybrid' : 'Manual'}</span>
       </div>
 
       <div className="grid gap-2.5 p-3">
@@ -1024,12 +1027,29 @@ function ProductionCard() {
           </button>
         </div>
 
-        <div className="flex items-center gap-[9px] pt-[9px] border-t border-border" title="Automatic projection is not implemented.">
-          <span className="relative flex items-center w-[30px] h-4 rounded-full bg-[#2A3950] shrink-0" aria-hidden="true"><span className="w-3 h-3 rounded-full bg-secondary ml-0.5" /></span>
-          <div className="min-w-0"><strong className="block text-[9.5px] font-medium">Auto Projection</strong><span className="flex items-center gap-1 text-secondary text-[9px] mt-px"><span className="inline-block w-[5px] h-[5px] rounded-full bg-secondary shrink-0" />Off</span></div>
-        </div>
+                <button
+          type="button"
+          className="flex items-center gap-[9px] pt-[9px] border-t border-border w-full text-left"
+          onClick={() => void run(() => detection.setAutoProjection(!detection.autoProjection))}
+          title="Project high-confidence explicit references that pass every safety gate"
+        >
+          <span className={`relative flex items-center w-[30px] h-4 rounded-full shrink-0 ${detection.autoProjection && !detection.autoProjectionPaused ? 'bg-[#6EE7C0]' : 'bg-[#2A3950]'}`} aria-hidden="true">
+            <span className={`w-3 h-3 rounded-full ml-0.5 ${detection.autoProjection && !detection.autoProjectionPaused ? 'bg-app' : 'bg-secondary'}`} />
+          </span>
+          <div className="min-w-0">
+            <strong className="block text-[9.5px] font-medium">Auto Projection</strong>
+            <span className="flex items-center gap-1 text-secondary text-[9px] mt-px">
+              <span className={`inline-block w-[5px] h-[5px] rounded-full shrink-0 ${detection.autoProjection && !detection.autoProjectionPaused ? 'bg-[#6EE7C0]' : 'bg-secondary'}`} />
+              {!detection.autoProjection ? 'Off' : detection.autoProjectionPaused ? 'Paused (F9)' : 'Hybrid — gates armed'}
+            </span>
+          </div>
+        </button>
 
-        <p className="text-secondary text-[9.5px] leading-[1.5]">Auto-projection arrives with offline scripture detection.</p>
+        <p className="text-secondary text-[9.5px] leading-[1.5]">
+          {detection.autoProjection
+            ? 'Only high-confidence explicit references that pass every safety gate are projected; everything else waits for you.'
+            : 'Every detection waits in the queue for you to approve.'}
+        </p>
       </div>
     </section>
   );
@@ -1182,7 +1202,13 @@ export function AppShell({ activePage, onNavigate, children }: {
             }
             break;
           case 'toggleAutoProjection':
-            flashNotice('Automatic projection is not implemented — nothing to pause');
+            if (!detection.autoProjection) {
+              flashNotice('Auto-projection is off — enable it in Production');
+              break;
+            }
+            void run(() => detection.toggleAutoProjectionPause(), () => flashNotice(
+              detection.autoProjectionPaused ? 'Auto-projection resumed' : 'Auto-projection paused',
+            ));
             break;
           case 'emergencyDisable':
             // Stops new candidates without touching what the audience sees.

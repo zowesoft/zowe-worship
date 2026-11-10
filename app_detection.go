@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"zowe-worship/internal/asr"
 	"zowe-worship/internal/confidence"
 	"zowe-worship/internal/detection"
+	"zowe-worship/internal/policy"
 	"zowe-worship/internal/settings"
 )
 
@@ -56,6 +59,9 @@ type DetectionResult struct {
 	// that folded into an existing pending card.
 	Segment int `json:"segment"`
 	Repeats int `json:"repeats"`
+	// AutoProjected lists what the safety gates sent to the room without the
+	// operator, so the panel can say so instead of the card vanishing.
+	AutoProjected []string `json:"autoProjected"`
 }
 
 const detectionProgressEvent = "detection:progress"
@@ -73,6 +79,10 @@ type DetectionProgressView struct {
 type DetectionConfigView struct {
 	EngineSpec string `json:"engineSpec"`
 	Disabled   bool   `json:"disabled"`
+	// AutoProjection is the operator's standing choice; AutoProjectionPaused is
+	// the F9 pause. They are separate so the panel can say "Hybrid" or "Paused".
+	AutoProjection       bool `json:"autoProjection"`
+	AutoProjectionPaused bool `json:"autoProjectionPaused"`
 }
 
 // DetectScripture queues what the detector finds; nothing is projected until
@@ -126,10 +136,11 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 		return DetectionResult{}, err
 	}
 	return DetectionResult{
-		Transcript: transcript,
-		Candidates: toDetectionViews(a.detection.List()),
-		Segment:    settled.Segment,
-		Repeats:    settled.Repeats,
+		Transcript:    transcript,
+		Candidates:    toDetectionViews(a.detection.List()),
+		Segment:       settled.Segment,
+		Repeats:       settled.Repeats,
+		AutoProjected: a.autoProject(settled.Settled),
 	}, nil
 }
 
@@ -312,8 +323,10 @@ func (a *App) GetDetectionConfig() (DetectionConfigView, error) {
 	}
 	ctx := a.context()
 	return DetectionConfigView{
-		EngineSpec: a.settings.GetDefault(ctx, settings.KeyAsrEngine, ""),
-		Disabled:   a.detectionDisabled(),
+		EngineSpec:           a.settings.GetDefault(ctx, settings.KeyAsrEngine, ""),
+		Disabled:             a.detectionDisabled(),
+		AutoProjection:       a.autoProjectionEnabled(ctx),
+		AutoProjectionPaused: a.autoProjectionPaused(ctx),
 	}, nil
 }
 
@@ -359,6 +372,109 @@ func (a *App) notifyDetectionConfig() {
 	if studio, ok := desktop.Window.GetByName(studioWindow); ok {
 		studio.DispatchWailsEvent(&application.CustomEvent{Name: detectionConfigEvent})
 	}
+}
+
+// SetAutoProjection is the operator's standing choice. Turning it on never
+// clears a pause: F9 is the resume, so the switch alone cannot start projecting.
+func (a *App) SetAutoProjection(enabled bool) error {
+	if a.settings == nil {
+		return errStorageUnavailable
+	}
+	if err := a.settings.Set(a.context(), settings.KeyAutoProjectionEnabled, boolSetting(enabled)); err != nil {
+		return err
+	}
+	a.notifyDetectionConfig()
+	return nil
+}
+
+// SetAutoProjectionPaused is the F9 pause. It stops automatic projections only;
+// detection keeps running and every candidate keeps queuing for the operator.
+func (a *App) SetAutoProjectionPaused(paused bool) error {
+	if a.settings == nil {
+		return errStorageUnavailable
+	}
+	if err := a.settings.Set(a.context(), settings.KeyAutoProjectionPaused, boolSetting(paused)); err != nil {
+		return err
+	}
+	a.notifyDetectionConfig()
+	return nil
+}
+
+func boolSetting(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
+}
+
+func (a *App) autoProjectionEnabled(ctx context.Context) bool {
+	if a.settings == nil {
+		return false
+	}
+	return a.settings.GetDefault(ctx, settings.KeyAutoProjectionEnabled, "false") == "true"
+}
+
+// A missing pause reads as paused: the safe answer if the setting was never
+// written on this machine.
+func (a *App) autoProjectionPaused(ctx context.Context) bool {
+	if a.settings == nil {
+		return true
+	}
+	return a.settings.GetDefault(ctx, settings.KeyAutoProjectionPaused, "true") == "true"
+}
+
+// autoProject weighs each card one segment settled against the PRD safety
+// checklist. It is the only path from a detection to the display: a blocked
+// card stays queued for the operator, and a controller failure leaves the live
+// slide exactly as it was.
+func (a *App) autoProject(settled []detection.Candidate) []string {
+	if a.presentation == nil || a.bible == nil || a.settings == nil || len(settled) == 0 {
+		return nil
+	}
+
+	ctx := a.context()
+	translation := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
+	enabled := a.autoProjectionEnabled(ctx)
+	paused := a.autoProjectionPaused(ctx)
+	projected := make([]string, 0, len(settled))
+
+	for _, candidate := range settled {
+		reference := candidate.Reference
+		passage, passageErr := a.bible.Passage(ctx, translation,
+			reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd)
+
+		verdict := policy.Evaluate(policy.Request{
+			Enabled:          enabled,
+			Paused:           paused,
+			Disabled:         a.detectionDisabled(),
+			Finalized:        candidate.Finalized,
+			Explicit:         candidate.Method == detection.MethodExplicitReference,
+			BookID:           reference.Book.ID,
+			Chapter:          reference.Chapter,
+			VerseScoped:      reference.VerseStart > 0,
+			PassageAvailable: passageErr == nil && len(passage) > 0,
+			SettledInSegment: len(settled),
+			Repeats:          candidate.Repeats,
+			Band:             confidence.BandOf(candidate.Confidence),
+		})
+		if !verdict.Project {
+			continue
+		}
+
+		state, projectErr := a.presentation.ProjectScripture(ctx, translation,
+			reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd,
+			a.oneVersePerSlide(ctx))
+		if _, projectErr = a.projected(state, projectErr); projectErr != nil {
+			log.Printf("zowe: auto-project %s: %v", reference.String(), projectErr)
+			continue
+		}
+		if _, err := a.detection.AutoProject(ctx, candidate.ID); err != nil {
+			log.Printf("zowe: record auto-projected %s: %v", reference.String(), err)
+			continue
+		}
+		projected = append(projected, reference.String())
+	}
+	return projected
 }
 
 func (a *App) detectionDisabled() bool {
