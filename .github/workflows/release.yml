@@ -59,12 +59,14 @@ jobs:
       - name: Install GTK/WebKitGTK development libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev pkg-config
+          # squashfs-tools: appimagetool shells out to mksquashfs when the
+          # engine bundle is repacked into the AppImage.
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev pkg-config squashfs-tools
       - name: Install the Wails CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Package (deb / rpm / AppImage)
         run: |
-          # The AppImage build script embeds build/engines when present; the
+          # The AppImage repack script embeds build/engines when present; the
           # deb/rpm tasks stage it themselves.
           wails3 task common:engines:stage GOOS=linux GOARCH=amd64
           # The AUR tarball is skipped: archlinux packaging wants pacman
