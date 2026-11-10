@@ -47,14 +47,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install the Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-      # The GTK4 + WebKitGTK 6.0 stack the linux build links against (matching
-      # the runtime `depends` in build/linux/nfpm/nfpm.yaml).
+      # The GTK4 + WebKitGTK 6.0 stack must be present before the Wails CLI
+      # installs: compiling the CLI on Linux already links against GTK, so the
+      # libraries have to exist in pkg-config's search path first.
       - name: Install GTK/WebKitGTK development libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev pkg-config
+      - name: Install the Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Package (deb / rpm / AppImage)
         run: |
           # The AUR tarball is skipped: archlinux packaging wants pacman

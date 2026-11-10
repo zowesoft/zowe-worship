@@ -267,7 +267,30 @@ func installFile(src, dest, want string) error {
 		return err
 	}
 	_ = os.Remove(dest)
-	return os.Rename(src, dest)
+	// A rename cannot cross volumes, and the extraction temp dir is the OS
+	// temp location — GitHub's Windows runners put that on a different drive
+	// than the checkout. Fall back to a copy when rename can't reach.
+	if err := os.Rename(src, dest); err != nil {
+		return copyFile(src, dest)
+	}
+	return nil
+}
+
+func copyFile(src, dest string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 func (i *Installer) download(url, dest, want, name string, done, total int) error {
