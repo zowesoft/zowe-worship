@@ -251,7 +251,17 @@ func (a *App) OpenPath(path string) error {
 func (a *App) speechLayout() speech.Layout {
 	layout := speech.Layout{}
 	if exe, err := os.Executable(); err == nil {
-		layout.BundledRoot = filepath.Join(filepath.Dir(exe), "engines")
+		dir := filepath.Dir(exe)
+		layout.BundledRoot = filepath.Join(dir, "engines")
+		// Linux packages install the binary to /usr/local/bin and the engine
+		// tree to /usr/local/lib/zowe-worship/engines (FHS); fall back to the
+		// library location when nothing sits beside the executable.
+		if _, err := os.Stat(layout.BundledRoot); err != nil {
+			lib := filepath.Join(dir, "..", "lib", "zowe-worship", "engines")
+			if info, err := os.Stat(lib); err == nil && info.IsDir() {
+				layout.BundledRoot = lib
+			}
+		}
 	}
 	if paths, err := a.paths(); err == nil {
 		layout.DownloadRoot = filepath.Join(paths.Root, "engines")

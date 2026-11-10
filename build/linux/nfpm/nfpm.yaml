@@ -17,6 +17,12 @@ release: "1"
 contents:
   - src: "./bin/zowe-worship"
     dst: "/usr/local/bin/zowe-worship"
+  # The bundled speech engine, staged by `task engines:stage`. Installs to a
+  # read-only FHS location; discovery falls back to it when nothing sits
+  # beside the executable. Staged by the packaging tasks, so it is always
+  # present when the package is built.
+  - src: "./build/engines"
+    dst: "/usr/local/lib/zowe-worship/engines"
   - src: "./build/appicon.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/zowe-worship.png"
   - src: "./build/linux/zowe-worship.desktop"

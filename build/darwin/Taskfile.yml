@@ -118,6 +118,10 @@ tasks:
     summary: Packages the application into a `.app` bundle
     deps:
       - task: build
+      - task: common:engines:stage
+        vars:
+          GOOS: darwin
+          GOARCH: '{{.ARCH | default ARCH}}'
     cmds:
       - task: create:app:bundle
 
@@ -170,6 +174,14 @@ tasks:
           cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
+      # Bundle the staged speech engine beside the executable; discovery looks
+      # in engines/ next to it inside Contents/MacOS. Absent when not staged,
+      # in which case the app offers "Get engine" instead. Universal bundles
+      # get whatever single architecture was staged last.
+      - |
+        if [ -d build/engines ]; then
+          cp -R build/engines "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS/engines"
+        fi
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 

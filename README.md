@@ -139,8 +139,9 @@ reference lookups p95 < 50 ms, full-text search p95 < 150 ms.
 
 Tagging a commit (`git tag v0.1.0 && git push origin v0.1.0`) starts the
 release workflow: each desktop OS is packaged on its native GitHub runner and
-the artifacts are attached to the GitHub release. The Windows installer
-bundles the offline speech engine; the Linux/macOS packages do not yet.
+the artifacts are attached to the GitHub release. The offline speech engine is
+bundled into every package — the Windows installer, the Linux deb/rpm/AppImage
+and the macOS .app.
 
 ---
 

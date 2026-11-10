@@ -11,6 +11,12 @@ APP_DIR="${APP_NAME}.AppDir"
 # Create AppDir structure
 mkdir -p "${APP_DIR}/usr/bin"
 cp -r "${APP_BINARY}" "${APP_DIR}/usr/bin/"
+# Bundle the staged speech engine beside the binary; discovery looks in
+# engines/ next to the executable inside the mounted image. Absent when not
+# staged, in which case the app offers "Get engine" instead.
+if [ -d "../../../build/engines" ]; then
+    cp -r "../../../build/engines" "${APP_DIR}/usr/bin/engines"
+fi
 cp "${ICON_PATH}" "${APP_DIR}/"
 cp "${DESKTOP_FILE}" "${APP_DIR}/"
 

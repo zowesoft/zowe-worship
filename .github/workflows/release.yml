@@ -64,6 +64,9 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Package (deb / rpm / AppImage)
         run: |
+          # The AppImage build script embeds build/engines when present; the
+          # deb/rpm tasks stage it themselves.
+          wails3 task common:engines:stage GOOS=linux GOARCH=amd64
           # The AUR tarball is skipped: archlinux packaging wants pacman
           # tooling the ubuntu runner does not have; deb/rpm/AppImage cover
           # the supported distributions.

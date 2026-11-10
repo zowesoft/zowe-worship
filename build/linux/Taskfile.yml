@@ -103,6 +103,10 @@ tasks:
     summary: Packages the application for Linux
     deps:
       - task: build
+      - task: common:engines:stage
+        vars:
+          GOOS: linux
+          GOARCH: '{{.ARCH | default "amd64"}}'
     cmds:
       - task: create:appimage
       - task: create:deb
@@ -130,6 +134,12 @@ tasks:
     summary: Creates a deb package
     deps:
       - task: build
+      # Runs from the repo root, so staging here is safe; the engine tree must
+      # exist because the nfpm config ships it.
+      - task: common:engines:stage
+        vars:
+          GOOS: linux
+          GOARCH: '{{.ARCH | default "amd64"}}'
     cmds:
       - task: generate:dotdesktop
       - task: generate:deb
@@ -138,6 +148,10 @@ tasks:
     summary: Creates a rpm package
     deps:
       - task: build
+      - task: common:engines:stage
+        vars:
+          GOOS: linux
+          GOARCH: '{{.ARCH | default "amd64"}}'
     cmds:
       - task: generate:dotdesktop
       - task: generate:rpm

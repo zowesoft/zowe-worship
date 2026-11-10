@@ -99,9 +99,14 @@ Open:
       the packages on real macOS/Linux machines.
 - [ ] Package signing (Windows Authenticode, macOS Developer ID + notarization)
       — the workflow ships unsigned packages until certificates exist.
-- [ ] Bundling the offline speech engine into the Linux/macOS packages (the
-      Windows installer already stages it; the darwin/linux Taskfiles do not
-      yet copy `common:engines:stage` output into their layouts).
+- [x] Bundling the offline speech engine into the Linux/macOS packages: the
+      darwin `.app` carries `Contents/MacOS/engines`, deb/rpm install it to
+      `/usr/local/lib/zowe-worship/engines` with a lookup fallback in
+      `app_speech.go`, and the AppImage embeds `usr/bin/engines`. All staged
+      from the pinned hashes by the packaging tasks; the workflow stages once
+      for the AppImage, the macOS job stages via the `darwin:package` dep.
+      Not yet proven by a tagged run at the time of writing — v0.1.0 shipped
+      before this landed.
 
 ## F02 — Bible library and translation search (Partial)
 
