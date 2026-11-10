@@ -68,6 +68,51 @@ func TestSweepWithoutObservationsKeepsZeroes(t *testing.T) {
 	}
 }
 
+func TestRecommendPicksLowestThresholdMeetingTheProjectionBar(t *testing.T) {
+	points := Sweep([]Observation{
+		{Score: ScoreSeparator, Matched: true},
+		{Score: ScoreConnectors, Matched: true},
+		{Score: ScoreBareVerse, Matched: false},
+		{Score: ScoreChapterOnly, Matched: true},
+	}, 4, []float64{0.99, ScoreSeparator, ScoreConnectors, ScoreBareVerse, ScoreChapterOnly})
+
+	best, ok := Recommend(points)
+	if !ok {
+		t.Fatalf("recommendation = %+v, want a threshold meeting the bar", best)
+	}
+	// 0.86 admits a false positive and misses 99% precision, so 0.93 is the
+	// lowest edge that still keeps every detection it keeps correct.
+	if !closeEnough(best.Threshold, ScoreConnectors) {
+		t.Fatalf("recommended threshold = %.2f, want %.2f", best.Threshold, ScoreConnectors)
+	}
+	if best.Kept != 2 || !closeEnough(best.Precision, 1) || !closeEnough(best.Recall, 0.5) {
+		t.Fatalf("recommended point = %+v, want kept 2 at precision 1 recall 0.5", best)
+	}
+}
+
+func TestRecommendFallsBackToBestPrecisionWhenTheBarIsMissed(t *testing.T) {
+	points := Sweep([]Observation{
+		{Score: ScoreSeparator, Matched: false},
+		{Score: ScoreBareVerse, Matched: false},
+	}, 2, []float64{ScoreSeparator, ScoreBareVerse})
+
+	best, ok := Recommend(points)
+	if ok {
+		t.Fatal("recommendation claimed the precision bar was met")
+	}
+	// Both keep one false detection; the lower threshold is the same answer and
+	// leaves more room to move.
+	if !closeEnough(best.Threshold, ScoreBareVerse) || best.Kept != 2 {
+		t.Fatalf("fallback = %+v, want threshold %.2f keeping both", best, ScoreBareVerse)
+	}
+}
+
+func TestRecommendReportsNothingWhenNoDetectionWasKept(t *testing.T) {
+	if best, ok := Recommend(Sweep(nil, 3, DefaultThresholds())); ok || best.Kept != 0 {
+		t.Fatalf("recommendation = %+v (ok=%v), want zero point and false", best, ok)
+	}
+}
+
 func TestDefaultThresholdsIncludeTheBandEdgesInOrder(t *testing.T) {
 	thresholds := DefaultThresholds()
 	if !sort.Float64sAreSorted(thresholds) {

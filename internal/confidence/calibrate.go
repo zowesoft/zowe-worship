@@ -50,6 +50,40 @@ func Sweep(observations []Observation, expected int, thresholds []float64) []Poi
 	return points
 }
 
+// TargetPrecision is the PRD's bar for qualified automatic projection: "at
+// least 99% precision on the defined evaluation set".
+const TargetPrecision = 0.99
+
+// Recommend picks the band edge to use on this set: the lowest threshold whose
+// precision still meets TargetPrecision, because lowering it any further would
+// admit a false reference and any higher would throw away real ones. ok is
+// false when no threshold clears the bar; the returned point is then the one
+// with the best precision, so the operator can see how far short the set falls.
+// A recommendation is only as good as the set: read Kept and the clip count
+// beside it before trusting a figure earned on a handful of detections.
+func Recommend(points []Point) (best Point, ok bool) {
+	passing, fallback := Point{}, Point{}
+	foundPass, foundFallback := false, false
+	for _, point := range points {
+		if point.Kept == 0 {
+			continue
+		}
+		if point.Precision >= TargetPrecision {
+			if !foundPass || point.Threshold < passing.Threshold {
+				passing, foundPass = point, true
+			}
+		}
+		if !foundFallback || point.Precision > fallback.Precision ||
+			(point.Precision == fallback.Precision && point.Threshold < fallback.Threshold) {
+			fallback, foundFallback = point, true
+		}
+	}
+	if foundPass {
+		return passing, true
+	}
+	return fallback, false
+}
+
 // DefaultThresholds is the sweep the benchmark prints: a low-to-high grid around
 // the PRD's band edges, plus the exact edges and the scores the scorer can
 // produce, so the effect of moving a band is visible on labeled audio.

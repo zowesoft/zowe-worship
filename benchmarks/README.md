@@ -149,6 +149,12 @@ a benchmark copy. Two extra blocks appear per engine:
   would keep (`kept`), how many were real (`correct`), how many were false
   (`false`), and the resulting precision and recall. Recall counts only real
   references, so it is capped by the engine's own misses.
+- **recommended** — the answer, not the table: the lowest threshold whose
+  precision still meets the PRD's 99% automatic-projection bar, with the recall
+  that costs. When no threshold reaches 99% it prints the best precision
+  available and says the bar was not met, so a set cannot quietly look ready.
+  Read it with `kept` beside it — on a handful of detections a perfect score is
+  not evidence.
 
 The grid includes the PRD's starting edges (0.65 medium, 0.92 high) and the
 scores the scorer can produce (0.96 written form, 0.93 spoken connectors, 0.86

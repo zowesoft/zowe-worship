@@ -490,6 +490,21 @@ func printConfidence(summary engineSummary) {
 			point.Threshold, point.Kept, point.Correct, point.False,
 			point.Precision*100, point.Recall*100)
 	}
+
+	// The table is for reading the trade-off; this line is the answer the
+	// operator came for, on the PRD's own precision bar.
+	best, meetsTarget := confidence.Recommend(summary.Calibration)
+	if best.Kept == 0 {
+		fmt.Printf("   recommended  none - no detection was kept at any threshold\n")
+		return
+	}
+	if meetsTarget {
+		fmt.Printf("   recommended  %.2f (keeps %d, precision %.1f%%, recall %.1f%%) - lowest threshold meeting the %.0f%% projection bar\n",
+			best.Threshold, best.Kept, best.Precision*100, best.Recall*100, confidence.TargetPrecision*100)
+		return
+	}
+	fmt.Printf("   recommended  %.2f (keeps %d, precision %.1f%%, recall %.1f%%) - best available; %.0f%% projection bar NOT met\n",
+		best.Threshold, best.Kept, best.Precision*100, best.Recall*100, confidence.TargetPrecision*100)
 }
 
 func writeJSON(path string, report engineSummaries) error {

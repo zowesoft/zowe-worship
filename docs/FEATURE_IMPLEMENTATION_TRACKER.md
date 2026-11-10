@@ -572,7 +572,9 @@ build + tests + typecheck:
 5. **ASR benchmark harness** — `internal/asr` detector, `cmd/asr-bench` and
    `benchmarks/` (models/tools gitignored) groundwork for F07. It now also
    scores every detection with the production confidence function and prints a
-   threshold sweep, so the bands are calibrated on the same audio.
+   threshold sweep, plus a recommended edge: the lowest threshold that still
+   holds the PRD's 99% projection precision, or an explicit "bar NOT met" when
+   the set cannot clear it. The bands are calibrated on the same audio.
    `benchmarks/record-set.ps1` records the real-speech set that sweep needs
    (one labeled clip per line, manifest written as it goes, output gitignored);
    no set of real recordings is committed yet, so the bands are still
