@@ -29,9 +29,9 @@ fi
 
 cp -r "$engines" "$appdir/usr/bin/engines"
 
-tool="appimagetool-$apparch.AppImage"
+tool="./appimagetool-$apparch.AppImage"
 if [ ! -f "$tool" ]; then
-  wget -q -N "https://github.com/AppImage/appimagetool/releases/download/continuous/$tool"
+  wget -q -N "https://github.com/AppImage/appimagetool/releases/download/continuous/${tool#./}"
   chmod +x "$tool"
 fi
 
