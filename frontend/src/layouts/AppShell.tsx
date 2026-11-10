@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { SlideMedia } from '../components/SlideMedia';
 import { ThemedSlide } from '../components/ThemedSlide';
-import { useStudio } from '../stores/StudioProvider';
+import { useStudio, type MediaAction } from '../stores/StudioProvider';
 import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
 import { useShortcuts } from '../stores/ShortcutsProvider';
 import { TEXT_GUARDED, actionForCombo, comboFromEvent } from '../lib/shortcuts';
@@ -40,8 +40,7 @@ function useClock() {
   return now;
 }
 
-// Only scripture carries a translation, so the other kinds name themselves
-// instead of leaving a blank line under the title.
+// Only scripture carries a translation; the other kinds name themselves.
 function itemSubtitle(item: models.ServiceItemView): string {
   if (item.kind === 'media') return 'Media';
   if (item.kind === 'song') return 'Song';
@@ -61,26 +60,20 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
   async function previewItem(itemID: string) {
     try {
       await studio.previewItem(itemID);
-    } catch {
-      // The studio error is shown below the schedule.
-    }
+    } catch {}
   }
 
   async function sendItemLive(itemID: string) {
     try {
       await studio.previewItem(itemID);
       await studio.sendPreviewLive();
-    } catch {
-      // The studio error is shown below the schedule.
-    }
+    } catch {}
   }
 
   async function moveItem(from: number, to: number) {
     try {
       await studio.reorderItems(moveWithin(items.map((item) => item.id), from, to));
-    } catch {
-      // The studio error is shown below the schedule.
-    }
+    } catch {}
   }
 
   const drag = useDragOrder((from, to) => void moveItem(from, to));
@@ -191,9 +184,7 @@ function ServiceSwitcher() {
     close();
     try {
       await studio.useService(serviceID);
-    } catch {
-      // The studio error is shown in the sidebar.
-    }
+    } catch {}
   }
 
   async function create(event: FormEvent<HTMLFormElement>, close: () => void) {
@@ -204,9 +195,7 @@ function ServiceSwitcher() {
       await studio.createService(trimmed);
       setName('');
       close();
-    } catch {
-      // The studio error is shown in the sidebar.
-    }
+    } catch {}
   }
 
   return (
@@ -274,9 +263,7 @@ function DisplaySelector() {
     close();
     try {
       await action();
-    } catch {
-      // The studio error is shown in the sidebar.
-    }
+    } catch {}
   }
 
   return (
@@ -394,8 +381,7 @@ function SlideContent({ content }: { content: Content }) {
   );
 }
 
-// A slide of this shape is themed as this kind. Media fills its own screen, so
-// it has no theme and no picker.
+// Media fills its own screen, so it has no theme and no picker.
 function themeKind(kind: string): ThemeKind | null {
   if (kind === 'scripture') return ThemeKind.KindScripture;
   if (kind === 'song') return ThemeKind.KindLyrics;
@@ -426,8 +412,8 @@ function PreviewTheme({ preview }: { preview: Content }) {
     setProblem(null);
     try {
       await studio.setItemTheme(itemID, themeID);
-      // The pane shows the frozen slide, so it has to be rebuilt from the item
-      // before the operator can see the change they just asked for.
+      // The pane shows a frozen slide, so it must be rebuilt from the item for
+      // the change to appear.
       await studio.previewItem(itemID);
     } catch (error: unknown) {
       setProblem(error instanceof Error ? error.message : String(error));
@@ -456,38 +442,45 @@ function PresentationPanes() {
   const scheduleCount = studio.order?.items?.length ?? 0;
   const liveIsMedia = live?.kind === 'video' || live?.kind === 'audio';
   const [playing, setPlaying] = useState(true);
+  // The clip clock reported by the audience player, for the transport bar.
+  const [clock, setClock] = useState({ timeMS: 0, durationMS: 0 });
+  // The room volume persists across clips; the display re-applies the last
+  // commanded value when a new element starts playing.
+  const [volume, setVolume] = useState(100);
 
-  // Sending anything new starts a clip from the beginning, so the button goes
-  // back to Pause without waiting to be told.
+  // A new clip starts from the beginning, so the button returns to Pause and
+  // the slider to zero.
   useEffect(() => {
     setPlaying(true);
+    setClock({ timeMS: 0, durationMS: 0 });
   }, [live?.source]);
 
   useEffect(() => Events.On('media-ended', () => setPlaying(false)), []);
 
-  async function control(action: 'play' | 'pause' | 'restart') {
+  useEffect(() => Events.On('media-progress', (event) => {
+    const progress = event.data as { timeMs: number; durationMs: number };
+    setClock({ timeMS: progress.timeMs, durationMS: progress.durationMs });
+  }), []);
+
+  async function control(action: MediaAction, value?: number) {
     try {
-      await studio.mediaControl(action);
-      setPlaying(action !== 'pause');
-    } catch {
-      // Reported through the studio error area.
-    }
+      await studio.mediaControl(action, value);
+      if (action === 'play' || action === 'restart') setPlaying(true);
+      if (action === 'pause' || action === 'stop') setPlaying(false);
+      if (action === 'volume' && value !== undefined) setVolume(value);
+    } catch {}
   }
 
   async function sendLive() {
     try {
       await studio.sendPreviewLive();
-    } catch {
-      // Reported through the studio error area.
-    }
+    } catch {}
   }
 
   async function clearLive() {
     try {
       await studio.clearLive();
-    } catch {
-      // Reported through the studio error area.
-    }
+    } catch {}
   }
 
   async function step(direction: 'next' | 'previous') {
@@ -497,9 +490,7 @@ function PresentationPanes() {
       } else {
         await studio.previousItem();
       }
-    } catch {
-      // Reported through the studio error area.
-    }
+    } catch {}
   }
 
   return (
@@ -556,6 +547,45 @@ function PresentationPanes() {
             <Icon name="display" size={30} />
             <strong>No output connected</strong>
             <p>An audience display will appear here.</p>
+          </div>
+        )}
+
+        {liveIsMedia && (
+          <div className="border-t border-border px-2.5 py-1.5 flex items-center gap-2 text-secondary text-[9.5px] tabular-nums">
+            <span className="w-[38px] shrink-0 text-right">{clockTime(clock.timeMS)}</span>
+            <input
+              type="range"
+              className="flex-1 min-w-0 h-1 accent-blue"
+              min={0}
+              max={1}
+              step={0.01}
+              value={clock.durationMS > 0 ? clock.timeMS / clock.durationMS : 0}
+              disabled={clock.durationMS <= 0}
+              onChange={(event) => void control('seek', Number(event.target.value))}
+              aria-label="Seek in the clip"
+            />
+            <span className="w-[38px] shrink-0">{clockTime(clock.durationMS)}</span>
+            <button
+              type="button"
+              className="inline-grid place-items-center w-7 h-7 shrink-0 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text"
+              disabled={clock.timeMS === 0 && clock.durationMS === 0}
+              onClick={() => void control('stop')}
+              aria-label="Stop the clip"
+              title="Stop and return to the start"
+            >
+              <Icon name="square" size={13} />
+            </button>
+            <Icon name="volume" size={12} className="shrink-0" />
+            <input
+              type="range"
+              className="w-[54px] shrink-0 h-1 accent-teal"
+              min={0}
+              max={100}
+              step={1}
+              value={volume}
+              onChange={(event) => void control('volume', Number(event.target.value))}
+              aria-label="Room volume"
+            />
           </div>
         )}
 
@@ -648,6 +678,9 @@ function DetectionPanel() {
         <div className="flex items-center gap-2 text-secondary">
           <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${detection.listening ? 'bg-[#6EE7C0]' : 'bg-secondary'}`} />
           <strong className="text-text text-[10.5px] font-medium">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered` : 'Not listening'}</strong>
+          {detection.segment > 0 && (
+            <span className="text-[9px] text-secondary whitespace-nowrap">segment {detection.segment}</span>
+          )}
           <Icon name="detection" size={22} className={`ml-auto ${detection.listening ? 'text-teal' : 'text-teal opacity-[.65]'}`} />
         </div>
 
@@ -666,9 +699,8 @@ function DetectionPanel() {
             <button
               type="button"
               className={`min-h-7 inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1 border rounded-md text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary! disabled:bg-[#142033]! disabled:border-[#2A3950]! ${detection.listening ? 'border-[#35445C] bg-elevated' : 'border-blue! bg-blue! text-white! not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!'}`}
-              // The emergency switch stops new detections, so the button must
-              // refuse to start the same way F8 does — but never block stopping,
-              // or disabling while listening would trap the microphone on.
+              // Disabled blocks starting, as F8 does, but never stopping, or the
+              // microphone would be trapped on.
               disabled={detection.disabled && !detection.listening}
               title={detection.disabled ? 'Detection is disabled (F12) — re-enable it in Settings' : undefined}
               onClick={() => void run(detection.toggleListening)}
@@ -736,6 +768,9 @@ function DetectionPanel() {
               <button type="button" className="text-secondary text-[9.5px] hover:text-text" onClick={() => void run(detection.clear)}>Clear all</button>
             )}
           </div>
+          {detection.repeats > 0 && (
+            <p className="px-2 py-1.5 border border-[#4D3F1E] rounded-md bg-[#2B2413] text-amber text-[9.5px] leading-[1.5]">Repeated reference — folded into the pending card instead of queuing a duplicate.</p>
+          )}
           {detection.candidates.length === 0 ? (
             <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">Nothing waiting for confirmation.</p>
           ) : (
@@ -752,6 +787,12 @@ function DetectionPanel() {
                     <span className="inline-flex items-center px-1.5 py-px border border-[#3B355C]! rounded-full bg-[#24203E]! text-[#B3A4FF]! whitespace-nowrap">
                       {candidate.method === 'explicit-reference' ? 'Explicit reference' : candidate.method}
                     </span>
+                    <span className={`inline-flex items-center px-1.5 py-px border rounded-full whitespace-nowrap ${candidate.finalized ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!' : 'border-[#2A3950]! bg-elevated! text-secondary!'}`}>
+                      {candidate.finalized ? 'Final' : 'Live'}
+                    </span>
+                    {candidate.repeats > 0 && (
+                      <span className="text-amber whitespace-nowrap">heard ×{candidate.repeats + 1}</span>
+                    )}
                     <span>{candidate.explanation}</span>
                   </p>
                   <div className="flex gap-1.5">
@@ -822,9 +863,7 @@ function ProductionCard() {
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
-    } catch {
-      // Reported through the studio error area.
-    }
+    } catch {}
   }
 
   const iconBtn = 'inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50';
@@ -960,6 +999,13 @@ function isTextInput(element: Element | null): boolean {
   return false;
 }
 
+// clockTime renders a clip clock as m:ss, the way a media player reads.
+function clockTime(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '0:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
+}
+
 export function AppShell({ activePage, onNavigate, children }: {
   activePage: PageId;
   onNavigate: (page: PageId) => void;
@@ -979,8 +1025,7 @@ export function AppShell({ activePage, onNavigate, children }: {
     noticeTimer.current = window.setTimeout(() => setShortcutNotice(null), 3000);
   }
 
-  // Shortcut actions report their failure through the same notice bar, since
-  // there is no panel under the operator's fingers when a key is pressed.
+  // A keypress has no panel to show errors in, so shortcuts use the notice bar.
   async function run(action: () => Promise<unknown>, ok?: () => void) {
     try {
       await action();
@@ -1065,11 +1110,9 @@ export function AppShell({ activePage, onNavigate, children }: {
     workspaceRef.current?.scrollTo({ top: 0 });
   }, [activePage]);
 
-  // Home has its own live hero so the presentation dock is redundant there.
   const showDock = activePage !== 'home';
-  // Bible pins its search header and scrolls only the reading pane, so that
-  // pane needs a real height to overflow - stretch the workspace to fill the
-  // column. Other pages grow with their content and let this column scroll.
+  // Bible pins its search header and scrolls only the reading pane, so that pane
+  // needs a real height to overflow; other pages grow with their content.
   const selfScrolls = activePage === 'bible';
 
   return (

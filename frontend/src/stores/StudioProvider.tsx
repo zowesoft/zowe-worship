@@ -18,6 +18,10 @@ export type SongSectionInput = {
   sectionId: string;
 };
 
+// MediaAction is the transport vocabulary the studio and the audience player
+// share. Seek takes a fraction of the clip; volume is a percentage.
+export type MediaAction = 'play' | 'pause' | 'restart' | 'stop' | 'seek' | 'volume';
+
 type StudioValue = {
   ready: boolean;
   bridgeAvailable: boolean;
@@ -42,7 +46,7 @@ type StudioValue = {
   closeDisplay: () => Promise<models.DisplayView>;
   openSettings: () => Promise<models.EditorView>;
   openThemes: () => Promise<models.EditorView>;
-  mediaControl: (action: 'play' | 'pause' | 'restart') => Promise<void>;
+  mediaControl: (action: MediaAction, value?: number) => Promise<void>;
   refreshSongs: (query?: string) => Promise<void>;
   createService: (name: string) => Promise<models.ServiceOrderView>;
   duplicateService: (serviceID: string, newName: string) => Promise<models.ServiceOrderView>;
@@ -221,7 +225,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     closeDisplay: () => run(() => App.CloseAudienceDisplay(), setDisplay),
     openSettings: () => run(() => App.OpenSettings()),
     openThemes: () => run(() => App.OpenThemeWindow()),
-    mediaControl: (action) => run(() => App.MediaControl(action)),
+    mediaControl: (action, value) => run(() => App.MediaControl({ action, value: value ?? 0 })),
     refreshSongs: async (query = '') => {
       await run(() => App.ListSongs(query), setSongs);
     },

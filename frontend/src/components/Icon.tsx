@@ -29,7 +29,8 @@ export type IconName =
   | 'palette'
   | 'home'
   | 'copy'
-  | 'history';
+  | 'history'
+  | 'volume';
 
 const paths: Record<IconName, ReactNode> = {
   copy: <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
@@ -61,6 +62,7 @@ const paths: Record<IconName, ReactNode> = {
   palette: <><path d="M12 3a9 9 0 1 0 0 18c1.6 0 2-1.2 1.3-2.1-.8-1 .1-2.4 1.4-2.4H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5Z" /><circle cx="7.5" cy="11.5" r="1" /><circle cx="10.5" cy="7.5" r="1" /><circle cx="15" cy="8.5" r="1" /></>,
   home: <><path d="M3 12L12 4l9 8" /><path d="M5 10v10a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1V10" /></>,
   history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 8v4l3 2" /></>,
+  volume: <><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.5 6a9 9 0 0 1 0 12" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: IconName; size?: number; className?: string }) {
