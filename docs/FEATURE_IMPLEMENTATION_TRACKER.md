@@ -75,11 +75,14 @@ Done:
       executable name, so a renamed copy is refused too. Two studios would each
       hold their own preview/live state while driving one projector and one
       database.
+- [x] Downgrade refusal: `Migrate` refuses a database whose applied migrations
+      this build does not know (`SchemaAheadError`), and the reason shows in
+      Settings rather than storage failing silently (`app.go`
+      `storageProblem`, `StorageView.Problem`).
 
 Open:
 - [ ] macOS/Linux packaging; Windows already builds an NSIS installer (see the
-      F07 installer notes).
-- [ ] Migration rollback / downgrade handling (only forward migrations exist).
+      F07 installer notes). Needs a machine running those platforms.
 
 ## F02 — Bible library and translation search (Partial)
 
