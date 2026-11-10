@@ -5,6 +5,7 @@ import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
+import { focusReference } from './focus';
 import type { BibleFocus } from './focus';
 
 
@@ -595,6 +596,10 @@ export function BibleWorkspace({
       // Pin the searched verse to the top so it is the first thing seen; the
       // chapter renders whole, so the scroll waits for that render.
       pinnedScrollKey.current = key;
+      // When the pane is already on this chapter nothing reloads, so the pin
+      // effect's dependencies never change and the row would be selected without
+      // being brought into view. The rows are already in the DOM, so scroll now.
+      if (alreadyThere) requestAnimationFrame(() => scrollVerseToTop(key));
     } else {
       setSelection(null);
     }
@@ -800,12 +805,7 @@ export function BibleWorkspace({
     if (!book) return;
     setActiveTab('browse');
     setQuery('');
-    const verse = focus.verseStart > 0
-      ? focus.verseEnd > focus.verseStart
-        ? `${book.name} ${focus.chapter}:${focus.verseStart}-${focus.verseEnd}`
-        : `${book.name} ${focus.chapter}:${focus.verseStart}`
-      : `${book.name} ${focus.chapter}`;
-    void jumpToReference(verse, { bookOnly: false });
+    void jumpToReference(focusReference(focus, book.name), { bookOnly: false });
     onFocusHandled?.();
     // The nonce is what makes a second request for the same passage run again.
     // eslint-disable-next-line react-hooks/exhaustive-deps

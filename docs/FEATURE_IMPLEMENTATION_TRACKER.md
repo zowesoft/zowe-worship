@@ -336,7 +336,13 @@ through its ordinary reference path, so the chapter loads and the verse or
 range is selected and pinned to the top exactly as if it had been typed. The
 request is consumed once (`features/bible/focus.ts` keeps the one-shot
 passage + nonce), so returning to the Bible tab later does not reopen an old
-reference, while clicking Search twice moves the pane again.
+reference, while clicking Search twice moves the pane again. When the pane is
+already on that chapter nothing reloads, so the row is scrolled into view
+directly instead of waiting for the chapter-load effect that would never run.
+`frontend/tests/bibleFocus.test.mjs` reads the built reference back through
+`referenceGuide.parseReference` for a verse, a range, a chapter-only candidate
+and a numbered book, so the jump is checked against the parser the workspace
+actually uses.
 
 The pending queue is also keyboard-reachable: tab to the list, `↑`/`↓` (plus
 Home/End) move a highlighted card, and `P`/Enter project it live, `A` approves
