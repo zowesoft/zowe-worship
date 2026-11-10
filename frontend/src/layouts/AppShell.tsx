@@ -922,6 +922,18 @@ function DetectionPanel() {
                     )}
                     <span>{candidate.explanation}</span>
                   </p>
+                  {candidate.autoProjection && (
+                    <details className="px-2 py-1.5 border border-[#4D3F1E] rounded-md bg-[#2B2413] text-[9px] leading-[1.5]">
+                      <summary className="text-amber cursor-pointer">Held back from auto-projection — {candidate.autoProjection.reason}</summary>
+                      <ul className="mt-1 p-0 list-none grid gap-0.5 text-secondary">
+                        {candidate.autoProjection.gates?.map((gate) => (
+                          <li key={gate.id} className={gate.passed ? 'text-[#6EE7C0]' : 'text-amber'}>
+                            {gate.passed ? '✓' : '✗'} {gate.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                   <div className="flex gap-1.5">
                     <button
                       type="button"

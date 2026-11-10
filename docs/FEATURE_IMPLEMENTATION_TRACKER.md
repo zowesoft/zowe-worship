@@ -302,7 +302,10 @@ untouched. The switch is off by default and every start boots paused, so
 nothing projects before the operator arms it; F9 pauses and resumes without
 stopping audio capture, a successful automatic projection is recorded as
 `auto_projected` in `detection_history`, and the panel names what went to the
-room instead of the card silently vanishing.
+room instead of the card silently vanishing. A card the gates hold back carries
+the checklist itself — the gate that refused it and every gate's pass/fail — in
+a collapsible block on the card, shown while auto-projection is armed so the
+operator can see what to change instead of guessing.
 
 Listening is continuous now: `segmenter.ts` feeds on the level the capture
 already reports and closes a segment after 700 ms of quiet (or cuts at 25 s, so

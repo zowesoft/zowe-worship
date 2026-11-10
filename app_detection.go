@@ -48,6 +48,24 @@ type DetectionView struct {
 	VerseStart     int     `json:"verseStart"`
 	VerseEnd       int     `json:"verseEnd"`
 	CreatedAt      string  `json:"createdAt"`
+	// AutoProjection explains a card the gates held back; nil when the switch is
+	// off, the card would have gone out, or it is not settled yet.
+	AutoProjection *AutoProjectionChecklist `json:"autoProjection,omitempty"`
+}
+
+// GateView is one line of the safety checklist the panel shows for a card the
+// gates held back.
+type GateView struct {
+	ID     string `json:"id"`
+	Label  string `json:"label"`
+	Passed bool   `json:"passed"`
+}
+
+// AutoProjectionChecklist explains why a settled card stayed in the queue while
+// auto-projection was armed: the first failing gate, plus every gate's result.
+type AutoProjectionChecklist struct {
+	Reason string     `json:"reason"`
+	Gates  []GateView `json:"gates"`
 }
 
 // DetectionResult returns the transcript even when nothing was detected, so
@@ -150,7 +168,7 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	}
 	return DetectionResult{
 		Transcript:    transcript,
-		Candidates:    toDetectionViews(a.detection.List()),
+		Candidates:    a.toDetectionViews(a.detection.List()),
 		Segment:       settled.Segment,
 		Repeats:       settled.Repeats,
 		AutoProjected: a.autoProject(settled.Settled),
@@ -170,7 +188,7 @@ func (a *App) streamDetectionProgress(partial string) {
 				Name: detectionProgressEvent,
 				Data: DetectionProgressView{
 					Transcript: partial,
-					Candidates: toDetectionViews(a.detection.List()),
+					Candidates: a.toDetectionViews(a.detection.List()),
 					Segment:    a.detection.CurrentSegment(),
 				},
 			})
@@ -182,7 +200,7 @@ func (a *App) ListDetections() ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
 	}
-	return toDetectionViews(a.detection.List()), nil
+	return a.toDetectionViews(a.detection.List()), nil
 }
 
 // DetectionHistoryView is one recorded decision. Pending candidates live only in
@@ -267,7 +285,7 @@ func (a *App) DismissDetection(id string) ([]DetectionView, error) {
 	if _, err := a.detection.Dismiss(a.context(), strings.TrimSpace(id)); err != nil {
 		return nil, err
 	}
-	return toDetectionViews(a.detection.List()), nil
+	return a.toDetectionViews(a.detection.List()), nil
 }
 
 func (a *App) ClearDetections() ([]DetectionView, error) {
@@ -445,30 +463,11 @@ func (a *App) autoProject(settled []detection.Candidate) []string {
 
 	ctx := a.context()
 	translation := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
-	enabled := a.autoProjectionEnabled(ctx)
-	paused := a.autoProjectionPaused(ctx)
 	projected := make([]string, 0, len(settled))
 
 	for _, candidate := range settled {
 		reference := candidate.Reference
-		passage, passageErr := a.bible.Passage(ctx, translation,
-			reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd)
-
-		verdict := policy.Evaluate(policy.Request{
-			Enabled:          enabled,
-			Paused:           paused,
-			Disabled:         a.detectionDisabled(),
-			Finalized:        candidate.Finalized,
-			Explicit:         candidate.Method == detection.MethodExplicitReference,
-			BookID:           reference.Book.ID,
-			Chapter:          reference.Chapter,
-			VerseScoped:      reference.VerseStart > 0,
-			PassageAvailable: passageErr == nil && len(passage) > 0,
-			SettledInSegment: len(settled),
-			Repeats:          candidate.Repeats,
-			Band:             confidence.BandOf(candidate.Confidence),
-		})
-		if !verdict.Project {
+		if verdict := a.autoProjectionVerdict(ctx, candidate, len(settled)); !verdict.Project {
 			continue
 		}
 
@@ -488,6 +487,52 @@ func (a *App) autoProject(settled []detection.Candidate) []string {
 	return projected
 }
 
+// autoProjectionVerdict runs the PRD checklist for one candidate. Projection and
+// the panel's explanation both call it, so the operator is told exactly what the
+// gates acted on.
+func (a *App) autoProjectionVerdict(ctx context.Context, candidate detection.Candidate, settledInSegment int) policy.Verdict {
+	reference := candidate.Reference
+	translation := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
+	passage, passageErr := a.bible.Passage(ctx, translation,
+		reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd)
+	return policy.Evaluate(policy.Request{
+		Enabled:          a.autoProjectionEnabled(ctx),
+		Paused:           a.autoProjectionPaused(ctx),
+		Disabled:         a.detectionDisabled(),
+		Finalized:        candidate.Finalized,
+		Explicit:         candidate.Method == detection.MethodExplicitReference,
+		BookID:           reference.Book.ID,
+		Chapter:          reference.Chapter,
+		VerseScoped:      reference.VerseStart > 0,
+		PassageAvailable: passageErr == nil && len(passage) > 0,
+		SettledInSegment: settledInSegment,
+		Repeats:          candidate.Repeats,
+		Band:             confidence.BandOf(candidate.Confidence),
+	})
+}
+
+// autoProjectionChecklist explains a held-back card to the operator. It stays nil
+// when auto-projection is off or paused — nothing is being withheld by a gate
+// then — and when the card would have been projected.
+func (a *App) autoProjectionChecklist(candidate detection.Candidate, settledInSegment int) *AutoProjectionChecklist {
+	if a.settings == nil || a.bible == nil || !candidate.Finalized {
+		return nil
+	}
+	ctx := a.context()
+	if !a.autoProjectionEnabled(ctx) || a.autoProjectionPaused(ctx) || a.detectionDisabled() {
+		return nil
+	}
+	verdict := a.autoProjectionVerdict(ctx, candidate, settledInSegment)
+	if verdict.Project {
+		return nil
+	}
+	checklist := &AutoProjectionChecklist{Reason: verdict.Reason, Gates: make([]GateView, 0, len(verdict.Gates))}
+	for _, gate := range verdict.Gates {
+		checklist.Gates = append(checklist.Gates, GateView{ID: gate.ID, Label: gate.Label, Passed: gate.Passed})
+	}
+	return checklist
+}
+
 func (a *App) detectionDisabled() bool {
 	if a.settings == nil {
 		return false
@@ -503,7 +548,16 @@ func (a *App) detectionEngine() (*asr.ExecutableEngine, error) {
 	return asr.ParseEngineSpec(spec)
 }
 
-func toDetectionViews(candidates []detection.Candidate) []DetectionView {
+func (a *App) toDetectionViews(candidates []detection.Candidate) []DetectionView {
+	// One card per settled passage is the norm; two from the same segment means
+	// the conflict gate refused both, and the checklist has to say so.
+	settledBySegment := make(map[int]int, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.Finalized {
+			settledBySegment[candidate.Segment]++
+		}
+	}
+
 	views := make([]DetectionView, 0, len(candidates))
 	for _, candidate := range candidates {
 		reference := candidate.Reference
@@ -524,6 +578,7 @@ func toDetectionViews(candidates []detection.Candidate) []DetectionView {
 			VerseStart:     reference.VerseStart,
 			VerseEnd:       reference.VerseEnd,
 			CreatedAt:      candidate.CreatedAt.Format("15:04:05"),
+			AutoProjection: a.autoProjectionChecklist(candidate, settledBySegment[candidate.Segment]),
 		})
 	}
 	return views

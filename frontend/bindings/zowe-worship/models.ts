@@ -29,6 +29,15 @@ export interface ArrangementView {
     "items": ArrangementItemView[] | null;
 }
 
+/**
+ * AutoProjectionChecklist explains why a settled card stayed in the queue while
+ * auto-projection was armed: the first failing gate, plus every gate's result.
+ */
+export interface AutoProjectionChecklist {
+    "reason": string;
+    "gates": GateView[] | null;
+}
+
 export interface BackupView {
     "name": string;
     "sizeBytes": number;
@@ -188,6 +197,12 @@ export interface DetectionView {
     "verseStart": number;
     "verseEnd": number;
     "createdAt": string;
+
+    /**
+     * AutoProjection explains a card the gates held back; nil when the switch is
+     * off, the card would have gone out, or it is not settled yet.
+     */
+    "autoProjection"?: AutoProjectionChecklist | null;
 }
 
 export interface DisplayView {
@@ -218,6 +233,16 @@ export interface EditorView {
 export interface EngineOption {
     "label": string;
     "spec": string;
+}
+
+/**
+ * GateView is one line of the safety checklist the panel shows for a card the
+ * gates held back.
+ */
+export interface GateView {
+    "id": string;
+    "label": string;
+    "passed": boolean;
 }
 
 export interface LyricHitView {
