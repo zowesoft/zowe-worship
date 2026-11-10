@@ -60,12 +60,32 @@ func TestDecodeJSONRejectsBadDatasets(t *testing.T) {
 		"duplicate book":      `{"Psalm":{"1":{"1":"a"}},"Psalms":{"1":{"1":"b"}}}`,
 		"non numeric chapter": `{"Genesis":{"one":{"1":"text"}}}`,
 		"non numeric verse":   `{"Genesis":{"1":{"first":"text"}}}`,
-		"empty verse":         `{"Genesis":{"1":{"1":"   "}}}`,
 	}
 
 	for name, dataset := range cases {
 		if _, err := DecodeJSON(strings.NewReader(dataset), testMeta()); !errors.Is(err, ErrInvalidTranslation) {
 			t.Fatalf("%s: err = %v, want ErrInvalidTranslation", name, err)
 		}
+	}
+}
+
+// An edition may leave a verse out (Matthew 17:21 in the NIV, say) while the
+// dataset still carries its key. Skipping it keeps the rest installable; a
+// dataset that is only holes still fails on "no verses".
+func TestDecodeJSONSkipsVersesTheEditionOmits(t *testing.T) {
+	dataset := `{"Genesis":{"1":{"1":"In the beginning God created","2":"","3":"  "}},"Matthew":{"17":{"20":"text","21":"   "}}}`
+	data, err := DecodeJSON(strings.NewReader(dataset), testMeta())
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(data.Verses) != 2 {
+		t.Fatalf("verses = %d, want 2 (%+v)", len(data.Verses), data.Verses)
+	}
+	if data.Verses[0].Text != "In the beginning God created" || data.Verses[1].BookID != 40 {
+		t.Fatalf("the wrong verses survived: %+v", data.Verses)
+	}
+	// A dataset of nothing but holes is still refused.
+	if _, err := DecodeJSON(strings.NewReader(`{"Genesis":{"1":{"1":"  "}}}`), testMeta()); !errors.Is(err, ErrInvalidTranslation) {
+		t.Fatalf("an all-empty dataset err = %v, want ErrInvalidTranslation", err)
 	}
 }

@@ -52,8 +52,10 @@ func DecodeJSON(r io.Reader, meta TranslationMeta) (TranslationData, error) {
 			for _, verseNumber := range verseNumbers {
 				text := chapter[strconv.Itoa(verseNumber)]
 				if strings.TrimSpace(text) == "" {
-					return TranslationData{}, fmt.Errorf(
-						"%w: %s %d:%d has no text", ErrInvalidTranslation, book.Name, chapterNumber, verseNumber)
+					// Some editions omit a verse outright (Matthew 17:21 in the
+					// NIV, say); the dataset still carries the key with nothing
+					// in it. An absent verse is not a broken dataset, so skip.
+					continue
 				}
 				verses = append(verses, Verse{
 					BookID:  book.ID,
