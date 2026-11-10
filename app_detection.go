@@ -131,6 +131,19 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 		a.detection.CloseSegment()
 		return DetectionResult{}, err
 	}
+	return a.settleSegment(transcript)
+}
+
+// streamDetectionProgress merges each segment so a growing hearing replaces its
+// pending candidate, and forwards the partial transcript to the studio.
+// settleSegment closes the open segment on its final transcript: the queue
+// settles the cards under their existing IDs and the policy layer weighs them.
+// DetectScripture calls it once per analysis; tests drive it directly so the
+// segment lifecycle needs no speech engine on disk.
+func (a *App) settleSegment(transcript string) (DetectionResult, error) {
+	if a.detection == nil {
+		return DetectionResult{}, errStorageUnavailable
+	}
 	settled, err := a.detection.Finalize(transcript, asr.DetectReferences(transcript))
 	if err != nil {
 		return DetectionResult{}, err
@@ -144,8 +157,6 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	}, nil
 }
 
-// streamDetectionProgress merges each segment so a growing hearing replaces its
-// pending candidate, and forwards the partial transcript to the studio.
 func (a *App) streamDetectionProgress(partial string) {
 	if a.detection == nil {
 		return
