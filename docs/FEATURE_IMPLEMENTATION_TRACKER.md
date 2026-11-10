@@ -102,11 +102,11 @@ Open:
 - [x] Bundling the offline speech engine into the Linux/macOS packages: the
       darwin `.app` carries `Contents/MacOS/engines`, deb/rpm install it to
       `/usr/local/lib/zowe-worship/engines` with a lookup fallback in
-      `app_speech.go`, and the AppImage embeds `usr/bin/engines`. All staged
-      from the pinned hashes by the packaging tasks; the workflow stages once
-      for the AppImage, the macOS job stages via the `darwin:package` dep.
-      Not yet proven by a tagged run at the time of writing — v0.1.0 shipped
-      before this landed.
+      `app_speech.go`, and the AppImage embeds `usr/bin/engines` via
+      `repack-engines.sh` (wails3's appimage generator has no hook for extra
+      files, so the AppDir is repacked with appimagetool). Proven by the
+      v0.1.0 run 42909224625: .app zip 6.2→114.2 MB, deb 6.9→115.3 MB,
+      rpm 7.1→129.1 MB, AppImage 84.5→192.0 MB.
 
 ## F02 — Bible library and translation search (Partial)
 
