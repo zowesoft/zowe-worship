@@ -289,6 +289,12 @@ export function SettingsWindow() {
         </button>
       </header>
 
+      {storage?.problem && (
+        <p className="flex items-center gap-2 px-3 py-2 border border-[#4D3F1E] rounded-md bg-[#2B2413] text-amber text-[11px] leading-[1.5]" role="alert">
+          <Icon name="bell" size={13} />Storage could not be opened: {storage.problem}
+        </p>
+      )}
+
       <div
         className="flex gap-1 p-[3px] bg-[#0F1722] rounded-[7px] border border-[#243449]"
         role="tablist"

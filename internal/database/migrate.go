@@ -85,9 +85,24 @@ func migrationChecksum(statements string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// SchemaAheadError says the database carries applied migrations this build does
+// not know, so writing to it could damage a schema this build cannot read.
+type SchemaAheadError struct {
+	Highest int
+	Known   int
+}
+
+func (e *SchemaAheadError) Error() string {
+	if e.Highest > e.Known {
+		return fmt.Sprintf("the database was last written by a newer Zowe Worship: schema version %d, this build knows %d", e.Highest, e.Known)
+	}
+	return fmt.Sprintf("the database records applied migration %d, which this build does not know", e.Highest)
+}
+
 // Migrate applies pending migrations in order. Each migration is its own
 // transaction, so a failed upgrade leaves the schema at the last version that
-// completed. Applied migrations are checksummed to catch edited history.
+// completed. Applied migrations are checksummed to catch edited history, and a
+// database from a newer build is refused rather than opened.
 func Migrate(ctx context.Context, db *sql.DB, backupDir string) error {
 	migrations, err := loadMigrations()
 	if err != nil {
@@ -107,6 +122,24 @@ func Migrate(ctx context.Context, db *sql.DB, backupDir string) error {
 	applied, err := appliedMigrations(ctx, db)
 	if err != nil {
 		return err
+	}
+
+	known := make(map[int]bool, len(migrations))
+	highest := 0
+	for _, m := range migrations {
+		known[m.version] = true
+		if m.version > highest {
+			highest = m.version
+		}
+	}
+	ahead := 0
+	for version := range applied {
+		if !known[version] && version > ahead {
+			ahead = version
+		}
+	}
+	if ahead > 0 {
+		return &SchemaAheadError{Highest: ahead, Known: highest}
 	}
 
 	var pending []migration

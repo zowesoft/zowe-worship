@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -94,6 +95,54 @@ func TestMigrateIsIdempotentAndSurvivesReopen(t *testing.T) {
 	}
 	if name != "King James Version" {
 		t.Fatalf("name = %q, want King James Version", name)
+	}
+}
+
+// A database an older build wrote must never be opened by this one: the newer
+// schema's tables and columns are not something this build can reason about.
+func TestMigrateRefusesADatabaseFromANewerBuild(t *testing.T) {
+	ctx := context.Background()
+	db, dbPath := openTestDatabase(t)
+	if err := Migrate(ctx, db, ""); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close database: %v", err)
+	}
+
+	all, err := loadMigrations()
+	if err != nil {
+		t.Fatalf("loadMigrations: %v", err)
+	}
+	future := all[len(all)-1].version + 7
+
+	reopened, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("reopen database: %v", err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	if _, err := reopened.ExecContext(ctx,
+		`INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES (?, 'from_the_future', 'x', '2026-01-01T00:00:00Z')`,
+		future,
+	); err != nil {
+		t.Fatalf("fake a newer build's migration: %v", err)
+	}
+
+	var schemaErr *SchemaAheadError
+	err = Migrate(ctx, reopened, "")
+	if !errors.As(err, &schemaErr) {
+		t.Fatalf("migrate err = %v, want SchemaAheadError", err)
+	}
+	if schemaErr.Highest != future {
+		t.Fatalf("Highest = %d, want %d", schemaErr.Highest, future)
+	}
+	// Nothing may have been written on the refused database.
+	var count int
+	if err := reopened.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version <= ?`, all[len(all)-1].version).Scan(&count); err != nil {
+		t.Fatalf("count migrations: %v", err)
+	}
+	if count != len(all) {
+		t.Fatalf("applied = %d, want %d", count, len(all))
 	}
 }
 

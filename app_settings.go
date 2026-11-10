@@ -39,6 +39,8 @@ type StorageView struct {
 	DefaultTranslation string            `json:"defaultTranslation"`
 	Backups            []BackupView      `json:"backups"`
 	BackupCount        int               `json:"backupCount"`
+	// Problem says why storage could not be opened at startup, if it could not.
+	Problem string `json:"problem,omitempty"`
 }
 
 // OpenSettings opens even when storage failed, which is exactly when the
@@ -56,6 +58,9 @@ func (a *App) GetStorage() (StorageView, error) {
 	view := StorageView{
 		Version:  appVersion,
 		DataRoot: paths.Root,
+	}
+	if a.storageProblem != nil {
+		view.Problem = a.storageProblem.Error()
 	}
 
 	coreSize, err := fileSize(paths.CoreDatabase())

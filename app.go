@@ -29,20 +29,23 @@ var errStorageUnavailable = errors.New("storage is not available")
 const appVersion = "0.1.0"
 
 type App struct {
-	ctx           context.Context
-	dataRoot      string
-	core          *sql.DB
-	bible         *bible.SQLiteRepository
-	order         *serviceorder.SQLiteRepository
-	songs         *songs.SQLiteRepository
-	media         *media.Library
-	themes        *themes.SQLiteRepository
-	settings      *settings.Store
-	presentation  *presentation.Controller
-	detection     *detection.Queue
-	history       *history.Log
-	display       application.Window
-	displayScreen ScreenOption
+	ctx      context.Context
+	dataRoot string
+	core     *sql.DB
+	// storageProblem is why storage could not be opened at startup, kept so
+	// Settings can say exactly what is wrong rather than a generic refusal.
+	storageProblem error
+	bible          *bible.SQLiteRepository
+	order          *serviceorder.SQLiteRepository
+	songs          *songs.SQLiteRepository
+	media          *media.Library
+	themes         *themes.SQLiteRepository
+	settings       *settings.Store
+	presentation   *presentation.Controller
+	detection      *detection.Queue
+	history        *history.Log
+	display        application.Window
+	displayScreen  ScreenOption
 }
 
 type AppInfo struct {
@@ -133,11 +136,13 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 
 	core, err := database.Open(ctx, paths.CoreDatabase())
 	if err != nil {
+		a.storageProblem = err
 		log.Printf("zowe: open database: %v", err)
 		return nil
 	}
 	if err := database.Migrate(ctx, core, paths.Backups()); err != nil {
 		_ = core.Close()
+		a.storageProblem = err
 		log.Printf("zowe: migrate database: %v", err)
 		return nil
 	}
@@ -151,6 +156,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 // Replacing the connection rebuilds every window's views.
 func (a *App) rewireStores(core *sql.DB, paths database.Paths) {
 	a.core = core
+	a.storageProblem = nil
 	a.bible = bible.NewSQLiteRepository(core, paths.Translations())
 	a.order = serviceorder.NewSQLiteRepository(core)
 	a.songs = songs.NewSQLiteRepository(core)

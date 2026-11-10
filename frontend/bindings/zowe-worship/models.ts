@@ -475,6 +475,11 @@ export interface StorageView {
     "defaultTranslation": string;
     "backups": BackupView[] | null;
     "backupCount": number;
+
+    /**
+     * Problem says why storage could not be opened at startup, if it could not.
+     */
+    "problem"?: string;
 }
 
 export interface TranslationView {
