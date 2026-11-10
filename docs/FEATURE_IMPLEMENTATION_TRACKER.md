@@ -59,7 +59,7 @@ Done:
 - [x] Wails v3 shell, typed bindings under `frontend/bindings/`, Taskfile build
       (`Taskfile.yml`); commit `b8f1c2d`.
 - [x] SQLite via `modernc.org/sqlite` with FTS5; versioned migrations
-      `internal/database/migrations/001..015`, checksum-tracked (`migrate.go`).
+      `internal/database/migrations/001..017`, checksum-tracked (`migrate.go`).
 - [x] App lifecycle wiring, storage paths, backups (`internal/database/backup.go`,
       `app_settings.go` `BackupNow` / `GetStorage`).
 - [x] Restore a backup into the running app: the candidate is integrity-checked,
@@ -242,8 +242,8 @@ Done:
       slide so an edited theme cannot restyle live content
       (`internal/presentation/controller.go` `themeFor` / `Content.Theme`).
 - [x] Shared `ThemedSlide` component so editor preview, studio monitor and
-      audience window render identically (`frontend/src/components/ThemedSlide.tsx`,
-      `themed-slide.css`; container-query sizing).
+      audience window render identically (`frontend/src/components/ThemedSlide.tsx`;
+      container-query sizing lives inline as Tailwind arbitrary classes).
 - [x] Per-item theme override with operator picker (`App.SetItemTheme`,
       `AppShell.tsx` `PreviewTheme`).
 - [x] Editing a theme refreshes the studio preview through the `presentation`
@@ -279,9 +279,10 @@ newest first for the panel's recent-decisions list (`app_detection.go`,
 (0.86), and a chapter-only hearing (0.72) ranks lowest because it still needs
 narrowing. `confidence.BandOf` splits those at the PRD's starting edges (0.92
 high, 0.65 medium), and the panel shows the percentage plus the spelled-out band
-so color never carries the reading alone. These are evidence-strength scores,
-not measured accuracy: the detector has not been scored against labeled audio,
-and auto-projection stays off.
+so color never carries the reading alone. These are evidence-strength scores
+rather than measured accuracy, and auto-projection stays off; `cmd/asr-bench`
+now scores them on labeled audio — band accuracy plus a threshold sweep from
+`confidence.Sweep` — so the edges can be moved once real recordings exist.
 
 `DetectScripture` now opens a numbered analysis segment, lets partials refine
 only that segment's cards, and settles them on the final transcript with stable
@@ -311,8 +312,9 @@ rather than piling up requests, and the panel shows hearing / transcribing
 instead of a manual button. Continuous mode is on by default and can be switched
 off, in which case the "Analyze last 20 s" button works exactly as before.
 
-Still open (later slices): measured calibration of the confidence bands against
-labeled audio, and the empty `internal/audio` package. The shipped engine is
+Still open (later slices): moving the confidence edges onto real recorded
+services (the sweep is in `cmd/asr-bench`, which needs those recordings), and
+the empty `internal/audio` package. The shipped engine is
 Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
 and has no model lifecycle of its own.
 
@@ -542,7 +544,9 @@ build + tests + typecheck:
 4. **Tailwind v4 redesign** — every feature stylesheet inlined as utilities;
    only `tokens.css` and a thin `global.css` base layer remain.
 5. **ASR benchmark harness** — `internal/asr` detector, `cmd/asr-bench` and
-   `benchmarks/` (models/tools gitignored) groundwork for F07.
+   `benchmarks/` (models/tools gitignored) groundwork for F07. It now also
+   scores every detection with the production confidence function and prints a
+   threshold sweep, so the bands are calibrated on the same audio.
 
 The bindings under `frontend/bindings/**` were regenerated with `-i`
 (plain interfaces, no factories); the exported surface is unchanged.

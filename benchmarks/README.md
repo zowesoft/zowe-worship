@@ -109,6 +109,30 @@ before scoring; engine log noise on stdout is removed automatically.
   quality; WER alone does not predict detection success — `Romans 8` from a
   mangled `Romans 8:28` still projects the right chapter).
 
+## Confidence calibration
+
+Every detected reference is also scored with `internal/confidence`, the same
+`Evaluate` the app uses, so the report describes the shipped bands rather than
+a benchmark copy. Two extra blocks appear per engine:
+
+- **confidence** — detections per band, and how many of each were real. Errors
+  clustering in `high` mean the band edges are too generous.
+- **threshold sweep** — for each candidate threshold, how many detections it
+  would keep (`kept`), how many were real (`correct`), how many were false
+  (`false`), and the resulting precision and recall. Recall counts only real
+  references, so it is capped by the engine's own misses.
+
+The grid includes the PRD's starting edges (0.65 medium, 0.92 high) and the
+scores the scorer can produce (0.96 written form, 0.93 spoken connectors, 0.86
+bare numbers, 0.72 chapter only). Move a band edge to the threshold whose row
+holds the precision the operator needs while keeping recall as high as possible;
+`models/` and `tools/` stay machine-local, so run this on real sanctuary audio
+before changing the constants in `internal/confidence`.
+
+Detector-only mode (`task asr:bench`) exercises the same sweep without any
+model or audio, which is how the phrasing scores are checked against gold
+transcripts.
+
 ## Current model tiers
 
 | Tier | Engine | Models | Disk (models only) |

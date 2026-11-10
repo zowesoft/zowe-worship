@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"zowe-worship/internal/asr"
+	"zowe-worship/internal/confidence"
 	"zowe-worship/internal/scripture"
 )
 
@@ -46,28 +47,42 @@ type benchClip struct {
 }
 
 type clipResult struct {
-	Clip         string   `json:"clip"`
-	Expected     []string `json:"expected"`
-	Detected     []string `json:"detected"`
-	Hits         []string `json:"hits"`
-	Missed       []string `json:"missed"`
-	Extra        []string `json:"extra"`
-	VerseExact   int      `json:"verse_hits"`
-	Transcript   string   `json:"transcript,omitempty"`
-	WER          float64  `json:"wer,omitempty"`
-	HasGoldWords bool     `json:"has_gold_words"`
+	Clip     string   `json:"clip"`
+	Expected []string `json:"expected"`
+	Detected []string `json:"detected"`
+	Hits     []string `json:"hits"`
+	Missed   []string `json:"missed"`
+	Extra    []string `json:"extra"`
+	// Scores are the confidence each detected reference received, in the same
+	// order as Detected.
+	Scores       []float64 `json:"scores,omitempty"`
+	VerseExact   int       `json:"verse_hits"`
+	Transcript   string    `json:"transcript,omitempty"`
+	WER          float64   `json:"wer,omitempty"`
+	HasGoldWords bool      `json:"has_gold_words"`
 }
 
 type engineSummary struct {
-	Engine       string       `json:"engine"`
-	Clips        []clipResult `json:"clips"`
-	Expected     int          `json:"expected"`
-	Hits         int          `json:"hits"`
-	Extra        int          `json:"extra"`
-	VerseExact   int          `json:"verse_hits"`
-	TranscribeMs int64        `json:"transcribe_ms"`
-	MeanWER      float64      `json:"mean_wer,omitempty"`
-	WERClips     int          `json:"wer_clips"`
+	Engine     string       `json:"engine"`
+	Clips      []clipResult `json:"clips"`
+	Expected   int          `json:"expected"`
+	Hits       int          `json:"hits"`
+	Extra      int          `json:"extra"`
+	VerseExact int          `json:"verse_hits"`
+	// Band accuracy and the threshold sweep are what calibrate the confidence
+	// bands; the counts are detections, not references.
+	HighCorrect   int                `json:"high_correct"`
+	HighFalse     int                `json:"high_false"`
+	MediumCorrect int                `json:"medium_correct"`
+	MediumFalse   int                `json:"medium_false"`
+	LowCorrect    int                `json:"low_correct"`
+	LowFalse      int                `json:"low_false"`
+	Calibration   []confidence.Point `json:"calibration,omitempty"`
+	// observations feeds the sweep and is never serialised.
+	observations []confidence.Observation
+	TranscribeMs int64   `json:"transcribe_ms"`
+	MeanWER      float64 `json:"mean_wer,omitempty"`
+	WERClips     int     `json:"wer_clips"`
 }
 
 type engineSummaries struct {
@@ -300,6 +315,35 @@ func scoreRun(set manifest, gold goldRefs, run benchmarkRun) engineSummary {
 			}
 		}
 
+		// Confidence is scored with the function the app uses, so the sweep
+		// below describes production bands rather than a benchmark copy.
+		for d := range detections {
+			score := confidence.Evaluate(run.texts[i], detections[d].Reference)
+			result.Scores = append(result.Scores, score)
+			summary.observations = append(summary.observations,
+				confidence.Observation{Score: score, Matched: matchedDetection[d]})
+			switch confidence.BandOf(score) {
+			case confidence.BandHigh:
+				if matchedDetection[d] {
+					summary.HighCorrect++
+				} else {
+					summary.HighFalse++
+				}
+			case confidence.BandMedium:
+				if matchedDetection[d] {
+					summary.MediumCorrect++
+				} else {
+					summary.MediumFalse++
+				}
+			default:
+				if matchedDetection[d] {
+					summary.LowCorrect++
+				} else {
+					summary.LowFalse++
+				}
+			}
+		}
+
 		// WER is meaningful only when the transcript came out of an engine;
 		// detector-only mode echoes the gold text, so scoring it would be 0.
 		if clip.Transcript != "" && run.name != "detector-only" {
@@ -317,6 +361,8 @@ func scoreRun(set manifest, gold goldRefs, run benchmarkRun) engineSummary {
 		}
 		summary.Clips = append(summary.Clips, result)
 	}
+
+	summary.Calibration = confidence.Sweep(summary.observations, summary.Expected, confidence.DefaultThresholds())
 
 	if summary.WERClips > 0 {
 		summary.MeanWER /= float64(summary.WERClips)
@@ -386,6 +432,7 @@ func printReport(summaries []engineSummary) {
 		}
 		fmt.Printf("   recall %d/%d (%.1f%%)  precision %.1f%%  verse-exact %d/%d\n",
 			s.Hits, s.Expected, recall, precision, s.VerseExact, s.Expected)
+		printConfidence(s)
 		if s.MeanWER > 0 {
 			fmt.Printf("   mean WER %.1f%% over %d clips\n", s.MeanWER*100, s.WERClips)
 		}
@@ -419,6 +466,29 @@ func printReport(summaries []engineSummary) {
 			}
 		}
 		fmt.Println()
+	}
+}
+
+// printConfidence shows where the bands were right and what moving the
+// threshold would have cost, which is the whole point of the labeled set.
+func printConfidence(summary engineSummary) {
+	detected := summary.HighCorrect + summary.HighFalse +
+		summary.MediumCorrect + summary.MediumFalse + summary.LowCorrect + summary.LowFalse
+	if detected == 0 {
+		return
+	}
+	fmt.Printf("   confidence  high %d/%d correct  medium %d/%d  low %d/%d\n",
+		summary.HighCorrect, summary.HighCorrect+summary.HighFalse,
+		summary.MediumCorrect, summary.MediumCorrect+summary.MediumFalse,
+		summary.LowCorrect, summary.LowCorrect+summary.LowFalse)
+	if len(summary.Calibration) == 0 {
+		return
+	}
+	fmt.Printf("   threshold  kept  correct  false  precision  recall\n")
+	for _, point := range summary.Calibration {
+		fmt.Printf("     %.2f      %3d   %6d  %5d   %6.1f%%   %5.1f%%\n",
+			point.Threshold, point.Kept, point.Correct, point.False,
+			point.Precision*100, point.Recall*100)
 	}
 }
 
