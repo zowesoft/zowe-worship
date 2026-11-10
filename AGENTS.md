@@ -42,6 +42,10 @@ powershell -NoProfile -Command "Get-Process zowe-worship | Select-Object Id,Main
 The rebuilt binary is only verified when the exe timestamp has moved and the
 process is running with the `Zowe Worship` window title.
 
+`scripts/rebuild.sh` does all of that in one command: build, side-effect
+cleanup, relaunch, and the window check, exiting non-zero if any step fails.
+Use it instead of repeating the steps by hand.
+
 ## Commits and staging
 
 ### Commit messages
