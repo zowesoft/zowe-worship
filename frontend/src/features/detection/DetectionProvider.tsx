@@ -7,6 +7,7 @@ import { useStudio } from '../../stores/StudioProvider';
 import { MicCapture, listAudioInputs, toBase64 } from './mic';
 import type { AudioInput } from './mic';
 import { decodeAudioFile } from './audioFile';
+import { SpeechSegmenter } from './segmenter';
 
 // How much audio one analyze request transcribes: a spoken reference plus the
 // sentence around it, without making the engine chew through dead air.
@@ -35,6 +36,12 @@ type DetectionValue = {
   autoProjectionPaused: boolean;
   // References the safety gates projected during the last analysis.
   autoProjected: string[];
+  // Continuous listening closes a segment when the speaker pauses instead of
+  // waiting for the operator to press Analyze; segmenting reports live speech.
+  continuous: boolean;
+  segmenting: boolean;
+  lastError: string | null;
+  toggleContinuous: () => void;
   setDevice: (deviceID: string) => void;
   setAutoProjection: (enabled: boolean) => Promise<void>;
   toggleAutoProjectionPause: () => Promise<void>;
@@ -72,10 +79,20 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const [autoProjection, setAutoProjectionState] = useState(false);
   const [autoProjectionPaused, setAutoProjectionPausedState] = useState(true);
   const [autoProjected, setAutoProjected] = useState<string[]>([]);
+  const [continuous, setContinuous] = useState(true);
+  const [segmenting, setSegmenting] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const captureRef = useRef<MicCapture | null>(null);
   const deviceIdRef = useRef('');
   deviceIdRef.current = deviceId;
+
+  // Refs, not state: the capture callback and the segment timer both read these
+  // between renders, and a stale state copy would drift from the audio.
+  const levelRef = useRef(0);
+  const segmenterRef = useRef(new SpeechSegmenter());
+  const busyRef = useRef(false);
+  const queuedRef = useRef<Int16Array | null>(null);
 
   const refreshConfig = useCallback(async () => {
     try {
@@ -142,6 +159,9 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const stopCapture = useCallback(() => {
     captureRef.current?.stop();
     captureRef.current = null;
+    segmenterRef.current.reset();
+    queuedRef.current = null;
+    setSegmenting(false);
     setListening(false);
     setLevel(0);
   }, []);
@@ -152,6 +172,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     // The level callback fires per audio block, which doubles as the clock for
     // the buffered-seconds readout.
     capture.setLevelListener((next, seconds) => {
+      levelRef.current = next;
       setLevel(next);
       setBufferedSeconds(seconds);
     });
@@ -214,6 +235,61 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     }
   }, [analyzing]);
 
+  // One analysis at a time: a segment that closes mid-transcription waits in a
+  // single slot, so a fast speaker cannot grow an unbounded request queue.
+  const analyzeSegment = useCallback(async (pcm: Int16Array) => {
+    if (pcm.length === 0) return;
+    if (busyRef.current) {
+      queuedRef.current = pcm;
+      return;
+    }
+    busyRef.current = true;
+    setAnalyzing(true);
+    setLastError(null);
+    let next: Int16Array | null = pcm;
+    try {
+      while (next) {
+        setBufferedSeconds(next.length / 16000);
+        const result = await App.DetectScripture(toBase64(next));
+        setTranscript(result.transcript);
+        setSegment(result.segment);
+        setRepeats(result.repeats);
+        setAutoProjected(result.autoProjected ?? []);
+        setCandidates((await App.ListDetections()) ?? []);
+        next = queuedRef.current;
+        queuedRef.current = null;
+      }
+    } catch (error) {
+      // The loop has no caller to throw to, so the panel shows the reason.
+      setLastError(errorMessage(error));
+    } finally {
+      busyRef.current = false;
+      setAnalyzing(false);
+    }
+  }, []);
+
+  const toggleContinuous = useCallback(() => setContinuous((value) => !value), []);
+
+  // Continuous mode: watch the level the capture already reports and transcribe
+  // each segment as the speaker pauses. The microphone keeps running through a
+  // whole sermon; one request goes out per reference, not per 20 seconds.
+  useEffect(() => {
+    if (!listening || !continuous || disabled) {
+      segmenterRef.current.reset();
+      setSegmenting(false);
+      return;
+    }
+    segmenterRef.current.reset();
+    const timer = window.setInterval(() => {
+      const capture = captureRef.current;
+      if (!capture) return;
+      const range = segmenterRef.current.feed(levelRef.current, capture.capturedSamples);
+      setSegmenting(segmenterRef.current.hearing);
+      if (range) void analyzeSegment(capture.takeRange(range.from, range.to));
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, [listening, continuous, disabled, analyzeSegment]);
+
   const setAutoProjectionEnabled = useCallback(async (enabled: boolean) => {
     await App.SetAutoProjection(enabled);
     await refreshConfig();
@@ -263,6 +339,10 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     autoProjection,
     autoProjectionPaused,
     autoProjected,
+    continuous,
+    segmenting,
+    lastError,
+    toggleContinuous,
     setDevice: setDeviceId,
     setAutoProjection: setAutoProjectionEnabled,
     toggleAutoProjectionPause,
@@ -278,6 +358,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   }), [
     listening, devices, deviceId, level, transcript, candidates, history, analyzing, disabled,
     engineConfigured, bufferedSeconds, segment, repeats, autoProjection, autoProjectionPaused, autoProjected,
+    continuous, segmenting, lastError, toggleContinuous, analyzeSegment,
     setAutoProjectionEnabled, toggleAutoProjectionPause, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
     refreshConfig, refreshQueue, refreshHistory,
   ]);

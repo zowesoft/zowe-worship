@@ -438,6 +438,8 @@ function PreviewTheme({ preview }: { preview: Content }) {
 
 function PresentationPanes() {
   const studio = useStudio();
+  // The emergency button is the same F12 switch the detection panel uses.
+  const detection = useDetection();
   const preview = studio.presentation?.preview ?? null;
   const live = studio.presentation?.live ?? null;
   const scheduleCount = studio.order?.items?.length ?? 0;
@@ -710,7 +712,7 @@ function PresentationPanes() {
               <Icon name="chevron" size={14} />
             </button>
             <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950]" disabled={live === null} onClick={() => void clearLive()} title="Clear the live output">Clear</button>
-            <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-[#FFB1B7]! border-[#3A222A]! bg-[#221019]! disabled:text-[#B77F87]! disabled:bg-[#1C1217]! disabled:border-[#3A222A]!" disabled title="Automatic projection is not implemented.">
+            <button type="button" className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-[#FFB1B7]! border-[#3A222A]! bg-[#221019]! disabled:text-[#B77F87]! disabled:bg-[#1C1217]! disabled:border-[#3A222A]!" disabled={detection.disabled} onClick={() => { void App.SetDetectionDisabled(true).then(() => detection.refresh()).catch(() => undefined); }} title="Stop new detections without changing what the audience sees (F12)">
               <Icon name="detection" size={12} />Emergency
             </button>
           </div>
@@ -777,7 +779,7 @@ function DetectionPanel() {
       <div className="grid gap-3 p-3.5">
         <div className="flex items-center gap-2 text-secondary">
           <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${detection.listening ? 'bg-[#6EE7C0]' : 'bg-secondary'}`} />
-          <strong className="text-text text-[10.5px] font-medium">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered` : 'Not listening'}</strong>
+          <strong className="text-text text-[10.5px] font-medium">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered${detection.continuous ? (detection.segmenting ? ' · hearing' : ' · waiting for speech') : ''}` : 'Not listening'}</strong>
           {detection.segment > 0 && (
             <span className="text-[9px] text-secondary whitespace-nowrap">segment {detection.segment}</span>
           )}
@@ -817,7 +819,23 @@ function DetectionPanel() {
               {detection.analyzing ? 'Analyzing…' : `Analyze last ${ANALYZE_SECONDS} s`}
             </button>
           </div>
-          <label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV (first 30 seconds)">
+                    <button
+            type="button"
+            role="switch"
+            aria-checked={detection.continuous}
+            className="min-h-7 inline-flex items-center gap-2 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10px] text-text text-left"
+            onClick={detection.toggleContinuous}
+            title="Close an analysis segment when the speaker pauses"
+          >
+            <span className={`relative flex items-center w-[26px] h-3.5 rounded-full shrink-0 ${detection.continuous ? 'bg-[#6EE7C0]' : 'bg-[#2A3950]'}`} aria-hidden="true">
+              <span className={`w-2.5 h-2.5 rounded-full ml-0.5 ${detection.continuous ? 'bg-app' : 'bg-secondary'}`} />
+            </span>
+            Continuous — segment automatically
+          </button>
+          {detection.lastError && (
+            <p className="px-2 py-1.5 border border-[#4D1E1E] rounded-md bg-[#2B1313] text-[#FFB1B7] text-[9.5px] leading-[1.5]">{detection.lastError}</p>
+          )}
+<label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV (first 30 seconds)">
             <Icon name="play" size={13} />
             {detection.analyzing ? 'Analyzing…' : 'Test audio file…'}
             <input

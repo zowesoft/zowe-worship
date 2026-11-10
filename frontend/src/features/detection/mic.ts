@@ -53,6 +53,9 @@ class RingBuffer {
   private readonly samples: Int16Array;
   private writePos = 0;
   private filled = 0;
+  // total counts every sample ever appended, so a reader can name an absolute
+  // span even after the ring has wrapped.
+  private total = 0;
 
   constructor(capacity: number) {
     this.samples = new Int16Array(capacity);
@@ -65,6 +68,25 @@ class RingBuffer {
       this.writePos = (this.writePos + 1) % capacity;
     }
     this.filled = Math.min(capacity, this.filled + chunk.length);
+    this.total += chunk.length;
+  }
+
+  get captured(): number {
+    return this.total;
+  }
+
+  // range reads an absolute span that is still inside the buffer. A span that
+  // has already wrapped out comes back clamped to what is retained.
+  range(from: number, to: number): Int16Array {
+    const capacity = this.samples.length;
+    const start = Math.max(from, this.total - this.filled);
+    const end = Math.min(to, this.total);
+    const count = Math.max(0, end - start);
+    const result = new Int16Array(count);
+    for (let i = 0; i < count; i++) {
+      result[i] = this.samples[(start + i) % capacity];
+    }
+    return result;
   }
 
   takeLast(count: number): Int16Array {
@@ -159,6 +181,14 @@ export class MicCapture {
     this.worklet = null;
     this.source = null;
     this.onLevel?.(0, this.buffer.seconds);
+  }
+
+  get capturedSamples(): number {
+    return this.buffer.captured;
+  }
+
+  takeRange(from: number, to: number): Int16Array {
+    return this.buffer.range(from, to);
   }
 
   takeLast(seconds: number): Int16Array {
