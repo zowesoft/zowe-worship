@@ -201,14 +201,18 @@ Done:
       (`frontend/src/features/media/MediaEditorWindow.tsx`).
 - [x] Project images, video and audio as slides; transport play/pause/restart
       in the studio (`app_media.go` `ProjectMedia`, `media_control.go`).
-- [x] Stop, seek and volume commands end to end: `MediaCommand` validates them
-      (`media_control.go`) and the audience player acts on all six
-      (`AudienceDisplay.tsx`); the studio exposes only play/pause/restart so far.
+- [x] Full transport end to end: clock, seek, stop and room volume in the studio
+      (`AppShell.tsx`), all six commands validated in `media_control.go` and
+      acted on by the player (`useTransportPlayer`, `AudienceDisplay.tsx`).
+- [x] Playback without a display: the studio's live pane is the player when no
+      audience display is connected (`AppShell.tsx`, broadcast `MediaControl`).
+- [x] Local preview playback with play/pause and seek, separate from the room
+      (`AppShell.tsx` preview transport).
+- [x] Background pictures for audio/video clips, picked in the media editor
+      (`internal/media/slides.go` `SetBackground`, `MediaEditorWindow.tsx`).
 - [x] Relink a missing asset (`App.RelinkMedia`).
-- [x] Preview playback kept separate from audience playback.
 
 Open:
-- [ ] Studio controls for stop, seek and volume (the backend commands exist).
 - [ ] Explicit declared-format/codec list surfaced to the user.
 - [ ] Acceptance evidence: missing file, unsupported codec, relink, failure without
       blanking a valid live slide.
@@ -286,9 +290,16 @@ stopping audio capture, a successful automatic projection is recorded as
 `auto_projected` in `detection_history`, and the panel names what went to the
 room instead of the card silently vanishing.
 
-Still open (later slices): continuous listening with automatic segmentation
-(currently manual chunks only), measured calibration of the confidence bands
-against labeled audio, and the empty `internal/audio` package. The shipped engine is
+Listening is continuous now: `segmenter.ts` feeds on the level the capture
+already reports and closes a segment after 700 ms of quiet (or cuts at 25 s, so
+a request never crosses the backend's 30 s cap). The microphone keeps running
+through the service, a segment that arrives mid-transcription waits in one slot
+rather than piling up requests, and the panel shows hearing / transcribing
+instead of a manual button. Continuous mode is on by default and can be switched
+off, in which case the "Analyze last 20 s" button works exactly as before.
+
+Still open (later slices): measured calibration of the confidence bands against
+labeled audio, and the empty `internal/audio` package. The shipped engine is
 Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
 and has no model lifecycle of its own.
 
@@ -575,8 +586,14 @@ The tracker understated the app, which is why this audit was needed:
    card stays queued and a refused passage leaves the live slide alone. UI: the
    Production card carries the switch, Hybrid/Paused status and the gate
    explainer; F9 pauses and resumes; every start boots paused.
-5. **Continuous listening and segmentation (M–L).** Silence-based segmentation
-   over the bounded buffer; depends on slice 2.
+5. **Continuous listening and segmentation (M–L) — landed 2026-11-10.**
+   `frontend/src/features/detection/segmenter.ts` watches the level the capture
+   already measures and closes a segment on a spoken pause (or at the 25 s cap,
+   under the backend's 30 s limit), so listening no longer waits for the
+   operator to press Analyze. Segments are drained by absolute sample offset
+   (`MicCapture.takeRange`), transcribed one at a time with a single pending
+   slot, and the manual Analyze button remains as a fallback when the toggle is
+   off.
 6. **Panel parity + candidate keyboard (S–M).** Project, Search and Preview per
    candidate, plus Enter / Esc / Alt+Enter / Ctrl+Up-Down in `lib/shortcuts.ts`
    and the panel. After slice 4, so Project goes through the gates instead of
