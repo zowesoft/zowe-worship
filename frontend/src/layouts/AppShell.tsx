@@ -777,9 +777,9 @@ function DetectionPanel() {
       </div>
 
       <div className="grid gap-3 p-3.5">
-        <div className="flex items-center gap-2 text-secondary">
+        <div className="flex items-center gap-2 min-w-0 text-secondary">
           <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${detection.listening ? 'bg-[#6EE7C0]' : 'bg-secondary'}`} />
-          <strong className="text-text text-[10.5px] font-medium">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered${detection.continuous ? (detection.segmenting ? ' · hearing' : ' · waiting for speech') : ''}` : 'Not listening'}</strong>
+          <strong className="flex-1 min-w-0 text-text text-[10.5px] font-medium truncate">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered${detection.continuous ? (detection.segmenting ? ' · hearing' : ' · waiting for speech') : ''}` : 'Not listening'}</strong>
           {detection.segment > 0 && (
             <span className="text-[9px] text-secondary whitespace-nowrap">segment {detection.segment}</span>
           )}
@@ -1287,7 +1287,7 @@ export function AppShell({ activePage, onNavigate, children }: {
             {children}
           </section>
         </div>
-        <div className="grid gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
           <DetectionPanel />
           <HistoryPanel />
           <ProductionCard />
