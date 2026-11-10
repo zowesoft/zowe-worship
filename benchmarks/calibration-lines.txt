@@ -1,0 +1,26 @@
+# Spoken script for the confidence calibration set.
+#
+# One clip per line:  <written references> :: <sentence to read aloud>
+# Leave the reference empty for a clip that must produce nothing.
+#
+# Read the sentence the way it would be said from the pulpit: no reading the
+# punctuation, no pausing to announce "colon". The point is to capture the
+# spoken forms the detector has to score (chapter/verse in words, connectors,
+# bare numbers), through a real mic, with the room's own noise.
+#
+# Keep clips short (one or two sentences) so the sweep has many independent
+# detections; add more lines rather than longer ones.
+
+Romans 8:28 :: Let us turn this morning to Romans chapter eight, verse twenty eight. And we know that all things work together for good to them that love God.
+2 Corinthians 5:17 :: Our text is second Corinthians, chapter five, verse seventeen. Therefore if any man be in Christ, he is a new creature.
+John 3:16 :: For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish.
+Psalms 51:10 :: Create in me a clean heart, O God, and renew a right spirit within me.
+Matthew 11:28-30 :: Come unto me, all ye that labour and are heavy laden, and I will give you rest.
+1 Peter 5:7 :: Casting all your care upon him, for he careth for you.
+James 1:5 :: If any of you lack wisdom, let him ask of God, that giveth to all men liberally.
+Revelation 22:21 :: The grace of our Lord Jesus Christ be with you all. Amen.
+Genesis 1:1 :: In the beginning God created the heaven and the earth.
+Isaiah 40:31 :: They that wait upon the LORD shall renew their strength; they shall mount up with wings as eagles.
+Hebrews 4:12; 2 Timothy 3:16 :: For the word of God is quick, and powerful, and sharper than any twoedged sword. All scripture is given by inspiration of God.
+:: Before we open the word, a few announcements. The youth group meets on the twenty eighth at six thirty, and the food pantry served one hundred nineteen families last month.
+:: Please stand as the band leads us in worship.

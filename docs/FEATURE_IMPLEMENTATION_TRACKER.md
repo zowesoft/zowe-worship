@@ -573,6 +573,10 @@ build + tests + typecheck:
    `benchmarks/` (models/tools gitignored) groundwork for F07. It now also
    scores every detection with the production confidence function and prints a
    threshold sweep, so the bands are calibrated on the same audio.
+   `benchmarks/record-set.ps1` records the real-speech set that sweep needs
+   (one labeled clip per line, manifest written as it goes, output gitignored);
+   no set of real recordings is committed yet, so the bands are still
+   uncalibrated against a live room.
 
 The bindings under `frontend/bindings/**` were regenerated with `-i`
 (plain interfaces, no factories); the exported surface is unchanged.

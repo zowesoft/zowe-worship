@@ -43,8 +43,36 @@ synthesize the same scripts.
 
 ## Building a real set
 
-Record (or collect) sermon clips where references are actually spoken, save
-them as WAV into e.g. `benchmarks/sermon-set/`, and write `manifest.json`:
+The calibration question — do the shipped confidence bands hold up on real
+speech? — needs audio from an actual speaker in the room, which the synthetic
+`tts-set` cannot answer. `record-set.ps1` records it: it reads a spoken script,
+records one clip per line from the mic, and writes the `manifest.json` the
+sweep consumes.
+
+```powershell
+powershell -File benchmarks/record-set.ps1 -ListDevices
+powershell -File benchmarks/record-set.ps1 -Device "Microphone Array (Realtek High Definition Audio)"
+go run ./cmd/asr-bench -set benchmarks/sermon-set
+  -engine "whisper.tiny=benchmarks/tools/Release/whisper-cli.exe -m benchmarks/models/ggml-tiny.en.bin -np -f {audio}"
+```
+
+- The script is `benchmarks/calibration-lines.txt`: one clip per line as
+  `<written references> :: <sentence to read aloud>`, empty references for a
+  clip that must yield nothing. Lines deliberately vary the spoken form
+  (chapter/verse in words, "turn with me to", bare numbers, ranges, two
+  references in one breath) because that is what the scorer has to handle.
+- Default output is `benchmarks/sermon-set/`, which is gitignored: real
+  recordings and their manifest stay on the machine that made them.
+- `-Seconds` (default 8) sets clip length; `-Countdown` gives the speaker time
+  to settle. Re-running appends to the manifest and replaces a clip whose id
+  repeats, so a failed line can be redone alone.
+- Record in the room you care about, at the distance the mic will actually
+  sit, with the band and the PA on if they will be on. A quiet room alone
+  calibrates nothing about speech; ten to fifteen short clips is enough to
+  read the sweep.
+
+Clips collected another way just need the same manifest; save the WAVs beside
+it under `benchmarks/sermon-set/`:
 
 ```json
 {
