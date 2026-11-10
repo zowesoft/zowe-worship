@@ -65,7 +65,7 @@ export function HistoryPanel() {
             {entries.map((entry) => (
               <li key={entry.id} className="flex items-center gap-2 p-2 border border-border rounded-[7px] bg-app min-w-0">
                 <Icon name={iconFor(entry.kind)} size={14} className={`shrink-0 ${toneFor(entry.kind)}`} />
-                <div className="flex flex-col gap-px min-w-0">
+                <div className="flex flex-1 w-0 flex-col gap-px min-w-0">
                   <strong className="text-[11px] font-medium truncate">{entry.title}</strong>
                   {entry.label !== '' && entry.label !== entry.title && (
                     <span className="text-secondary text-[9.5px] truncate">{entry.label}</span>

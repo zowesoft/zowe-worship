@@ -779,7 +779,7 @@ function DetectionPanel() {
       <div className="grid gap-3 p-3.5">
         <div className="flex items-center gap-2 min-w-0 text-secondary">
           <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${detection.listening ? 'bg-[#6EE7C0]' : 'bg-secondary'}`} />
-          <strong className="flex-1 min-w-0 text-text text-[10.5px] font-medium truncate">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered${detection.continuous ? (detection.segmenting ? ' · hearing' : ' · waiting for speech') : ''}` : 'Not listening'}</strong>
+          <strong className="flex-1 w-0 min-w-0 text-text text-[10.5px] font-medium truncate">{detection.listening ? `Listening · ${detection.bufferedSeconds.toFixed(0)} s buffered${detection.continuous ? (detection.segmenting ? ' · hearing' : ' · waiting for speech') : ''}` : 'Not listening'}</strong>
           {detection.segment > 0 && (
             <span className="text-[9px] text-secondary whitespace-nowrap">segment {detection.segment}</span>
           )}
@@ -789,7 +789,7 @@ function DetectionPanel() {
         <div className="grid gap-2">
           <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg bg-[#111D30]">
             <span className="inline-grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg"><Icon name="mic" size={18} /></span>
-            <div className="flex flex-col gap-px min-w-0">
+            <div className="flex flex-1 w-0 flex-col gap-px min-w-0">
               <span className="text-secondary text-[9.5px]">Audio input</span>
               <strong className="text-[11px] font-medium truncate">{deviceLabel}</strong>
             </div>
@@ -1022,7 +1022,7 @@ function ProductionCard() {
           title={detection.listening ? 'Stop listening (F8)' : 'Listen for scripture references (F8)'}
         >
           <span className="grid place-items-center w-[34px] h-[34px] border border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]! rounded-lg shrink-0"><Icon name="mic" size={18} /></span>
-          <div className="flex flex-col gap-px min-w-0">
+          <div className="flex flex-1 w-0 flex-col gap-px min-w-0">
             <span className="text-secondary text-[9.5px]">Audio input</span>
             <strong className="text-[11px] font-medium truncate">{detection.listening ? deviceLabel : 'Not listening'}</strong>
           </div>
