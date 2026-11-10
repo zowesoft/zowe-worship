@@ -10,6 +10,7 @@ import { ThemedSlide } from '../components/ThemedSlide';
 import { useStudio, type MediaAction } from '../stores/StudioProvider';
 import { useTransportPlayer } from '../lib/mediaTransport';
 import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
+import type { BiblePassage } from '../features/bible/focus';
 import { useShortcuts } from '../stores/ShortcutsProvider';
 import { TEXT_GUARDED, actionForCombo, comboFromEvent } from '../lib/shortcuts';
 import { HistoryPanel } from '../features/presentation/HistoryPanel';
@@ -736,7 +737,7 @@ function confidenceTone(band: string): string {
   return 'border-[#2A3950]! bg-elevated! text-secondary!';
 }
 
-function DetectionPanel() {
+function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) => void }) {
   const detection = useDetection();
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -950,6 +951,19 @@ function DetectionPanel() {
                       title="Fill the preview without changing what the room sees"
                     >
                       <Icon name="check" size={12} />Approve to preview
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap"
+                      onClick={() => onOpenBible({
+                        bookId: candidate.bookId,
+                        chapter: candidate.chapter,
+                        verseStart: candidate.verseStart,
+                        verseEnd: candidate.verseEnd,
+                      })}
+                      title="Open this reference in the Bible workspace"
+                    >
+                      <Icon name="search" size={12} />Search
                     </button>
                     <button
                       type="button"
@@ -1171,9 +1185,11 @@ function clockTime(ms: number): string {
   return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
-export function AppShell({ activePage, onNavigate, children }: {
+export function AppShell({ activePage, onNavigate, onOpenBible, children }: {
   activePage: PageId;
   onNavigate: (page: PageId) => void;
+  // Switch to the Bible page with one passage open (the detection card's Search).
+  onOpenBible: (passage: BiblePassage) => void;
   children: ReactNode;
 }) {
   const activeLabel = navigation.find((item) => item.id === activePage)?.label ?? 'Bible';
@@ -1309,7 +1325,7 @@ export function AppShell({ activePage, onNavigate, children }: {
           </section>
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
-          <DetectionPanel />
+          <DetectionPanel onOpenBible={onOpenBible} />
           <HistoryPanel />
           <ProductionCard />
         </div>

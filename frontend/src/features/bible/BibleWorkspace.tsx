@@ -5,6 +5,7 @@ import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
+import type { BibleFocus } from './focus';
 
 
 // The Songs screen reuses this row/action look; everything else stays inline.
@@ -105,7 +106,15 @@ type ActionState = {
 };
 
 
-export function BibleWorkspace() {
+export function BibleWorkspace({
+  focus = null,
+  onFocusHandled,
+}: {
+  // A passage the detection panel asked this workspace to open. Cleared by the
+  // parent once consumed, so it only ever moves the pane once.
+  focus?: BibleFocus | null;
+  onFocusHandled?: () => void;
+} = {}) {
   const studio = useStudio();
   const bridgeAvailable = studio.bridgeAvailable;
 
@@ -780,6 +789,27 @@ export function BibleWorkspace() {
     void loadChapter(1, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bridgeAvailable, translationId]);
+
+  // Another screen (the detection panel's Search action) can ask for one
+  // passage. The jump goes through the same reference path as typing it, so the
+  // chapter loads and the verse or range is selected and pinned exactly as a
+  // manual browse would leave it.
+  useEffect(() => {
+    if (!focus || !bridgeAvailable || translationId === '' || books.length === 0) return;
+    const book = books.find((candidate) => candidate.id === focus.bookId);
+    if (!book) return;
+    setActiveTab('browse');
+    setQuery('');
+    const verse = focus.verseStart > 0
+      ? focus.verseEnd > focus.verseStart
+        ? `${book.name} ${focus.chapter}:${focus.verseStart}-${focus.verseEnd}`
+        : `${book.name} ${focus.chapter}:${focus.verseStart}`
+      : `${book.name} ${focus.chapter}`;
+    void jumpToReference(verse, { bookOnly: false });
+    onFocusHandled?.();
+    // The nonce is what makes a second request for the same passage run again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, bridgeAvailable, translationId, books]);
 
   // Searching moves that same reading pane to the book that was searched, and
   // clearing the search puts it back where the operator had been reading.

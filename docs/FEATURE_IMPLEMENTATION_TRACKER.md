@@ -330,6 +330,14 @@ clicking a card they can see. The passage goes up before the card leaves the
 queue, so a passage the translation cannot resolve fails with the card still
 available to retry and the live slide unchanged.
 
+**Search** on the same card opens the Bible workspace on that passage: the App
+shell switches page and hands the reference down, and `BibleWorkspace` jumps
+through its ordinary reference path, so the chapter loads and the verse or
+range is selected and pinned to the top exactly as if it had been typed. The
+request is consumed once (`features/bible/focus.ts` keeps the one-shot
+passage + nonce), so returning to the Bible tab later does not reopen an old
+reference, while clicking Search twice moves the pane again.
+
 Listening is continuous now: `segmenter.ts` feeds on the level the capture
 already reports and closes a segment after 700 ms of quiet (or cuts at 25 s, so
 a request never crosses the backend's 30 s cap). The microphone keeps running

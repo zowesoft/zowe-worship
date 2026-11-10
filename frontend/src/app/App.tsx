@@ -11,6 +11,7 @@ import { ServiceOrderWorkspace } from '../features/service-order/ServiceOrderWor
 import { ThemesWindow } from '../features/themes/ThemesWindow';
 import { AppShell } from '../layouts/AppShell';
 import type { PageId } from '../layouts/AppShell';
+import type { BibleFocus, BiblePassage } from '../features/bible/focus';
 import { StudioProvider } from '../stores/StudioProvider';
 import { DetectionProvider } from '../features/detection/DetectionProvider';
 import { ShortcutsProvider } from '../stores/ShortcutsProvider';
@@ -22,6 +23,15 @@ const windowView = viewParams.get('view');
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>('home');
+  // A detection card's Search action switches to the Bible page and opens the
+  // passage there. The workspace clears it once the jump is under way, so
+  // returning to the Bible tab later does not reopen an old reference.
+  const [bibleFocus, setBibleFocus] = useState<BibleFocus | null>(null);
+
+  function openBibleAt(passage: BiblePassage) {
+    setBibleFocus({ ...passage, nonce: Date.now() });
+    setActivePage('bible');
+  }
 
   if (windowView === 'audience') {
     return <AudienceDisplay />;
@@ -43,11 +53,11 @@ export default function App() {
     <StudioProvider>
       <DetectionProvider>
         <ShortcutsProvider>
-          <AppShell activePage={activePage} onNavigate={setActivePage}>
+          <AppShell activePage={activePage} onNavigate={setActivePage} onOpenBible={openBibleAt}>
             {activePage === 'home'
               ? <HomeWorkspace onNavigate={setActivePage} />
               : activePage === 'bible'
-                ? <BibleWorkspace />
+                ? <BibleWorkspace focus={bibleFocus} onFocusHandled={() => setBibleFocus(null)} />
                 : activePage === 'songs'
                   ? <SongsWorkspace />
                   : activePage === 'media'
