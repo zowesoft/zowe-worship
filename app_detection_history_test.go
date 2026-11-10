@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"zowe-worship/internal/asr"
+	"zowe-worship/internal/confidence"
 	"zowe-worship/internal/detection"
 	"zowe-worship/internal/scripture"
 )
@@ -46,8 +47,13 @@ func TestDetectionCandidatesCarryMethodAndExplanation(t *testing.T) {
 	if got.Explanation != detection.ExplanationExplicitReference {
 		t.Errorf("explanation = %q, want %q", got.Explanation, detection.ExplanationExplicitReference)
 	}
-	if got.Confidence != detection.ConfidenceRuleMatch {
-		t.Errorf("confidence = %v, want %v", got.Confidence, detection.ConfidenceRuleMatch)
+	// A written chapter:verse form is the strongest phrasing the detector can
+	// hear, so the panel shows a high band rather than a flat rule match.
+	if got.Confidence != confidence.ScoreSeparator {
+		t.Errorf("confidence = %v, want %v", got.Confidence, confidence.ScoreSeparator)
+	}
+	if got.ConfidenceBand != confidence.BandHigh {
+		t.Errorf("band = %q, want %q", got.ConfidenceBand, confidence.BandHigh)
 	}
 }
 
@@ -89,8 +95,9 @@ func TestListDetectionHistoryRecountsDecisionsNewestFirst(t *testing.T) {
 			t.Errorf("row %d = (%q, %q), want (%q, %q)", i,
 				history[i].Reference, history[i].Decision, entry.reference, entry.decision)
 		}
-		if history[i].Confidence != detection.ConfidenceRuleMatch {
-			t.Errorf("row %d confidence = %v, want %v", i, history[i].Confidence, detection.ConfidenceRuleMatch)
+		if history[i].Confidence <= 0 || history[i].ConfidenceBand == "" {
+			t.Errorf("row %d confidence = %v (%q), want a scored hearing", i,
+				history[i].Confidence, history[i].ConfidenceBand)
 		}
 		if history[i].CreatedAt == "" {
 			t.Errorf("row %d has no timestamp", i)

@@ -9,6 +9,7 @@ import (
 
 	"zowe-worship/internal/asr"
 	"zowe-worship/internal/bible"
+	"zowe-worship/internal/confidence"
 	"zowe-worship/internal/database"
 	"zowe-worship/internal/scripture"
 )
@@ -66,6 +67,33 @@ func TestAddQueuesOneCandidatePerDetection(t *testing.T) {
 	}
 	if pending[0].ID != added[0].ID {
 		t.Fatalf("queue order changed: %q then %q", pending[0].ID, added[0].ID)
+	}
+}
+
+func TestCandidateConfidenceTracksPhrasing(t *testing.T) {
+	queue := newTestQueue(t)
+
+	cases := []struct {
+		name       string
+		transcript string
+		reference  string
+		want       string
+	}{
+		{"written reference", "Turn with me to John 3:16", "John 3:16", confidence.BandHigh},
+		{"spoken connectors", "John chapter three verse sixteen", "John 3:16", confidence.BandHigh},
+		{"bare verse numbers", "John three sixteen", "John 3:16", confidence.BandMedium},
+		{"chapter only", "Philippians chapter 4", "Philippians 4", confidence.BandMedium},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			added, err := queue.Add(tc.transcript, []asr.Detection{detectionOf(t, tc.reference)})
+			if err != nil {
+				t.Fatalf("add: %v", err)
+			}
+			if got := confidence.BandOf(added[0].Confidence); got != tc.want {
+				t.Errorf("band = %q (score %v), want %q", got, added[0].Confidence, tc.want)
+			}
+		})
 	}
 }
 

@@ -634,6 +634,20 @@ function PresentationPanes() {
   );
 }
 
+// confidenceLabel spells the band out, because color alone must not carry the
+// reading (PRD accessibility rule).
+function confidenceLabel(band: string): string {
+  if (band === 'high') return 'High';
+  if (band === 'medium') return 'Medium';
+  return 'Low';
+}
+
+function confidenceTone(band: string): string {
+  if (band === 'high') return 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!';
+  if (band === 'medium') return 'border-[#4D3F1E]! bg-[#2B2413]! text-amber!';
+  return 'border-[#2A3950]! bg-elevated! text-secondary!';
+}
+
 function DetectionPanel() {
   const detection = useDetection();
   const [problem, setProblem] = useState<string | null>(null);
@@ -786,6 +800,12 @@ function DetectionPanel() {
                   <p className="flex flex-wrap items-center gap-1.5 text-secondary text-[9px] leading-[1.4]">
                     <span className="inline-flex items-center px-1.5 py-px border border-[#3B355C]! rounded-full bg-[#24203E]! text-[#B3A4FF]! whitespace-nowrap">
                       {candidate.method === 'explicit-reference' ? 'Explicit reference' : candidate.method}
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-1.5 py-px border rounded-full whitespace-nowrap tabular-nums ${confidenceTone(candidate.confidenceBand)}`}
+                      title="Phrasing evidence, not measured accuracy"
+                    >
+                      {Math.round(candidate.confidence * 100)}% {confidenceLabel(candidate.confidenceBand)}
                     </span>
                     <span className={`inline-flex items-center px-1.5 py-px border rounded-full whitespace-nowrap ${candidate.finalized ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!' : 'border-[#2A3950]! bg-elevated! text-secondary!'}`}>
                       {candidate.finalized ? 'Final' : 'Live'}

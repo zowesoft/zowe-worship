@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"zowe-worship/internal/asr"
+	"zowe-worship/internal/confidence"
 	"zowe-worship/internal/detection"
 	"zowe-worship/internal/settings"
 )
@@ -29,19 +30,21 @@ type DetectionView struct {
 	Transcript string `json:"transcript"`
 	Reference  string `json:"reference"`
 	// Method, Confidence and Explanation are what the panel shows beneath the
-	// reference; the score stays a rule match until bands are calibrated.
-	Method      string  `json:"method"`
-	Confidence  float64 `json:"confidence"`
-	Explanation string  `json:"explanation"`
-	Segment     int     `json:"segment"`
-	Version     int     `json:"version"`
-	Finalized   bool    `json:"finalized"`
-	Repeats     int     `json:"repeats"`
-	BookID      int     `json:"bookId"`
-	Chapter     int     `json:"chapter"`
-	VerseStart  int     `json:"verseStart"`
-	VerseEnd    int     `json:"verseEnd"`
-	CreatedAt   string  `json:"createdAt"`
+	// reference. The band names the policy outcome so the panel never has to
+	// re-derive a threshold.
+	Method         string  `json:"method"`
+	Confidence     float64 `json:"confidence"`
+	ConfidenceBand string  `json:"confidenceBand"`
+	Explanation    string  `json:"explanation"`
+	Segment        int     `json:"segment"`
+	Version        int     `json:"version"`
+	Finalized      bool    `json:"finalized"`
+	Repeats        int     `json:"repeats"`
+	BookID         int     `json:"bookId"`
+	Chapter        int     `json:"chapter"`
+	VerseStart     int     `json:"verseStart"`
+	VerseEnd       int     `json:"verseEnd"`
+	CreatedAt      string  `json:"createdAt"`
 }
 
 // DetectionResult returns the transcript even when nothing was detected, so
@@ -164,12 +167,13 @@ func (a *App) ListDetections() ([]DetectionView, error) {
 // memory, so this is how the panel recounts what was approved, dismissed or
 // cleared.
 type DetectionHistoryView struct {
-	ID         string  `json:"id"`
-	Transcript string  `json:"transcript"`
-	Reference  string  `json:"reference"`
-	Confidence float64 `json:"confidence"`
-	Decision   string  `json:"decision"`
-	CreatedAt  string  `json:"createdAt"`
+	ID             string  `json:"id"`
+	Transcript     string  `json:"transcript"`
+	Reference      string  `json:"reference"`
+	Confidence     float64 `json:"confidence"`
+	ConfidenceBand string  `json:"confidenceBand"`
+	Decision       string  `json:"decision"`
+	CreatedAt      string  `json:"createdAt"`
 }
 
 // The panel shows a short recent list, not an export: the cap keeps a mistaken
@@ -206,6 +210,7 @@ func (a *App) ListDetectionHistory(limit int) ([]DetectionHistoryView, error) {
 			&view.Confidence, &view.Decision, &view.CreatedAt); err != nil {
 			return nil, fmt.Errorf("read detection history row: %w", err)
 		}
+		view.ConfidenceBand = confidence.BandOf(view.Confidence)
 		history = append(history, view)
 	}
 	if err := rows.Err(); err != nil {
@@ -376,21 +381,22 @@ func toDetectionViews(candidates []detection.Candidate) []DetectionView {
 	for _, candidate := range candidates {
 		reference := candidate.Reference
 		views = append(views, DetectionView{
-			ID:          candidate.ID,
-			Transcript:  candidate.Transcript,
-			Reference:   reference.String(),
-			Method:      candidate.Method,
-			Confidence:  candidate.Confidence,
-			Explanation: candidate.Explanation,
-			Segment:     candidate.Segment,
-			Version:     candidate.Version,
-			Finalized:   candidate.Finalized,
-			Repeats:     candidate.Repeats,
-			BookID:      reference.Book.ID,
-			Chapter:     reference.Chapter,
-			VerseStart:  reference.VerseStart,
-			VerseEnd:    reference.VerseEnd,
-			CreatedAt:   candidate.CreatedAt.Format("15:04:05"),
+			ID:             candidate.ID,
+			Transcript:     candidate.Transcript,
+			Reference:      reference.String(),
+			Method:         candidate.Method,
+			Confidence:     candidate.Confidence,
+			ConfidenceBand: confidence.BandOf(candidate.Confidence),
+			Explanation:    candidate.Explanation,
+			Segment:        candidate.Segment,
+			Version:        candidate.Version,
+			Finalized:      candidate.Finalized,
+			Repeats:        candidate.Repeats,
+			BookID:         reference.Book.ID,
+			Chapter:        reference.Chapter,
+			VerseStart:     reference.VerseStart,
+			VerseEnd:       reference.VerseEnd,
+			CreatedAt:      candidate.CreatedAt.Format("15:04:05"),
 		})
 	}
 	return views

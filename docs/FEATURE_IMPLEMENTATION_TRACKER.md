@@ -253,12 +253,18 @@ sends it live by hand. `F8` toggles listening, `F12` persists the
 emergency disable (`detection_disabled`), and the engine command is set in
 Settings → Live detection.
 
-Candidates carry the detection method, an explanation sentence and the
-rule-match score, and `App.ListDetectionHistory` reads `detection_history` back
+Candidates carry the detection method, an explanation sentence and a
+confidence score, and `App.ListDetectionHistory` reads `detection_history` back
 newest first for the panel's recent-decisions list (`app_detection.go`,
-`internal/detection/queue.go`, and the detection panel in `AppShell.tsx`). The
-score is still the fixed `ConfidenceRuleMatch` and is deliberately not shown as
-a percentage until bands are calibrated.
+`internal/detection/queue.go`, and the detection panel in `AppShell.tsx`).
+`internal/confidence` scores the phrasing the detector matched — a written
+`3:16` (0.96) and spoken "chapter/verse" words (0.93) rank above bare numbers
+(0.86), and a chapter-only hearing (0.72) ranks lowest because it still needs
+narrowing. `confidence.BandOf` splits those at the PRD's starting edges (0.92
+high, 0.65 medium), and the panel shows the percentage plus the spelled-out band
+so color never carries the reading alone. These are evidence-strength scores,
+not measured accuracy: the detector has not been scored against labeled audio,
+and auto-projection stays off.
 
 `DetectScripture` now opens a numbered analysis segment, lets partials refine
 only that segment's cards, and settles them on the final transcript with stable
@@ -269,9 +275,9 @@ is not an operator decision, so `detection_history` keeps only what the
 operator actually decided.
 
 Still open (later slices): continuous listening with automatic segmentation
-(currently manual chunks only), calibrated confidence
-bands, gated auto-projection with the safety checklist, and the empty
-`internal/audio` and `internal/confidence` packages. The shipped engine is
+(currently manual chunks only), measured calibration of the confidence bands
+against labeled audio, gated auto-projection with the safety checklist, and the
+empty `internal/audio` package. The shipped engine is
 Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
 and has no model lifecycle of its own.
 
@@ -545,10 +551,12 @@ The tracker understated the app, which is why this audit was needed:
    transcribes one 20 s blob today. Introduce finalized segments with stable
    candidate IDs/versions and the duplicate/rapid-repeat gate on top of the
    existing `MergeLive` merge. **Critical path.**
-3. **Confidence scoring (M).** Replace `const confidence = 1.0` in
-   `internal/detection/queue.go`, fill `internal/confidence`, and store real
-   scores (`detection_history` already permits `auto_projected` in its CHECK).
-   Keep auto-projection off while the bands are calibrated.
+3. **Confidence scoring (M) — landed 2026-11-10.** `internal/confidence`
+   scores the phrasing behind a match and bands it at the PRD's starting edges;
+   the queue, `DetectionView` and `DetectionHistoryView` carry the score and
+   band, and the panel draws `96% High` beside the method. Scoring is
+   evidence-based, not yet measured against labeled audio, so auto-projection
+   stays off and the bands remain the PRD's tuning values.
 4. **Policy, safety gates, auto-projection (M–L).** Only the policy layer may
    send an automatic command to `internal/presentation`; each gate in PRD §7
    gets its own test. UI: a real Auto Projection toggle and hybrid status in

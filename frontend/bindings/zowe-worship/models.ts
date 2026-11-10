@@ -128,6 +128,7 @@ export interface DetectionHistoryView {
     "transcript": string;
     "reference": string;
     "confidence": number;
+    "confidenceBand": string;
     "decision": string;
     "createdAt": string;
 }
@@ -158,10 +159,12 @@ export interface DetectionView {
 
     /**
      * Method, Confidence and Explanation are what the panel shows beneath the
-     * reference; the score stays a rule match until bands are calibrated.
+     * reference. The band names the policy outcome so the panel never has to
+     * re-derive a threshold.
      */
     "method": string;
     "confidence": number;
+    "confidenceBand": string;
     "explanation": string;
     "segment": number;
     "version": number;

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"zowe-worship/internal/asr"
+	"zowe-worship/internal/confidence"
 	"zowe-worship/internal/database"
 	"zowe-worship/internal/scripture"
 )
@@ -31,9 +32,8 @@ type Candidate struct {
 	// Method names how the passage was found. Only explicit references exist
 	// today; contextual and quotation matches get their own values later.
 	Method string
-	// Confidence is the detector's score for this hearing. It is fixed for the
-	// rule-based detector until per-type calibration lands, so the panel shows
-	// it as a rule match rather than a percentage.
+	// Confidence is the detector's score for the phrasing it matched, banded by
+	// internal/confidence. It is evidence strength, not measured accuracy.
 	Confidence float64
 	// Explanation is the sentence the panel shows under the candidate.
 	Explanation string
@@ -57,13 +57,11 @@ type Candidate struct {
 // while still letting a genuine return to the passage be its own card.
 const RepeatWindow = 2 * time.Minute
 
-// The rule-based detector produces one kind of match and one fixed score for
-// now; calibrated bands replace ConfidenceRuleMatch once the detector is
-// measured against labeled audio.
+// The rule-based detector produces one kind of match; its score comes from
+// internal/confidence, which weighs the phrasing behind the hearing.
 const (
 	MethodExplicitReference      = "explicit-reference"
 	ExplanationExplicitReference = "Explicit reference detected"
-	ConfidenceRuleMatch          = 1.0
 )
 
 // newCandidate fills the fields every detection type shares, so Add and
@@ -74,7 +72,7 @@ func newCandidate(transcript string, detection asr.Detection, now time.Time) Can
 		Reference:   detection.Reference,
 		Raw:         detection.Raw,
 		Method:      MethodExplicitReference,
-		Confidence:  ConfidenceRuleMatch,
+		Confidence:  confidence.Evaluate(transcript, detection.Reference),
 		Explanation: ExplanationExplicitReference,
 		CreatedAt:   now,
 	}
@@ -196,7 +194,7 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 			updated.Raw = detection.Raw
 			updated.Reference = detection.Reference
 			updated.Method = MethodExplicitReference
-			updated.Confidence = ConfidenceRuleMatch
+			updated.Confidence = confidence.Evaluate(transcript, detection.Reference)
 			updated.Explanation = ExplanationExplicitReference
 			updated.Version++
 			updated.LastHeardAt = now
@@ -263,6 +261,7 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 			updated.Transcript = transcript
 			updated.Raw = detection.Raw
 			updated.Reference = detection.Reference
+			updated.Confidence = confidence.Evaluate(transcript, detection.Reference)
 			updated.Version++
 			updated.Finalized = true
 			updated.FinalizedAt = now
@@ -349,6 +348,7 @@ func (q *Queue) foldRepeat(detection asr.Detection, transcript string, now time.
 		candidate.Transcript = transcript
 		candidate.Raw = detection.Raw
 		candidate.Reference = detection.Reference
+		candidate.Confidence = confidence.Evaluate(transcript, detection.Reference)
 		candidate.Version++
 		candidate.LastHeardAt = now
 		q.pending[i] = candidate
