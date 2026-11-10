@@ -7,7 +7,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-wails3_bin="${WAILS3:-/c/Users/JohnCode/go/bin/wails3}"
+wails3_bin="${WAILS3:-/c/Users/JohnCode/go/bin/wails3.exe}"
 if [ ! -x "$wails3_bin" ]; then
   wails3_bin="$(command -v wails3 || true)"
 fi
