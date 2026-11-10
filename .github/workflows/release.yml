@@ -40,7 +40,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: zowe-worship-windows
-          path: build/windows/nsis/zowe-worship-installer.exe
+          path: bin/zowe-worship-amd64-installer.exe
           if-no-files-found: error
 
   linux:
