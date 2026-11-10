@@ -315,6 +315,16 @@ rather than piling up requests, and the panel shows hearing / transcribing
 instead of a manual button. Continuous mode is on by default and can be switched
 off, in which case the "Analyze last 20 s" button works exactly as before.
 
+The segmenter also decides what is *not* speech, so a quiet room or a backing
+track does not reach the engine: the capture reports level plus a zero-crossing
+rate per block, the level gate rises above a slowly learned room floor (so a
+quiet passage under the fan noise is ignored), and blocks outside the speech
+zero-crossing band are treated as cymbals or hiss. A stretch of 2.5 s or more
+whose level barely moves is discarded as sustained music when it closes, which
+keeps a worship band from producing candidates. These are heuristics tuned
+offline, not a trained speech/music classifier: they need a listen on real
+sanctuary audio before the thresholds are trusted.
+
 Still open (later slices): moving the confidence edges onto real recorded
 services (the sweep is in `cmd/asr-bench`, which needs those recordings), and
 the empty `internal/audio` package. The shipped engine is

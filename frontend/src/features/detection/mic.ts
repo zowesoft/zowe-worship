@@ -111,7 +111,7 @@ export class MicCapture {
   private worklet: AudioWorkletNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private buffer = new RingBuffer(BUFFER_SECONDS * TARGET_RATE);
-  private onLevel: ((level: number, bufferedSeconds: number) => void) | null = null;
+  private onLevel: ((features: AudioFeatures, bufferedSeconds: number) => void) | null = null;
 
   get listening(): boolean {
     return this.stream !== null;
@@ -121,7 +121,7 @@ export class MicCapture {
     return this.buffer.seconds;
   }
 
-  setLevelListener(listener: (level: number, bufferedSeconds: number) => void) {
+  setLevelListener(listener: (features: AudioFeatures, bufferedSeconds: number) => void) {
     this.onLevel = listener;
   }
 
@@ -159,7 +159,7 @@ export class MicCapture {
         // Report level and buffered seconds from the same tick, so the readout
         // moves while listening instead of sitting at zero until the first
         // analyze.
-        this.onLevel(rms(chunk), this.buffer.seconds);
+        this.onLevel(audioFeatures(chunk), this.buffer.seconds);
       }
     };
 
@@ -180,7 +180,7 @@ export class MicCapture {
     this.context = null;
     this.worklet = null;
     this.source = null;
-    this.onLevel?.(0, this.buffer.seconds);
+    this.onLevel?.({ level: 0, zeroCrossingRate: 0 }, this.buffer.seconds);
   }
 
   get capturedSamples(): number {
@@ -200,13 +200,29 @@ export class MicCapture {
   }
 }
 
-function rms(chunk: Int16Array): number {
-  if (chunk.length === 0) return 0;
+// AudioFeatures are the two cheap measurements the segmenter needs. The
+// zero-crossing rate separates voiced speech (low), fricatives (high) and
+// cymbals or hiss (highest) far better than level alone.
+export type AudioFeatures = {
+  level: number;
+  zeroCrossingRate: number;
+};
+
+function audioFeatures(chunk: Int16Array): AudioFeatures {
+  if (chunk.length === 0) return { level: 0, zeroCrossingRate: 0 };
   let total = 0;
+  let crossings = 0;
+  let previous = 0;
   for (let i = 0; i < chunk.length; i++) {
-    total += chunk[i] * chunk[i];
+    const sample = chunk[i];
+    total += sample * sample;
+    if (i > 0 && (sample >= 0) !== (previous >= 0)) crossings++;
+    previous = sample;
   }
-  return Math.min(1, Math.sqrt(total / chunk.length) / 32768 * 4);
+  return {
+    level: Math.min(1, Math.sqrt(total / chunk.length) / 32768 * 4),
+    zeroCrossingRate: crossings / chunk.length,
+  };
 }
 
 export async function listAudioInputs(): Promise<AudioInput[]> {

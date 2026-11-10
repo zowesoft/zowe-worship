@@ -90,6 +90,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   // Refs, not state: the capture callback and the segment timer both read these
   // between renders, and a stale state copy would drift from the audio.
   const levelRef = useRef(0);
+  const zeroCrossingRef = useRef(0);
   const segmenterRef = useRef(new SpeechSegmenter());
   const busyRef = useRef(false);
   const queuedRef = useRef<Int16Array | null>(null);
@@ -171,9 +172,10 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     const capture = new MicCapture();
     // The level callback fires per audio block, which doubles as the clock for
     // the buffered-seconds readout.
-    capture.setLevelListener((next, seconds) => {
-      levelRef.current = next;
-      setLevel(next);
+    capture.setLevelListener((features, seconds) => {
+      levelRef.current = features.level;
+      zeroCrossingRef.current = features.zeroCrossingRate;
+      setLevel(features.level);
       setBufferedSeconds(seconds);
     });
     try {
@@ -283,7 +285,10 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     const timer = window.setInterval(() => {
       const capture = captureRef.current;
       if (!capture) return;
-      const range = segmenterRef.current.feed(levelRef.current, capture.capturedSamples);
+      const range = segmenterRef.current.feed(
+        { level: levelRef.current, zeroCrossingRate: zeroCrossingRef.current },
+        capture.capturedSamples,
+      );
       setSegmenting(segmenterRef.current.hearing);
       if (range) void analyzeSegment(capture.takeRange(range.from, range.to));
     }, 120);

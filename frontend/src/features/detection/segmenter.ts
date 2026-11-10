@@ -1,7 +1,8 @@
-// Automatic segmentation for continuous listening. The capture layer already
-// measures a level per audio block; this state machine watches that level and
-// closes a segment when the speaker pauses, so the engine transcribes one
-// reference plus its sentence instead of a fixed 20-second slice.
+// Automatic segmentation for continuous listening. The capture layer reports
+// two cheap features per audio block — level and zero-crossing rate — and this
+// state machine decides when a block sounds like speech, closes a segment when
+// the speaker pauses, and discards stretches that are really a quiet room or a
+// backing track.
 //
 // It deals in absolute sample offsets rather than "the last N seconds", so a
 // segment is exactly the audio between two moments in the capture buffer even
@@ -9,9 +10,36 @@
 
 export const SAMPLE_RATE = 16000;
 
-// mic.ts scales a 16-bit RMS to roughly 0..1; room noise sits well below this
-// and ordinary speech clears it.
+// One block's readings, as mic.ts measures them.
+export type VoiceReading = {
+  // 16 kHz mono RMS, scaled to roughly 0..1.
+  level: number;
+  // Sign changes per sample: voiced speech is low, fricatives are high,
+  // cymbals and hiss are higher still.
+  zeroCrossingRate: number;
+};
+
+// A hard floor for anything worth transcribing, regardless of the room.
 export const VOICE_LEVEL = 0.06;
+
+// Speech must also clear the measured room floor by this factor. A quiet
+// passage that never rises above the fan noise is not speech the engine can
+// resolve, and transcribing it only invites hallucinated references.
+export const VOICE_MARGIN = 1.8;
+
+// How quickly the quiet baseline follows the room. Slow enough that a phrase
+// does not drag the floor up with it.
+export const NOISE_FLOOR_RATE = 0.05;
+
+// Speech zero-crossing rate band. Below it sits a sustained bass drone; above
+// it sits cymbals, hiss and room noise.
+export const MIN_SPEECH_ZCR = 0.004;
+export const MAX_SPEECH_ZCR = 0.35;
+
+// A long stretch whose level barely moves is a sustained note or a backing
+// track, not syllables: speech swings far wider within one phrase.
+export const STEADY_MS = 2500;
+export const STEADY_RATIO = 1.3;
 
 // A preacher pauses between clauses; this is the gap that ends a segment.
 export const SILENCE_MS = 700;
@@ -36,10 +64,13 @@ export type SegmentRange = {
 
 export class SpeechSegmenter {
   private readonly rate: number;
+  private noiseFloor = 0;
   private speaking = false;
   private start = 0;
-  private lastVoice = 0;
   private firstVoice = 0;
+  private lastVoice = 0;
+  private loudMin = Number.POSITIVE_INFINITY;
+  private loudMax = 0;
 
   constructor(rate: number = SAMPLE_RATE) {
     this.rate = rate;
@@ -51,53 +82,90 @@ export class SpeechSegmenter {
     return this.speaking;
   }
 
+  // floor is the quiet baseline the segmenter has learned, exposed so tests and
+  // the panel can explain why a quiet passage was ignored.
+  get floor(): number {
+    return this.noiseFloor;
+  }
+
   reset(): void {
     this.speaking = false;
     this.start = 0;
-    this.lastVoice = 0;
     this.firstVoice = 0;
+    this.lastVoice = 0;
+    this.loudMin = Number.POSITIVE_INFINITY;
+    this.loudMax = 0;
   }
 
-  // feed takes one level reading and the capture's absolute sample count. It
-  // returns a closed segment, or null while the speaker is still going.
-  feed(level: number, capturedSamples: number): SegmentRange | null {
-    const voice = level >= VOICE_LEVEL;
+  // feed takes one block's readings and the capture's absolute sample count. It
+  // returns a closed segment, or null while the speaker is still going or the
+  // stretch turned out not to be speech.
+  feed(reading: VoiceReading, capturedSamples: number): SegmentRange | null {
+    const { level, zeroCrossingRate } = reading;
+    this.trackNoise(level);
+    const speechLike = this.isSpeech(level, zeroCrossingRate);
 
-    if (voice) {
+    if (speechLike) {
       if (!this.speaking) {
         this.speaking = true;
         this.start = Math.max(0, capturedSamples - this.samples(PRE_ROLL_MS));
         this.firstVoice = capturedSamples;
+        this.loudMin = level;
+        this.loudMax = level;
       }
       this.lastVoice = capturedSamples;
+      this.loudMin = Math.min(this.loudMin, level);
+      this.loudMax = Math.max(this.loudMax, level);
     }
 
     if (!this.speaking) {
       return null;
     }
 
-    // No pause for a long stretch: cut at the cap and let the next loud reading
-    // open a fresh segment, so a continuous sermon still produces segments.
+    // No pause for a long stretch: cut at the cap. A steady level over that
+    // long was music, so it is dropped rather than transcribed.
     if (capturedSamples - this.start >= this.samples(MAX_SEGMENT_MS)) {
-      const segment = { from: this.start, to: capturedSamples };
+      const segment = this.settle(capturedSamples, capturedSamples);
       this.reset();
       return segment;
     }
 
-    if (!voice && capturedSamples - this.lastVoice >= this.samples(SILENCE_MS)) {
-      // Time actually spent speaking, not the width of the window: a cough
-      // followed by silence is too short to be a reference.
-      const speech = this.lastVoice - this.firstVoice;
-      const from = this.start;
+    if (!speechLike && capturedSamples - this.lastVoice >= this.samples(SILENCE_MS)) {
       const to = Math.min(capturedSamples, this.lastVoice + this.samples(TAIL_MS));
+      const segment = this.settle(this.start, to);
       this.reset();
-      if (speech < this.samples(MIN_SPEECH_MS)) {
-        return null;
-      }
-      return { from, to };
+      return segment;
     }
 
     return null;
+  }
+
+  // settle applies the duration and music guards to the closed window.
+  private settle(from: number, to: number): SegmentRange | null {
+    const speech = this.lastVoice - this.firstVoice;
+    if (speech < this.samples(MIN_SPEECH_MS)) {
+      return null;
+    }
+    if (speech >= this.samples(STEADY_MS) && this.loudMax < this.loudMin * STEADY_RATIO) {
+      return null;
+    }
+    return { from, to };
+  }
+
+  private isSpeech(level: number, zeroCrossingRate: number): boolean {
+    const floor = Math.max(VOICE_LEVEL, this.noiseFloor * VOICE_MARGIN);
+    return level >= floor &&
+      zeroCrossingRate >= MIN_SPEECH_ZCR &&
+      zeroCrossingRate <= MAX_SPEECH_ZCR;
+  }
+
+  // Quiet readings tell the segmenter what the room sounds like; loud ones must
+  // not drag that baseline up with them.
+  private trackNoise(level: number): void {
+    if (level >= VOICE_LEVEL) {
+      return;
+    }
+    this.noiseFloor += (level - this.noiseFloor) * NOISE_FLOOR_RATE;
   }
 
   private samples(ms: number): number {
