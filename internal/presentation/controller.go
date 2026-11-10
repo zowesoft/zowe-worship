@@ -23,18 +23,21 @@ var (
 // Content is one slide. It is a frozen snapshot, so live output survives a
 // translation update or a song edit until the operator projects something else.
 type Content struct {
-	ItemID      string   `json:"itemId,omitempty"`
-	Kind        string   `json:"kind"`
-	Title       string   `json:"title"`
-	Subtitle    string   `json:"subtitle,omitempty"`
-	Label       string   `json:"label"`
-	Reference   string   `json:"reference,omitempty"`
-	Translation string   `json:"translation,omitempty"`
-	Source      string   `json:"source,omitempty"`
-	Aspect      string   `json:"aspect,omitempty"`
-	Fit         string   `json:"fit,omitempty"`
-	Ratio       float64  `json:"ratio"`
-	Lines       []string `json:"lines"`
+	ItemID      string `json:"itemId,omitempty"`
+	Kind        string `json:"kind"`
+	Title       string `json:"title"`
+	Subtitle    string `json:"subtitle,omitempty"`
+	Label       string `json:"label"`
+	Reference   string `json:"reference,omitempty"`
+	Translation string `json:"translation,omitempty"`
+	Source      string `json:"source,omitempty"`
+	Aspect      string `json:"aspect,omitempty"`
+	Fit         string `json:"fit,omitempty"`
+	// Background is the picture behind an audio or video clip, straight from
+	// the library; empty means the plain frame.
+	Background string   `json:"background,omitempty"`
+	Ratio      float64  `json:"ratio"`
+	Lines      []string `json:"lines"`
 	// Theme is the look frozen with this slide. Media slides fill the screen
 	// themselves, so they carry no theme and a zero value says so.
 	Theme themes.Theme `json:"theme"`
@@ -86,9 +89,9 @@ type previewSource struct {
 	verseEnd      int
 	// verse is the one shown while stepping a passage one verse at a time; the
 	// full range stays in verseStart/verseEnd so Next and Previous know its bounds.
-	verse    int
-	oneVerse bool
-	songID   string
+	verse     int
+	oneVerse  bool
+	songID    string
 	sectionID string
 	mediaID   string
 }
@@ -487,15 +490,16 @@ func (c *Controller) mediaContent(ctx context.Context, itemID, mediaID string) (
 	}
 
 	return &Content{
-		ItemID: itemID,
-		Kind:   slide.Kind,
-		Title:  slide.Title,
-		Label:  slide.Title,
-		Source: slide.URL,
-		Aspect: slide.Aspect,
-		Fit:    slide.Fit,
-		Ratio:  slide.Ratio,
-		Lines:  []string{},
+		ItemID:     itemID,
+		Kind:       slide.Kind,
+		Title:      slide.Title,
+		Label:      slide.Title,
+		Source:     slide.URL,
+		Aspect:     slide.Aspect,
+		Fit:        slide.Fit,
+		Background: slide.BackgroundURL,
+		Ratio:      slide.Ratio,
+		Lines:      []string{},
 	}, nil
 }
 

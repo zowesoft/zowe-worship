@@ -14,20 +14,21 @@ import (
 )
 
 type MediaView struct {
-	ID           string    `json:"id"`
-	Kind         string    `json:"kind"`
-	Title        string    `json:"title"`
-	URL          string    `json:"url"`
-	ThumbnailURL string    `json:"thumbnailUrl"`
-	SizeBytes    int64     `json:"sizeBytes"`
-	DurationMS   int64     `json:"durationMs"`
-	Width        int       `json:"width"`
-	Height       int       `json:"height"`
-	HasThumbnail bool      `json:"hasThumbnail"`
-	Aspect       string    `json:"aspect"`
-	Fit          string    `json:"fit"`
-	Missing      bool      `json:"missing"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID            string    `json:"id"`
+	Kind          string    `json:"kind"`
+	Title         string    `json:"title"`
+	URL           string    `json:"url"`
+	ThumbnailURL  string    `json:"thumbnailUrl"`
+	SizeBytes     int64     `json:"sizeBytes"`
+	DurationMS    int64     `json:"durationMs"`
+	Width         int       `json:"width"`
+	Height        int       `json:"height"`
+	HasThumbnail  bool      `json:"hasThumbnail"`
+	Aspect        string    `json:"aspect"`
+	Fit           string    `json:"fit"`
+	BackgroundURL string    `json:"backgroundUrl"`
+	Missing       bool      `json:"missing"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 type MediaImportResult struct {
@@ -157,8 +158,8 @@ func (a *App) AddMediaToService(mediaID string) (ServiceOrderView, error) {
 // image moves the existing window.
 const mediaEditorWindow = "media-editor"
 
-// OpenMediaEditor keeps framing in its own small window, so the studio stays a
-// production view.
+// OpenMediaEditor keeps framing and backgrounds in their own small window, so
+// the studio stays a production view.
 func (a *App) OpenMediaEditor(mediaID string) (EditorView, error) {
 	if a.media == nil {
 		return EditorView{}, errStorageUnavailable
@@ -169,13 +170,15 @@ func (a *App) OpenMediaEditor(mediaID string) (EditorView, error) {
 	if err != nil {
 		return EditorView{}, err
 	}
-	if slide.Kind != string(media.KindImage) {
-		return EditorView{}, media.ErrNotImage
-	}
 
+	noun := map[media.Kind]string{
+		media.KindImage: "image",
+		media.KindVideo: "video",
+		media.KindAudio: "audio",
+	}[media.Kind(slide.Kind)]
 	return openUtilityWindow(
 		mediaEditorWindow,
-		fmt.Sprintf("%s — Edit image", slide.Title),
+		fmt.Sprintf("%s — Edit %s", slide.Title, noun),
 		fmt.Sprintf("/?view=media-editor&media=%s", id),
 		720, 600, 560, 480,
 	)
@@ -199,6 +202,16 @@ func (a *App) SaveMediaPresentation(mediaID string, presentation media.Presentat
 		return media.Slide{}, errStorageUnavailable
 	}
 	return a.media.SetPresentation(a.context(), strings.TrimSpace(mediaID), presentation)
+}
+
+// SetMediaBackground dresses an audio or video clip with a library picture, or
+// undresses it when the id is empty, and answers with the slide as it will now
+// be shown.
+func (a *App) SetMediaBackground(mediaID, backgroundID string) (media.Slide, error) {
+	if a.media == nil {
+		return media.Slide{}, errStorageUnavailable
+	}
+	return a.media.SetBackground(a.context(), strings.TrimSpace(mediaID), strings.TrimSpace(backgroundID))
 }
 
 func (a *App) PreviewMedia(mediaID string) (PresentationView, error) {
@@ -227,20 +240,21 @@ func (a *App) assetViews(assets []media.Asset) []MediaView {
 	views := make([]MediaView, 0, len(assets))
 	for _, asset := range assets {
 		views = append(views, MediaView{
-			ID:           asset.ID,
-			Kind:         string(asset.Kind),
-			Title:        asset.Title,
-			URL:          media.FileURL(asset.ID),
-			ThumbnailURL: media.ThumbURL(asset.ID),
-			SizeBytes:    asset.SizeBytes,
-			DurationMS:   asset.DurationMS,
-			Width:        asset.Width,
-			Height:       asset.Height,
-			HasThumbnail: asset.HasThumbnail,
-			Aspect:       asset.Aspect,
-			Fit:          asset.Fit,
-			Missing:      !a.media.Exists(asset),
-			CreatedAt:    asset.CreatedAt,
+			ID:            asset.ID,
+			Kind:          string(asset.Kind),
+			Title:         asset.Title,
+			URL:           media.FileURL(asset.ID),
+			ThumbnailURL:  media.ThumbURL(asset.ID),
+			SizeBytes:     asset.SizeBytes,
+			DurationMS:    asset.DurationMS,
+			Width:         asset.Width,
+			Height:        asset.Height,
+			HasThumbnail:  asset.HasThumbnail,
+			Aspect:        asset.Aspect,
+			Fit:           asset.Fit,
+			BackgroundURL: media.FileURL(asset.BackgroundID),
+			Missing:       !a.media.Exists(asset),
+			CreatedAt:     asset.CreatedAt,
 		})
 	}
 	return views

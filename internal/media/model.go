@@ -68,6 +68,9 @@ type Asset struct {
 	Width        int
 	Height       int
 	HasThumbnail bool
+	// BackgroundID names the library picture an audio or video asset shows
+	// behind itself; empty means the plain frame.
+	BackgroundID string
 	CreatedAt    time.Time
 	Presentation
 }

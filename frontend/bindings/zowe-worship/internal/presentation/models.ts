@@ -20,6 +20,12 @@ export interface Content {
     "source"?: string;
     "aspect"?: string;
     "fit"?: string;
+
+    /**
+     * Background is the picture behind an audio or video clip, straight from
+     * the library; empty means the plain frame.
+     */
+    "background"?: string;
     "ratio": number;
     "lines": string[] | null;
 

@@ -9,7 +9,7 @@ import (
 )
 
 const assetColumns = `id, kind, title, filename, source_path, checksum, size_bytes,
-	duration_ms, width, height, has_thumbnail, created_at, aspect, fit`
+	duration_ms, width, height, has_thumbnail, created_at, aspect, fit, background_id`
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -47,12 +47,12 @@ func (r *SQLiteRepository) Add(ctx context.Context, asset Asset) error {
 	if _, err := r.db.ExecContext(ctx, `
 		INSERT INTO media_assets
 			(id, kind, title, filename, source_path, checksum, size_bytes,
-			 duration_ms, width, height, has_thumbnail, created_at, aspect, fit)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 duration_ms, width, height, has_thumbnail, created_at, aspect, fit, background_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		asset.ID, string(asset.Kind), asset.Title, asset.Filename, asset.SourcePath,
 		asset.Checksum, asset.SizeBytes, asset.DurationMS, asset.Width, asset.Height,
 		boolToInt(asset.HasThumbnail), asset.CreatedAt.Format(time.RFC3339),
-		asset.Aspect, asset.Fit,
+		asset.Aspect, asset.Fit, asset.BackgroundID,
 	); err != nil {
 		return fmt.Errorf("add media asset: %w", err)
 	}
@@ -73,6 +73,35 @@ func (r *SQLiteRepository) SavePresentation(ctx context.Context, id string, pres
 	}
 	if saved == 0 {
 		return ErrAssetNotFound
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) SaveBackground(ctx context.Context, id, backgroundID string) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE media_assets SET background_id = ? WHERE id = ?`,
+		backgroundID, id,
+	)
+	if err != nil {
+		return fmt.Errorf("save media background: %w", err)
+	}
+	saved, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("save media background: %w", err)
+	}
+	if saved == 0 {
+		return ErrAssetNotFound
+	}
+	return nil
+}
+
+// ClearBackgroundReferences forgets every asset that used the given picture as
+// its background, so deleting a picture leaves no dangling ids behind.
+func (r *SQLiteRepository) ClearBackgroundReferences(ctx context.Context, id string) error {
+	if _, err := r.db.ExecContext(ctx,
+		`UPDATE media_assets SET background_id = '' WHERE background_id = ?`, id,
+	); err != nil {
+		return fmt.Errorf("clear media background references: %w", err)
 	}
 	return nil
 }
@@ -144,7 +173,7 @@ func scanAsset(row interface{ Scan(...any) error }) (Asset, error) {
 	if err := row.Scan(
 		&asset.ID, &kind, &asset.Title, &asset.Filename, &asset.SourcePath, &asset.Checksum,
 		&asset.SizeBytes, &asset.DurationMS, &asset.Width, &asset.Height, &hasThumbnail, &createdAt,
-		&asset.Aspect, &asset.Fit,
+		&asset.Aspect, &asset.Fit, &asset.BackgroundID,
 	); err != nil {
 		return Asset{}, err
 	}

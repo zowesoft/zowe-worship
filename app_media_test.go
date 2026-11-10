@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -11,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"zowe-worship/internal/media"
 )
 
 func writeMediaFixture(t *testing.T, dir, name string, width, height int) string {
@@ -270,8 +267,9 @@ func TestVideoAndAudioProjectAsSlides(t *testing.T) {
 		t.Fatalf("preview audio = %+v", audio.Preview)
 	}
 
-	// Framing is an image idea, so a clip is refused rather than opened blank.
-	if _, err := app.OpenMediaEditor(videoID); !errors.Is(err, media.ErrNotImage) {
-		t.Fatalf("editor err = %v, want ErrNotImage", err)
+	// A clip's editor is its background picker; opening it needs the desktop,
+	// which these tests do not run, so the refusal is expected here.
+	if _, err := app.OpenMediaEditor(videoID); err == nil {
+		t.Fatal("the editor opened without a desktop to put its window on")
 	}
 }

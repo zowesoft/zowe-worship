@@ -306,8 +306,8 @@ export function OpenAudienceDisplay(screenID: string): $CancellablePromise<$mode
 }
 
 /**
- * OpenMediaEditor keeps framing in its own small window, so the studio stays a
- * production view.
+ * OpenMediaEditor keeps framing and backgrounds in their own small window, so
+ * the studio stays a production view.
  */
 export function OpenMediaEditor(mediaID: string): $CancellablePromise<$models.EditorView> {
     return $Call.ByID(1808648114, mediaID);
@@ -511,6 +511,15 @@ export function SetDetectionEngine(spec: string): $CancellablePromise<void> {
  */
 export function SetItemTheme(itemID: string, themeID: string): $CancellablePromise<$models.ServiceOrderView> {
     return $Call.ByID(345195545, itemID, themeID);
+}
+
+/**
+ * SetMediaBackground dresses an audio or video clip with a library picture, or
+ * undresses it when the id is empty, and answers with the slide as it will now
+ * be shown.
+ */
+export function SetMediaBackground(mediaID: string, backgroundID: string): $CancellablePromise<media$0.Slide> {
+    return $Call.ByID(1512804453, mediaID, backgroundID);
 }
 
 export function SetSetting(key: string, value: string): $CancellablePromise<void> {

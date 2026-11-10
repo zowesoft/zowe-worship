@@ -32,21 +32,28 @@ export function SlideMedia({ content, player, autoPlay = player, mediaRef, onEnd
 
   if (content.kind === 'audio') {
     return (
-      <div className="grid grid-rows-none content-center justify-items-center items-center gap-3.5 w-full h-full px-2.5 py-1">
+      <div className="relative grid grid-rows-none content-center justify-items-center items-center gap-3.5 w-full h-full px-2.5 py-1 overflow-hidden">
+        {content.background && (
+          <>
+            <img src={content.background} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-[rgba(4,9,18,0.45)]" />
+          </>
+        )}
         {player && <audio ref={attach} className="hidden" src={source} autoPlay={autoPlay} onEnded={onEnded} />}
-        <span className="grid place-items-center w-14 h-14 border border-[#30466A] rounded-[14px] bg-selected text-[#8CABFF]"><Icon name="music" size={30} /></span>
-        <p className="text-[15px] font-semibold text-center">{content.label}</p>
-        {!player && <p className="text-secondary text-[10px]">Plays on the audience display</p>}
+        <span className={`relative grid place-items-center w-14 h-14 border rounded-[14px] ${content.background ? 'border-[#5E749A] bg-[rgba(11,20,36,0.72)]' : 'border-[#30466A] bg-selected'} text-[#8CABFF]`}><Icon name="music" size={30} /></span>
+        <p className={`relative text-[15px] font-semibold text-center ${content.background ? '[text-shadow:0_1px_8px_rgba(0,0,0,0.7)]' : ''}`}>{content.label}</p>
+        {!player && <p className="relative text-secondary text-[10px]">Plays on the audience display</p>}
       </div>
     );
   }
 
   if (content.kind === 'video') {
     return (
-      <div className="grid grid-rows-[minmax(0,1fr)_auto] justify-items-center items-center gap-1.5 w-full h-full px-2.5 py-1">
+      <div className="relative grid grid-rows-[minmax(0,1fr)_auto] justify-items-center items-center gap-1.5 w-full h-full px-2.5 py-1 overflow-hidden">
+        {content.background && <img src={content.background} alt="" className="absolute inset-0 w-full h-full object-cover" />}
         <video
           ref={attach}
-          className="block"
+          className={`relative block ${content.background ? 'z-[1]' : ''}`}
           src={source}
           style={style}
           autoPlay={autoPlay}
@@ -55,7 +62,7 @@ export function SlideMedia({ content, player, autoPlay = player, mediaRef, onEnd
           preload={player ? 'auto' : 'metadata'}
           onEnded={onEnded}
         />
-        {!player && <p className="text-secondary text-[10px]">Plays on the audience display</p>}
+        {!player && <p className="relative text-secondary text-[10px]">Plays on the audience display</p>}
       </div>
     );
   }

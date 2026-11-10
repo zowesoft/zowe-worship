@@ -209,7 +209,7 @@ export function MediaWorkspace() {
           <ul className="list-none grid grid-cols-[repeat(auto-fill,minmax(178px,1fr))] gap-3 m-0 p-0">
             {shown.map((item) => {
               const projectable = !item.missing;
-              const framable = projectable && item.kind === 'image';
+              const editable = projectable;
               return (
                 <li
                   key={item.id}
@@ -249,7 +249,7 @@ export function MediaWorkspace() {
                     <span>{item.kind} · {formatBytes(item.sizeBytes)}</span>
                   </div>
                   <div className="media-tile-actions absolute inset-x-0 bottom-0 flex items-center justify-end gap-1.5 py-2 px-2 pl-2.5 bg-linear-to-t from-[rgba(6,12,22,0.94)] to-[rgba(6,12,22,0)] opacity-0 transition-opacity duration-120">
-                    {framable && (
+                    {editable && (
                       <button
                         type="button"
                         className={smallButton}

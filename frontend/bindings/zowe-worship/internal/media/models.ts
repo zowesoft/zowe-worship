@@ -41,4 +41,10 @@ export interface Slide {
     "aspect": string;
     "ratio": number;
     "fit": string;
+
+    /**
+     * BackgroundURL is the picture behind the clip; empty for images and for
+     * clips nobody has dressed.
+     */
+    "backgroundUrl"?: string;
 }

@@ -3,8 +3,8 @@ package media
 import (
 	"bytes"
 	"context"
-	"errors"
 	"encoding/binary"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -467,5 +467,75 @@ func TestScreenAspectFillsWithoutAShape(t *testing.T) {
 	// choice is decided for it so the picture cannot come back letterboxed.
 	if slide.Aspect != AspectScreen || slide.Ratio != 0 {
 		t.Fatalf("slide = %+v", slide)
+	}
+}
+
+func TestBackgroundDressesAClip(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	source := t.TempDir()
+
+	imported, _, err := library.Import(ctx, []string{writeTestImage(t, source, "stage lights.jpg", 1600, 900)})
+	if err != nil || len(imported) != 1 {
+		t.Fatalf("import picture: %+v %v", imported, err)
+	}
+	wav := filepath.Join(source, "hymn.wav")
+	if err := os.WriteFile(wav, buildTestWAV(44100, 2, 16, 44100*2*2), 0o600); err != nil {
+		t.Fatalf("write wav: %v", err)
+	}
+	clips, _, err := library.Import(ctx, []string{wav})
+	if err != nil || len(clips) != 1 {
+		t.Fatalf("import wav: %+v %v", clips, err)
+	}
+	picture, clip := imported[0].ID, clips[0].ID
+
+	// A picture is its own visual, and a clip cannot dress itself with a song.
+	if _, err := library.SetBackground(ctx, picture, picture); !errors.Is(err, ErrBackgroundOnStill) {
+		t.Fatalf("err = %v, want ErrBackgroundOnStill", err)
+	}
+	if _, err := library.SetBackground(ctx, clip, clip); !errors.Is(err, ErrBackgroundNotStill) {
+		t.Fatalf("err = %v, want ErrBackgroundNotStill", err)
+	}
+
+	slide, err := library.SetBackground(ctx, clip, picture)
+	if err != nil {
+		t.Fatalf("set background: %v", err)
+	}
+	if slide.BackgroundURL != FileURL(picture) {
+		t.Fatalf("slide.BackgroundURL = %q, want %q", slide.BackgroundURL, FileURL(picture))
+	}
+	// The dressed slide is what projecting the clip now carries.
+	again, err := library.Slide(ctx, clip)
+	if err != nil {
+		t.Fatalf("slide: %v", err)
+	}
+	if again.BackgroundURL != FileURL(picture) {
+		t.Fatalf("stored slide lost its background: %+v", again)
+	}
+
+	// Deleting the picture leaves no clip pointing at a ghost.
+	if err := library.Delete(ctx, picture); err != nil {
+		t.Fatalf("delete picture: %v", err)
+	}
+	bare, err := library.Slide(ctx, clip)
+	if err != nil {
+		t.Fatalf("slide after delete: %v", err)
+	}
+	if bare.BackgroundURL != "" {
+		t.Fatalf("background survived its picture: %q", bare.BackgroundURL)
+	}
+
+	// Undressing by hand works too.
+	dressed, _, err := library.Import(ctx, []string{writeTestImage(t, source, "curtains.png", 800, 600)})
+	if err != nil || len(dressed) != 1 {
+		t.Fatalf("re-import: %+v %v", dressed, err)
+	}
+	if _, err := library.SetBackground(ctx, clip, dressed[0].ID); err != nil {
+		t.Fatalf("re-dress: %v", err)
+	}
+	if _, err := library.SetBackground(ctx, clip, ""); err != nil {
+		t.Fatalf("clear background: %v", err)
+	}
+	if plain, err := library.Slide(ctx, clip); err != nil || plain.BackgroundURL != "" {
+		t.Fatalf("slide after clearing = %+v %v", plain, err)
 	}
 }

@@ -122,14 +122,14 @@ func (l *Library) importOne(ctx context.Context, path string) (Asset, error) {
 	}
 
 	asset := Asset{
-		ID:         id,
-		Kind:       kind,
-		Title:      strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-		Filename:   stored,
-		SourcePath: path,
-		Checksum:   checksum,
-		SizeBytes:  info.Size(),
-		CreatedAt:  time.Now().UTC().Truncate(time.Second),
+		ID:           id,
+		Kind:         kind,
+		Title:        strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+		Filename:     stored,
+		SourcePath:   path,
+		Checksum:     checksum,
+		SizeBytes:    info.Size(),
+		CreatedAt:    time.Now().UTC().Truncate(time.Second),
 		Presentation: FullFrame(),
 	}
 
@@ -167,10 +167,14 @@ func (l *Library) Exists(asset Asset) bool {
 }
 
 // Delete drops the record and the files it owns. A missing file is not an error:
-// the point of deleting is to end up with nothing left.
+// the point of deleting is to end up with nothing left. Anything that used the
+// asset as its background is undressed first, so no slide keeps a dangling id.
 func (l *Library) Delete(ctx context.Context, id string) error {
 	asset, err := l.repo.ByID(ctx, id)
 	if err != nil {
+		return err
+	}
+	if err := l.repo.ClearBackgroundReferences(ctx, id); err != nil {
 		return err
 	}
 	if err := l.repo.Remove(ctx, id); err != nil {

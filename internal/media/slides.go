@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"strings"
 )
 
 // Routes the asset server answers and the frontend is handed. They live here so
@@ -24,6 +25,9 @@ const (
 var (
 	ErrNotImage = errors.New("asset is not an image")
 	ErrFileGone = errors.New("the library copy of this asset is missing")
+	// SetBackground refuses both a moving target and a still one used backwards.
+	ErrBackgroundOnStill  = errors.New("a picture is its own visual and takes no background")
+	ErrBackgroundNotStill = errors.New("the background must be a picture from the library")
 )
 
 // Aspect is one of the framing choices offered to an operator. The list lives
@@ -101,6 +105,9 @@ type Slide struct {
 	Aspect string  `json:"aspect"`
 	Ratio  float64 `json:"ratio"`
 	Fit    string  `json:"fit"`
+	// BackgroundURL is the picture behind the clip; empty for images and for
+	// clips nobody has dressed.
+	BackgroundURL string `json:"backgroundUrl,omitempty"`
 }
 
 func FileURL(id string) string { return FileRoute + id }
@@ -154,8 +161,40 @@ func (l *Library) SetPresentation(ctx context.Context, id string, presentation P
 	return l.slideFor(asset), nil
 }
 
+// SetBackground dresses an audio or video clip with a library picture. An empty
+// background id takes the dress off again.
+func (l *Library) SetBackground(ctx context.Context, id, backgroundID string) (Slide, error) {
+	asset, err := l.repo.ByID(ctx, id)
+	if err != nil {
+		return Slide{}, err
+	}
+	if asset.Kind == KindImage {
+		return Slide{}, ErrBackgroundOnStill
+	}
+
+	backgroundID = strings.TrimSpace(backgroundID)
+	if backgroundID != "" {
+		picture, err := l.repo.ByID(ctx, backgroundID)
+		if err != nil {
+			return Slide{}, err
+		}
+		if picture.Kind != KindImage {
+			return Slide{}, ErrBackgroundNotStill
+		}
+		if !l.Exists(picture) {
+			return Slide{}, ErrFileGone
+		}
+	}
+
+	if err := l.repo.SaveBackground(ctx, id, backgroundID); err != nil {
+		return Slide{}, err
+	}
+	asset.BackgroundID = backgroundID
+	return l.slideFor(asset), nil
+}
+
 func (l *Library) slideFor(asset Asset) Slide {
-	return Slide{
+	slide := Slide{
 		Kind:   string(asset.Kind),
 		Title:  asset.Title,
 		URL:    FileURL(asset.ID),
@@ -163,4 +202,8 @@ func (l *Library) slideFor(asset Asset) Slide {
 		Ratio:  ratioFor(asset.Aspect),
 		Fit:    asset.Fit,
 	}
+	if asset.BackgroundID != "" && asset.Kind != KindImage {
+		slide.BackgroundURL = FileURL(asset.BackgroundID)
+	}
+	return slide
 }

@@ -268,6 +268,7 @@ export interface MediaView {
     "hasThumbnail": boolean;
     "aspect": string;
     "fit": string;
+    "backgroundUrl": string;
     "missing": boolean;
     "createdAt": string;
 }

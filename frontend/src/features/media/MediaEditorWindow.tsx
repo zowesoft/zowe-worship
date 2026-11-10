@@ -15,26 +15,26 @@ function describe(aspect: string, fit: string): string {
   return fit === 'cover' ? `${aspect}, filled` : `${aspect}, shown whole`;
 }
 
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // Kept as one string so the class scanner reads it whole: a class glued to `${`
 // is not picked up, which silently dropped the disabled dimming.
 const chipBase = 'px-[13px] py-[7px] border border-border rounded-full bg-transparent text-secondary text-[11.5px] whitespace-nowrap hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-[0.45]';
 
 export function MediaEditorWindow({ mediaID }: { mediaID: string }) {
-  const [aspects, setAspects] = useState<Aspect[]>([]);
   const [asset, setAsset] = useState<MediaView | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setProblem(null);
     try {
-      const [list, shapes] = await Promise.all([App.ListMedia(), App.MediaAspects()]);
-      setAspects(shapes ?? []);
+      const list = await App.ListMedia();
       const found = (list ?? []).find((item) => item.id === mediaID) ?? null;
       setAsset(found);
-      if (!found) setProblem('This image is no longer in the library.');
+      if (!found) setProblem('This asset is no longer in the library.');
     } catch (error: unknown) {
-      setProblem(error instanceof Error ? error.message : String(error));
+      setProblem(messageOf(error));
     }
   }, [mediaID]);
 
@@ -42,8 +42,38 @@ export function MediaEditorWindow({ mediaID }: { mediaID: string }) {
     void load();
   }, [load]);
 
+  if (asset === null) {
+    return (
+      <main className="h-full grid place-items-center pt-3.5 px-4 pb-4 overflow-hidden text-secondary text-[12px]">
+        <p>{problem ?? 'Loading…'}</p>
+      </main>
+    );
+  }
+
+  // A still picture is edited by framing it; a clip is dressed with a picture.
+  if (asset.kind === 'image') {
+    return <FramingEditor asset={asset} onAsset={setAsset} />;
+  }
+  return <BackgroundEditor asset={asset} onAsset={setAsset} />;
+}
+
+type EditorProps = {
+  asset: MediaView;
+  onAsset: (asset: MediaView) => void;
+};
+
+// FramingEditor is the shape-and-edges editor a still picture gets.
+function FramingEditor({ asset, onAsset }: EditorProps) {
+  const [aspects, setAspects] = useState<Aspect[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void App.MediaAspects().then((shapes) => setAspects(shapes ?? []));
+  }, []);
+
   async function choose(next: Presentation) {
-    if (!asset || busy) return;
+    if (busy) return;
     setBusy(true);
     setProblem(null);
     try {
@@ -51,20 +81,12 @@ export function MediaEditorWindow({ mediaID }: { mediaID: string }) {
       // Reframing the slide the room is looking at should change the room.
       const state = await App.GetPresentationState();
       if (state.live?.source === asset.url) await App.ProjectMedia(asset.id);
-      setAsset({ ...asset, aspect: slide.aspect, fit: slide.fit });
+      onAsset({ ...asset, aspect: slide.aspect, fit: slide.fit });
     } catch (error: unknown) {
-      setProblem(error instanceof Error ? error.message : String(error));
+      setProblem(messageOf(error));
     } finally {
       setBusy(false);
     }
-  }
-
-  if (asset === null) {
-    return (
-      <main className="h-full grid grid-rows-[auto_minmax(0,1fr)_auto] gap-3.5 pt-3.5 px-4 pb-4 overflow-hidden place-items-center text-secondary text-[12px]">
-        <p>{problem ?? 'Loading…'}</p>
-      </main>
-    );
   }
 
   return (
@@ -149,6 +171,94 @@ export function MediaEditorWindow({ mediaID }: { mediaID: string }) {
       </section>
 
       {problem && <p className="text-error text-[11.5px]" role="alert">{problem}</p>}
+    </main>
+  );
+}
+
+// BackgroundEditor dresses an audio or video clip with a still picture, so a
+// song can fill the screen with artwork while it plays.
+function BackgroundEditor({ asset, onAsset }: EditorProps) {
+  const [pictures, setPictures] = useState<MediaView[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void App.ListMedia()
+      .then((list) => setPictures((list ?? []).filter((item) => item.kind === 'image' && !item.missing)))
+      .catch((error: unknown) => setProblem(messageOf(error)));
+  }, []);
+
+  async function choose(backgroundID: string) {
+    if (busy) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      const slide = await App.SetMediaBackground(asset.id, backgroundID);
+      // A live clip should change its dress the moment it is changed here.
+      const state = await App.GetPresentationState();
+      if (state.live?.itemId === asset.id) await App.ProjectMedia(asset.id);
+      onAsset({ ...asset, backgroundUrl: slide.backgroundUrl ?? '' });
+    } catch (error: unknown) {
+      setProblem(messageOf(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="h-full grid grid-rows-[auto_minmax(0,1fr)_auto] gap-3.5 pt-3.5 px-4 pb-4 overflow-hidden" aria-label={`Edit ${asset.title}`}>
+      <header className="min-w-0 [&_h2]:truncate [&_h2]:text-[17px] [&_h2]:font-semibold [&_h2]:mt-[3px]">
+        <p className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">Edit {asset.kind}</p>
+        <h2 title={asset.title}>{asset.title}</h2>
+      </header>
+
+      <section className="min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3" aria-label="Background">
+        <div className="relative grid content-center justify-items-center items-center gap-2.5 aspect-[16/9] overflow-hidden rounded-lg border border-[#30445F] bg-[#0B1424]">
+          {asset.backgroundUrl && <img src={asset.backgroundUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+          {asset.backgroundUrl && <div className="absolute inset-0 bg-[rgba(4,9,18,0.45)]" />}
+          <span className={`relative grid place-items-center w-11 h-11 border rounded-[11px] ${asset.backgroundUrl ? 'border-[#5E749A] bg-[rgba(11,20,36,0.72)]' : 'border-[#30466A] bg-selected'} text-[#8CABFF]`}><Icon name="music" size={22} /></span>
+          <p className={`relative text-[13px] font-semibold text-center px-3 ${asset.backgroundUrl ? '[text-shadow:0_1px_8px_rgba(0,0,0,0.7)]' : 'text-secondary'}`}>{asset.title}</p>
+        </div>
+        <p className="text-[#6F809B] text-[10.5px]">
+          {asset.backgroundUrl ? 'The picture behind the clip on the audience screen.' : 'No background yet — the clip plays on a plain dark frame.'}
+        </p>
+
+        <div className="min-h-0 overflow-y-auto pr-0.5">
+          {pictures.length === 0 ? (
+            <p className="py-4 text-secondary text-[11.5px] text-center">No pictures in the library yet. Add one under Media first.</p>
+          ) : (
+            <ul className="list-none grid grid-cols-[repeat(auto-fill,minmax(118px,1fr))] gap-2 m-0 p-0">
+              {pictures.map((picture) => (
+                <li key={picture.id}>
+                  <button
+                    type="button"
+                    className={`block w-full aspect-[16/9] overflow-hidden rounded-md border bg-[#0B1424] disabled:opacity-60 ${asset.backgroundUrl === picture.url ? 'border-blue!' : 'border-border hover:not-disabled:border-[#5E749A]'}`}
+                    title={`Use ${picture.title} as the background`}
+                    disabled={busy}
+                    onClick={() => void choose(picture.id)}
+                  >
+                    {picture.hasThumbnail
+                      ? <img src={picture.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                      : <span className="grid place-items-center w-full h-full text-secondary"><Icon name="media" size={18} /></span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          className="min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950]"
+          disabled={busy || !asset.backgroundUrl}
+          onClick={() => void choose('')}
+        >
+          <Icon name="close" size={13} />No background
+        </button>
+        {problem && <p className="text-error text-[11.5px]" role="alert">{problem}</p>}
+      </section>
     </main>
   );
 }
