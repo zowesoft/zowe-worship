@@ -49,6 +49,7 @@ type DetectionValue = {
   analyze: () => Promise<void>;
   analyzeFile: (file: File) => Promise<void>;
   approve: (id: string) => Promise<void>;
+  project: (id: string) => Promise<void>;
   dismiss: (id: string) => Promise<void>;
   clear: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -313,6 +314,13 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     await Promise.all([refreshQueue(), refreshHistory()]);
   }, [studio, refreshQueue, refreshHistory]);
 
+  // Projecting is the operator's explicit send: the backend records the decision
+  // and puts the passage on air, so the card leaves the queue like an approval.
+  const project = useCallback(async (id: string) => {
+    await studio.projectDetection(id);
+    await Promise.all([refreshQueue(), refreshHistory()]);
+  }, [studio, refreshQueue, refreshHistory]);
+
   const dismiss = useCallback(async (id: string) => {
     setCandidates((await App.DismissDetection(id)) ?? []);
     await refreshHistory();
@@ -355,6 +363,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     analyze,
     analyzeFile,
     approve,
+    project,
     dismiss,
     clear,
     refresh: async () => {
@@ -364,7 +373,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     listening, devices, deviceId, level, transcript, candidates, history, analyzing, disabled,
     engineConfigured, bufferedSeconds, segment, repeats, autoProjection, autoProjectionPaused, autoProjected,
     continuous, segmenting, lastError, toggleContinuous, analyzeSegment,
-    setAutoProjectionEnabled, toggleAutoProjectionPause, toggleListening, analyze, analyzeFile, approve, dismiss, clear,
+    setAutoProjectionEnabled, toggleAutoProjectionPause, toggleListening, analyze, analyzeFile, approve, project, dismiss, clear,
     refreshConfig, refreshQueue, refreshHistory,
   ]);
 

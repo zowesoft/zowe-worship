@@ -278,6 +278,47 @@ func (a *App) ApproveDetection(id string) (PresentationView, error) {
 		a.oneVersePerSlide(ctx)))
 }
 
+// ProjectDetection sends a queued candidate straight to the audience: the
+// operator acted on a card they can see, so the auto-projection gates (which
+// decide what may go out *without* a person) are not consulted. The passage goes
+// up first and the card leaves the queue only once it did, so a passage that
+// cannot be read leaves the candidate where the operator can still use it.
+func (a *App) ProjectDetection(id string) (PresentationView, error) {
+	if a.detection == nil || a.settings == nil || a.presentation == nil {
+		return PresentationView{}, errStorageUnavailable
+	}
+
+	id = strings.TrimSpace(id)
+	var candidate detection.Candidate
+	queued := false
+	for _, pending := range a.detection.List() {
+		if pending.ID == id {
+			candidate, queued = pending, true
+			break
+		}
+	}
+	if !queued {
+		return PresentationView{}, errors.New("that detection is no longer in the queue")
+	}
+
+	ctx := a.context()
+	reference := candidate.Reference
+	translation := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
+	view, err := a.projected(a.presentation.ProjectScripture(ctx, translation,
+		reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd,
+		a.oneVersePerSlide(ctx)))
+	if err != nil {
+		return view, err
+	}
+
+	if _, err := a.detection.Approve(ctx, candidate.ID); err != nil {
+		// The passage is already on screen; a failed audit row must not make the
+		// operator think it did not go out.
+		log.Printf("zowe: record projected detection %s: %v", reference.String(), err)
+	}
+	return view, nil
+}
+
 func (a *App) DismissDetection(id string) ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable

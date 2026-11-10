@@ -320,6 +320,16 @@ the checklist itself — the gate that refused it and every gate's pass/fail —
 a collapsible block on the card, shown while auto-projection is armed so the
 operator can see what to change instead of guessing.
 
+A card also carries **Project live**: `App.ProjectDetection` sends that passage
+to the room from the detection panel, so serving a reference no longer means
+approving it, leaving the panel and pressing send in the production card. It
+records the decision as `approved` in `detection_history` and needs no
+preview first. The auto-projection gates are deliberately not consulted — they
+exist to decide what may go out *without* a person, and this is a person
+clicking a card they can see. The passage goes up before the card leaves the
+queue, so a passage the translation cannot resolve fails with the card still
+available to retry and the live slide unchanged.
+
 Listening is continuous now: `segmenter.ts` feeds on the level the capture
 already reports and closes a segment after 700 ms of quiet (or cuts at 25 s, so
 a request never crosses the backend's 30 s cap). The microphone keeps running

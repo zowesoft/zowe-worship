@@ -377,6 +377,17 @@ export function PreviousServiceItem(): $CancellablePromise<$models.PresentationV
     return $Call.ByID(1202660132);
 }
 
+/**
+ * ProjectDetection sends a queued candidate straight to the audience: the
+ * operator acted on a card they can see, so the auto-projection gates (which
+ * decide what may go out *without* a person) are not consulted. The passage goes
+ * up first and the card leaves the queue only once it did, so a passage that
+ * cannot be read leaves the candidate where the operator can still use it.
+ */
+export function ProjectDetection(id: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(4195681873, id);
+}
+
 export function ProjectMedia(mediaID: string): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(3656485126, mediaID);
 }

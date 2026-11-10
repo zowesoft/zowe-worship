@@ -934,11 +934,20 @@ function DetectionPanel() {
                       </ul>
                     </details>
                   )}
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     <button
                       type="button"
                       className="min-h-7 inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1 border border-blue! bg-blue! text-white! rounded-md text-[10.5px] font-medium whitespace-nowrap not-disabled:hover:bg-[#5B88FF]! not-disabled:hover:border-[#5B88FF]!"
+                      onClick={() => void run(() => detection.project(candidate.id))}
+                      title="Send this passage to the room now"
+                    >
+                      <Icon name="display" size={12} />Project live
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-7 inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap"
                       onClick={() => void run(() => detection.approve(candidate.id))}
+                      title="Fill the preview without changing what the room sees"
                     >
                       <Icon name="check" size={12} />Approve to preview
                     </button>
@@ -982,7 +991,7 @@ function DetectionPanel() {
 
         <div className="flex items-start gap-2 text-secondary">
           <Icon name="bible" size={16} className="text-[#B3A4FF] mt-0.5" />
-          <p className="text-[10px] leading-[1.6]">Scripture first. A candidate is a suggestion: approving it fills the preview, and you send it live yourself.</p>
+          <p className="text-[10px] leading-[1.6]">Scripture first. A candidate is a suggestion: Project live sends it to the room, while Approve only fills the preview for you to send yourself.</p>
         </div>
       </div>
     </aside>
