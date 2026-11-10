@@ -88,9 +88,15 @@ Done:
       the release — no local Mac or Linux machine needed.
 
 Open:
-- [ ] First tagged release must prove the workflow end to end: packages built
-      on each runner, attached to the GitHub release, and at least smoke-run
-      on a real macOS/Linux machine. The repo is not on GitHub yet.
+- [x] First tagged release proved the workflow end to end (v0.1.0, run
+      42821496429): windows/linux/macos all green, installer .exe, .deb,
+      .rpm and .AppImage attached to the GitHub release. Fixes the runners
+      needed: cross-volume copy fallback in the engine installer, no actool
+      Assets.car step, GTK libs before the Wails CLI on linux, NSIS is no
+      longer preinstalled on the amd64 windows image (nsis-dev/setup-nsis),
+      makensis writes to bin/zowe-worship-amd64-installer.exe, and the macOS
+      .app must be zipped with ditto before upload. Still to do: smoke-run
+      the packages on real macOS/Linux machines.
 - [ ] Package signing (Windows Authenticode, macOS Developer ID + notarization)
       — the workflow ships unsigned packages until certificates exist.
 - [ ] Bundling the offline speech engine into the Linux/macOS packages (the

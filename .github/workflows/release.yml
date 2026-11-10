@@ -93,10 +93,15 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Package (.app bundle, ad-hoc signed)
         run: wails3 task darwin:package
+      # Artifacts must be a single file: a bare .app directory uploads as
+      # loose contents that no release glob can pick up. ditto preserves the
+      # bundle metadata macOS expects.
+      - name: Zip the .app bundle
+        run: ditto -c -k --keepParent bin/zowe-worship.app zowe-worship-macos.zip
       - uses: actions/upload-artifact@v4
         with:
           name: zowe-worship-macos
-          path: bin/zowe-worship.app
+          path: zowe-worship-macos.zip
           if-no-files-found: error
 
   release:
