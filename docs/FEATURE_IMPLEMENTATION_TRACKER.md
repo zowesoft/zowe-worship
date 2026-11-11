@@ -699,7 +699,10 @@ The tracker understated the app, which is why this audit was needed:
 
 Different files from detection, so these run alongside it:
 
-- [ ] Media transport UI: stop, seek, volume (S). Backend done.
+- [x] Media transport UI: stop, seek, volume (S): the pane transports in
+      `AppShell.tsx` cover preview play/pause and seek, live clip seek,
+      stop and room volume, and play/pause and restart in the live
+      footer.
 - [ ] Display reconnect and mixed-DPI recovery (M); `clearAudienceDisplay`
       currently forgets the output when the window closes.
 - [ ] `internal/audio` decision (S–M): build the Go capture service, or record
