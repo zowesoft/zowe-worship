@@ -423,7 +423,7 @@ function PreviewTheme({ preview }: { preview: Content }) {
   }
 
   return (
-    <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-[7px]">
+    <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-[5px]">
       <label className="flex items-center gap-[7px] text-secondary text-[9.5px] tracking-[0.7px] uppercase">
         <span>Theme</span>
         <select className="h-[26px] max-w-[170px] px-1.5 border border-[#35445C] rounded-md bg-app text-text text-[11px] normal-case tracking-normal" value={chosenTheme} onChange={(event) => void choose(event.target.value)}>
@@ -551,7 +551,7 @@ function PresentationPanes() {
   return (
     <section className="grid grid-cols-2 gap-3.5" aria-label="Persistent presentation workspace">
       <section className="bg-panel border border-border rounded-[10px] overflow-hidden" aria-labelledby="preview-title">
-        <div className="min-h-[46px] px-3 py-2 flex items-center justify-between gap-2.5 border-b border-border max-[959px]:px-2.5 max-[959px]:py-[7px]">
+        <div className="min-h-[40px] px-3 py-1 flex items-center justify-between gap-2.5 border-b border-border max-[959px]:px-2.5 max-[959px]:py-[7px]">
           <h2 id="preview-title" className="flex items-center gap-[7px] text-[10px] tracking-[1.1px] uppercase text-secondary [&_svg]:text-secondary"><span className="inline-block w-1.5 h-1.5 rounded-full bg-secondary" /><Icon name="preview" size={15} />Preview</h2>
           <div className="flex items-center gap-1.5">
             <button
@@ -566,14 +566,22 @@ function PresentationPanes() {
           </div>
         </div>
 
+        {/* The screen is a wide strip, not a 16:9 miniature: its
+            height is capped so the panes give the workspace below
+            (Bible results, schedule) its vertical room back, while the
+            width fills the panel so the pane reads as a wide rectangle
+            instead of a letterboxed square. ThemedSlide sizes text in
+            container units, so the strip shows the same theme, colors
+            and wording as the air slide at thumbnail scale; wraps can
+            differ, so the live output stays the source of truth. */}
         {preview ? (
-          <div className="aspect-[16/9] w-full bg-[#0B1321]! p-0! flex flex-col items-center justify-center text-center">
+          <div className="aspect-[16/9] w-full max-h-[128px] bg-[#0B1321]! p-0! flex flex-col items-center justify-center text-center">
             {previewIsMedia
               ? <SlideMedia content={preview} player autoPlay={false} mediaRef={previewMediaRef} />
               : <SlideContent content={preview} />}
           </div>
         ) : (
-          <div className="aspect-[16/9] w-full bg-[#0B1321]! px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
+          <div className="aspect-[16/9] w-full max-h-[128px] bg-[#0B1321]! px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
             <Icon name="layers" size={30} />
             <strong>No content selected</strong>
             <p>Search scripture or choose a schedule item to prepare a slide.</p>
@@ -608,14 +616,14 @@ function PresentationPanes() {
 
         {preview && <PreviewTheme preview={preview} />}
 
-        <div className="flex items-center gap-[7px] border-t border-border min-h-8 px-3 py-2 text-secondary text-[9.5px]">
+        <div className="flex items-center gap-[7px] border-t border-border min-h-7 px-3 py-1 text-secondary text-[9.5px]">
           <span className="inline-block w-1 h-1 rounded-full bg-secondary shrink-0" />
           {preview ? `Preview holds ${preview.label}.` : 'Preview is not connected to the presentation controller.'}
         </div>
       </section>
 
       <section className="bg-panel border border-border rounded-[10px] overflow-hidden border-[#5A4120]!" aria-labelledby="live-title">
-        <div className="min-h-[46px] px-3 py-2 flex items-center justify-between gap-2.5 border-b border-border max-[959px]:px-2.5 max-[959px]:py-[7px]">
+        <div className="min-h-[40px] px-3 py-1 flex items-center justify-between gap-2.5 border-b border-border max-[959px]:px-2.5 max-[959px]:py-[7px]">
           <h2 id="live-title" className="flex items-center gap-[7px] text-[10px] tracking-[1.1px] uppercase text-secondary [&_svg]:text-secondary"><span className="inline-block w-[7px] h-[7px] rounded-full bg-teal shadow-[0_0_0_3px_rgba(33,214,162,0.14)]" /><Icon name="display" size={15} />Live Output</h2>
           <div className="flex items-center gap-1.5">
             <span className={`inline-flex items-center px-2 py-[3px] border rounded-full text-[9px] whitespace-nowrap ${live ? 'border-[#1E4D40]! bg-[#0E2A24]! text-[#6EE7C0]!' : 'border-[#2A3950] bg-elevated text-secondary'}`}>{live ? 'On air' : 'Off air'}</span>
@@ -626,13 +634,13 @@ function PresentationPanes() {
         </div>
 
         {live ? (
-          <div className="aspect-[16/9] w-full bg-[#060B14] p-0! flex flex-col items-center justify-center text-center">
+          <div className="aspect-[16/9] w-full max-h-[128px] bg-[#060B14] p-0! flex flex-col items-center justify-center text-center">
             {liveIsMedia && !studio.display?.open
               ? <SlideMedia content={live} player mediaRef={liveMediaRef} onEnded={() => void App.MediaEnded()} />
               : <SlideContent content={live} />}
           </div>
         ) : (
-          <div className="aspect-[16/9] w-full bg-[#060B14] px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
+          <div className="aspect-[16/9] w-full max-h-[128px] bg-[#060B14] px-3 py-[18px] flex flex-col items-center justify-center text-center [&>svg]:text-secondary [&>svg]:opacity-60 [&>svg]:mb-2.5 [&>strong]:text-secondary [&>strong]:text-[11.5px] [&>strong]:font-medium [&>p]:text-[10.5px] [&>p]:text-secondary [&>p]:mt-1 [&>p]:max-w-[260px] max-[959px]:[&>p]:max-w-[180px]">
             <Icon name="display" size={30} />
             <strong>No output connected</strong>
             <p>An audience display will appear here.</p>
@@ -678,7 +686,7 @@ function PresentationPanes() {
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2.5 border-t border-border px-2.5 py-[7px]">
+        <div className="flex items-center justify-between gap-2.5 border-t border-border px-2.5 py-1">
           <div className="flex items-center gap-[7px] border-0 min-h-0 p-0 text-secondary text-[9.5px]">
             <span className="inline-block w-1 h-1 rounded-full bg-secondary shrink-0" />
             {scheduleCount > 0 ? `${scheduleCount} ${scheduleCount === 1 ? 'item' : 'items'} in the schedule.` : 'No service order is running.'}
