@@ -469,6 +469,20 @@ func scanTranslation(row interface{ Scan(...any) error }, extra ...*string) (Tra
 		return Translation{}, fmt.Errorf("parse install time: %w", err)
 	}
 	translation.InstalledAt = parsed
+	// Catalog rows written before license storage existed read back empty,
+	// and the registry is the record of what is known about a text, so a
+	// read fills what storage left blank. Without this the bundled KJV -
+	// installed long before the license columns - shows no attribution
+	// anywhere in the app. Restricted translations keep their deliberately
+	// empty attribution: its wording is the rights holder's to give.
+	if known, ok := LicenseFor(translation.ID); ok {
+		if translation.License == "" {
+			translation.License = known.License
+		}
+		if translation.Attribution == "" {
+			translation.Attribution = known.Attribution
+		}
+	}
 	return translation, nil
 }
 

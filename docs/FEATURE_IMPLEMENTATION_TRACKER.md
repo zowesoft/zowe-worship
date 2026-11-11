@@ -713,9 +713,15 @@ Different files from detection, so these run alongside it:
 
 ### Phase 3 — P1 content
 
-- [ ] Translation packages plus license/attribution surface (S for the surface,
-      L for licensed content). KJV attribution can ship before NIV/ESV/NLT/NASB
-      rights exist.
+- [x] License/attribution surface: Settings → Bible translations prints each
+      translation's license line, and the Bible workspace's translation
+      control and chapter badge carry the same text as a title; reads fall
+      back to the license registry, so the KJV - installed before license
+      storage existed - now reads "King James Version (Public Domain)".
+      Restricted translations keep an empty attribution until their holder
+      supplies the wording.
+- [ ] Licensed translation content (L): NIV/ESV/NLT/NASB stay gated on
+      written permission (import tracked with the package work above).
 - [ ] Speech-assisted scripture search (S–M), cheap once slices 2–3 exist.
 - [ ] Media playlists (M).
 - [ ] Additional audience outputs (M–L).

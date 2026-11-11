@@ -1037,7 +1037,12 @@ export function BibleWorkspace({
               <strong>
                 {books.find((b) => b.id === block.bookId)?.name} {block.chapter}
               </strong>
-              <span className={BADGE}>{activeTranslation?.abbreviation ?? ''}</span>
+              <span
+                className={BADGE}
+                title={activeTranslation?.attribution || activeTranslation?.license || undefined}
+              >
+                {activeTranslation?.abbreviation ?? ''}
+              </span>
             </div>
             <ul className="list-none grid gap-1 m-0 p-0" aria-label="Chapter verses">
               {block.results.map((r) => renderVerseRow(r, false))}
@@ -1171,6 +1176,7 @@ export function BibleWorkspace({
           <select
             className="min-h-8 shrink-0 px-2 border border-[#35445C] rounded-md bg-elevated text-text text-[11px] disabled:text-secondary"
             aria-label="Bible translation"
+            title={activeTranslation?.attribution || activeTranslation?.license || undefined}
             value={translationId}
             onChange={(event) => setTranslationId(event.target.value)}
             disabled={translations.length === 0}
