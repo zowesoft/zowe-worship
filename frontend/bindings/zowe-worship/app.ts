@@ -404,6 +404,19 @@ export function RecentProjections(): $CancellablePromise<$models.ProjectionView[
     return $Call.ByID(3667402832);
 }
 
+/**
+ * ReconnectAudienceDisplay puts the output back. A window that survived a
+ * monitor blip is re-fitted to the resolved screen - it leaves fullscreen
+ * first, because Fullscreen() is a no-op while the window already believes
+ * it is fullscreen, and the bounds have to be derived again from where the
+ * window now sits. A dead window is reopened on the remembered screen; if
+ * that screen is still absent the error says so and the reconnect offer
+ * stays.
+ */
+export function ReconnectAudienceDisplay(): $CancellablePromise<$models.DisplayView> {
+    return $Call.ByID(1614460626);
+}
+
 export function RelinkMedia(mediaID: string, path: string): $CancellablePromise<$models.MediaView[] | null> {
     return $Call.ByID(2207098652, mediaID, path);
 }

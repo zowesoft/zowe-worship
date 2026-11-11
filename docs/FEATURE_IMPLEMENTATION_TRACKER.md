@@ -206,7 +206,11 @@ Done:
       (`app.go` `RestoreProjection`, `HistoryPanel.tsx`; commit `2308a8a`).
 
 Open:
-- [ ] Mixed-DPI, disconnect/reconnect recovery tests for the audience display.
+- [ ] Mixed-DPI, disconnect/reconnect recovery tests against live windows:
+      `resolveScreen` matching (device name, geometry/primary, missing
+      screen), close-keeping-intent and the headless guards are covered in
+      `display_test.go`, but running a real window through an actual
+      monitor mix is not.
 - [ ] Additional audience outputs (intentionally deferred past single-output).
 - [ ] Acceptance evidence for navigation-not-interrupting-live, display error
       preserving last live slide, etc.
@@ -703,8 +707,17 @@ Different files from detection, so these run alongside it:
       `AppShell.tsx` cover preview play/pause and seek, live clip seek,
       stop and room volume, and play/pause and restart in the live
       footer.
-- [ ] Display reconnect and mixed-DPI recovery (M); `clearAudienceDisplay`
-      currently forgets the output when the window closes.
+- [x] Display reconnect and mixed-DPI recovery (M): closing the audience
+      window now drops only the handle - the remembered screen and the
+      operator's intent survive (`display.go` `audienceWindowClosed`), the
+      `display` event keeps the selector and live chip in step, and
+      `ReconnectAudienceDisplay` re-fits a surviving window or reopens a
+      dead one. Screens resolve by device name, then geometry with the
+      primary flag breaking ties, then the raw id, always skipping the
+      studio's own monitor. Opens create the window hidden, take fullscreen
+      and only then show, so a mixed-DPI or mismatched-resolution pair gets
+      a window sized for the target monitor and no mis-sized frame is ever
+      visible.
 - [ ] `internal/audio` decision (S–M): build the Go capture service, or record
       the webview capture as the accepted adapter and emit `audio.input.*`.
 - [ ] Bible reference/full-text p95 benchmarks, plus the acceptance sweep

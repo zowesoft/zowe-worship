@@ -45,7 +45,8 @@ type App struct {
 	detection      *detection.Queue
 	history        *history.Log
 	display        application.Window
-	displayScreen  ScreenOption
+	target         displayTarget
+	wanted         bool
 }
 
 type AppInfo struct {

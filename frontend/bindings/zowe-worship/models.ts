@@ -209,6 +209,13 @@ export interface DisplayView {
     "open": boolean;
     "screenId": string;
     "screenName": string;
+
+    /**
+     * Wanted is the operator's choice, kept even while the window is gone:
+     * it is what lets the studio offer a reconnect instead of only ever
+     * reporting "No display".
+     */
+    "wanted": boolean;
 }
 
 export interface EditSongRequest {

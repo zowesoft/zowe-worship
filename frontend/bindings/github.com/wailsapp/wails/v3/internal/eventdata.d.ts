@@ -12,6 +12,7 @@ import type * as main$0 from "../../../../../zowe-worship/models.js";
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "display": main$0.DisplayView;
             "media-control": main$0.MediaCommand;
             "media-ended": string;
             "media-progress": main$0.MediaProgressView;

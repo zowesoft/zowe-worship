@@ -280,8 +280,19 @@ function DisplaySelector() {
           disabled={!studio.bridgeAvailable}
           aria-expanded={open}
           aria-haspopup="true"
-          onClick={toggle}
-          title={display?.open ? `Audience display on ${display.screenName}` : 'Choose a display for the audience'}
+          onClick={() => {
+            // A monitor replugged while the menu was closed only shows up
+            // if the list is reread on the way in.
+            if (!open) void studio.refreshScreens().catch(() => undefined);
+            toggle();
+          }}
+          title={
+            display?.open
+              ? `Audience display on ${display.screenName}`
+              : display?.wanted
+                ? `${display.screenName} is disconnected — reopen this menu to reconnect`
+                : 'Choose a display for the audience'
+          }
         >
           <Icon name="display" size={16} />
           <span>{display?.open ? display.screenName : 'No display'}</span>
@@ -290,6 +301,16 @@ function DisplaySelector() {
       )}
       menu={({ close }) => (
         <>
+          {display && !display.open && display.wanted && (
+            <button
+              type="button"
+              className="flex items-center gap-2 p-[7px] px-2 mb-1 pb-[9px] border-0 border-b! border-border! rounded-md rounded-t-md! rounded-b-none! bg-transparent text-text text-[11.5px] text-left hover:bg-selected [&>span]:truncate [&_svg]:shrink-0 [&_svg]:text-teal"
+              onClick={() => void run(studio.reconnectDisplay, close)}
+            >
+              <Icon name="link" size={13} />
+              <span>Reconnect to {display.screenName}</span>
+            </button>
+          )}
           {studio.screens.map((screen) => (
             <button
               key={screen.id}
@@ -748,6 +769,16 @@ function confidenceTone(band: string): string {
 function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) => void }) {
   const detection = useDetection();
   const [problem, setProblem] = useState<string | null>(null);
+  // The transcript can fill the whole sidebar during a sermon; collapsed by
+  // default so the queue stays in view, with a one-line tail as live preview.
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const transcriptRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (transcriptOpen && detection.analyzing && transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    }
+  }, [detection.transcript, transcriptOpen, detection.analyzing]);
 
   // Keyboard path through the queue: the list takes focus, arrows move the
   // highlight and one key acts on it, so a reference can be served while the
@@ -910,7 +941,7 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
           {detection.lastError && (
             <p className="px-2 py-1.5 border border-[#4D1E1E] rounded-md bg-[#2B1313] text-[#FFB1B7] text-[9.5px] leading-[1.5]">{detection.lastError}</p>
           )}
-<label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV (first 30 seconds)">
+<label className="min-h-7 inline-flex items-center justify-center gap-1.5 px-2 py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap text-text cursor-pointer has-disabled:opacity-50" title="Run a recording through the same pipeline — MP3, M4A or WAV; the whole file is analyzed in engine-safe chunks">
             <Icon name="play" size={13} />
             {detection.analyzing ? 'Analyzing…' : 'Test audio file…'}
             <input
@@ -942,15 +973,45 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
 
         <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="transcript-title">
           <div className="flex items-center justify-between gap-2">
-            <h3 id="transcript-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">Current transcript</h3>
+            <h3 id="transcript-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 uppercase tracking-[1px] hover:text-text [&_svg]:transition-transform [&_svg]:duration-150"
+                aria-expanded={transcriptOpen}
+                aria-controls="transcript-body"
+                onClick={() => setTranscriptOpen((open) => !open)}
+              >
+                <Icon name="chevron" size={12} className={transcriptOpen ? '' : '-rotate-90'} />
+                Current transcript
+              </button>
+            </h3>
+            {detection.analyzing && (
+              <span className="inline-flex items-center gap-1.5 text-[9px] text-teal">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal animate-pulse" aria-hidden="true" />
+                transcribing
+              </span>
+            )}
           </div>
-          {detection.transcript ? (
-            <p className="p-2.5 border border-border rounded-md bg-app text-text text-[10px] leading-[1.6]">{detection.transcript}</p>
-          ) : (
-            <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">
-              {detection.listening ? 'Nothing analyzed yet. Let the preacher name a verse, then analyze.' : 'Start listening, then analyze a chunk to transcribe it.'}
-            </p>
-          )}
+          <div id="transcript-body" className="grid gap-2">
+            {transcriptOpen ? (
+              detection.transcript ? (
+                <p ref={transcriptRef} className="p-2.5 border border-border rounded-md bg-app text-text text-[10px] leading-[1.6] max-h-52 overflow-y-auto">{detection.transcript}</p>
+              ) : (
+                <p className="p-2.5 border border-dashed border-border rounded-md bg-app text-secondary text-[10px] leading-[1.6]">
+                  {detection.listening ? 'Nothing analyzed yet. Let the preacher name a verse, then analyze.' : 'Start listening, then analyze a chunk to transcribe it.'}
+                </p>
+              )
+            ) : detection.transcript ? (
+              <button
+                type="button"
+                className="block w-full truncate px-0.5 text-left text-[10px] text-secondary hover:text-text"
+                title="Show the full transcript"
+                onClick={() => setTranscriptOpen(true)}
+              >
+                …{detection.transcript.slice(-110)}
+              </button>
+            ) : null}
+          </div>
         </section>
 
         <section className="grid gap-2 border-t border-border pt-[11px]" aria-labelledby="queue-title">

@@ -44,6 +44,11 @@ type StudioValue = {
   relinkMedia: (mediaID: string, path: string) => Promise<void>;
   openDisplay: (screenID: string) => Promise<models.DisplayView>;
   closeDisplay: () => Promise<models.DisplayView>;
+  // Reconnect puts the remembered output back after the window died or the
+  // monitor blipped; refreshScreens rereads the picker so a replugged
+  // display shows up without restarting the studio.
+  reconnectDisplay: () => Promise<models.DisplayView>;
+  refreshScreens: () => Promise<void>;
   openSettings: () => Promise<models.EditorView>;
   openThemes: () => Promise<models.EditorView>;
   mediaControl: (action: MediaAction, value?: number) => Promise<void>;
@@ -159,6 +164,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setPresentationState(event.data as models.PresentationView);
   }), []);
 
+  // The display pushes its own state, so the selector and the live chip
+  // follow a projector window that was closed on the far end without any
+  // polling - the window handle is gone, the operator's choice is not.
+  useEffect(() => Events.On('display', (event) => {
+    setDisplay(event.data as models.DisplayView);
+  }), []);
+
   // Records the failure for the error area and rethrows, so a caller that
   // swallows it still leaves the message visible.
   const run = useCallback(async <T,>(action: () => Promise<T>, apply?: (value: T) => void): Promise<T> => {
@@ -224,6 +236,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     openDisplay: (screenID) => run(() => App.OpenAudienceDisplay(screenID), setDisplay),
     closeDisplay: () => run(() => App.CloseAudienceDisplay(), setDisplay),
+    reconnectDisplay: () => run(() => App.ReconnectAudienceDisplay(), setDisplay),
+    refreshScreens: async () => {
+      await run(() => App.ListScreens(), (list) => setScreens(list ?? []));
+    },
     openSettings: () => run(() => App.OpenSettings()),
     openThemes: () => run(() => App.OpenThemeWindow()),
     mediaControl: (action, value) => run(() => App.MediaControl({ action, value: value ?? 0 })),
