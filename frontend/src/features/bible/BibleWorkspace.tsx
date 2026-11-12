@@ -817,6 +817,18 @@ export function BibleWorkspace({
   // Bible panel opens on that passage and renders it.
   const followed = useMemo(() => wallScripture(studio.presentation), [studio.presentation]);
   const wall = useMemo(() => wallReference(studio.presentation), [studio.presentation]);
+  // The browse field holds the wall's reference, so the pane shows the
+  // passage as if the operator had typed it; clearing it once keeps the field
+  // free until the wall changes again.
+  const filledWallRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!wall || activeTab !== 'browse') return;
+    if (filledWallRef.current === wall.reference) return;
+    filledWallRef.current = wall.reference;
+    setQuery(wall.reference);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wall, activeTab]);
 
   useEffect(() => {
     if (!followed || !bridgeAvailable || translationId === '' || books.length === 0) return;
