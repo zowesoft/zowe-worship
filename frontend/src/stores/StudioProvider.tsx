@@ -102,10 +102,9 @@ function toSectionRequest(input: SongSectionInput): models.SongSectionRequest {
 }
 
 export function StudioProvider({ children }: { children: ReactNode }) {
-  // The splash holds for a beat even on a fast machine: the embedded bundle
-  // loads in tens of milliseconds and a flash of branding reads as a flicker
-  // rather than a hello. ~1.1s total from page load.
-  const MIN_SPLASH_MS = 1100;
+  // The splash holds a fixed beat - the embedded bundle loads in tens of
+  // milliseconds, but the brand is the brand, so it stays up for ten.
+  const SPLASH_MS = 10_000;
   const dropSplash = () => {
     const splash = document.getElementById('splash');
     if (!splash) return;
@@ -162,9 +161,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => {
         if (active) setReady(true);
-        // Hold the splash long enough to read it, then fade it out.
-        const remaining = Math.max(0, MIN_SPLASH_MS - performance.now());
-        window.setTimeout(dropSplash, remaining);
+        window.setTimeout(dropSplash, SPLASH_MS);
       });
 
     return () => {
