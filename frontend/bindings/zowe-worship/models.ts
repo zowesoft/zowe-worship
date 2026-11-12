@@ -280,6 +280,21 @@ export interface MediaImportResult {
 }
 
 /**
+ * MediaPlaylistInput is a create-or-update: an empty id makes a new playlist.
+ */
+export interface MediaPlaylistInput {
+    "id": string;
+    "name": string;
+    "mediaIds": string[] | null;
+}
+
+export interface MediaPlaylistView {
+    "id": string;
+    "name": string;
+    "mediaIds": string[] | null;
+}
+
+/**
  * MediaProgressView is the clip clock reported from the player window.
  */
 export interface MediaProgressView {
@@ -317,6 +332,17 @@ export interface NewSongRequest {
 export interface NewSongSectionRequest {
     "label": string;
     "text": string;
+}
+
+/**
+ * PlaylistRunView is the run in progress. Active is false for the empty
+ * payload that ends it, so a listener clears rather than invents a position.
+ */
+export interface PlaylistRunView {
+    "playlistId": string;
+    "index": number;
+    "length": number;
+    "active": boolean;
 }
 
 export interface PresentationView {

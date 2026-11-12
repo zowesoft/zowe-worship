@@ -53,6 +53,12 @@ func (a *App) MediaControl(command MediaCommand) error {
 	default:
 		return fmt.Errorf("unknown media command %q", command.Action)
 	}
+	if command.Action == "stop" {
+		// Stopping the clip stops the run with it: the clip stays on screen
+		// and could be played again, and its end must not cue the next clip
+		// of a run the operator has already ended.
+		a.stopRun()
+	}
 	dest := application.Get()
 	if dest == nil {
 		return nil // tests, or a window that has just closed: nothing to deliver to
@@ -80,8 +86,13 @@ func (a *App) MediaProgress(timeMS, durationMS int64) {
 }
 
 // MediaEnded is the display's own report that a clip reached its end. The
-// studio is told because it is the window showing the transport button.
+// studio is told because it is the window showing the transport button - but
+// only when the clip's end is the end of something: a playlist clip's end is
+// the cue for the next one, which starts before the transport would hear it.
 func (a *App) MediaEnded() {
+	if a.advancePlaylist() {
+		return
+	}
 	desktop := application.Get()
 	if desktop == nil {
 		return

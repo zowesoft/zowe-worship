@@ -16,6 +16,7 @@ declare module "@wailsio/runtime" {
             "media-control": main$0.MediaCommand;
             "media-ended": string;
             "media-progress": main$0.MediaProgressView;
+            "playlist-run": main$0.PlaylistRunView;
             "presentation": main$0.PresentationView;
         }
     }

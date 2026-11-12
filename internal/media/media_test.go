@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"zowe-worship/internal/database"
 )
@@ -537,5 +538,141 @@ func TestBackgroundDressesAClip(t *testing.T) {
 	}
 	if plain, err := library.Slide(ctx, clip); err != nil || plain.BackgroundURL != "" {
 		t.Fatalf("slide after clearing = %+v %v", plain, err)
+	}
+}
+
+// importPlaylistClip writes a minimal real container and imports it, so the
+// playlist tests run against clips the library would actually accept. The
+// container's duration carries the name, so two clips with different names
+// are not mistaken for one file imported twice.
+func importPlaylistClip(t *testing.T, library *Library, ctx context.Context, name string) Asset {
+	t.Helper()
+
+	var seed uint32
+	for _, r := range name {
+		seed = seed*31 + uint32(r)
+	}
+	path := filepath.Join(t.TempDir(), name)
+	var body []byte
+	if filepath.Ext(name) == ".mp4" {
+		body = buildTestMP4(1000, 9000+seed%9000)
+	} else {
+		body = buildTestWAV(44100, 2, 16, int(44100*2*2)*(1+int(seed%3)))
+	}
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+	assets, _, err := library.Import(ctx, []string{path})
+	if err != nil || len(assets) != 1 {
+		t.Fatalf("import %s: %+v %v", name, assets, err)
+	}
+	return assets[0]
+}
+
+func TestPlaylistsKeepOrderAndFollowTheClipsTheyReference(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	first := importPlaylistClip(t, library, ctx, "opening.mp4")
+	second := importPlaylistClip(t, library, ctx, "hymn.wav")
+	third := importPlaylistClip(t, library, ctx, "sermon.mp4")
+
+	saved := Playlist{
+		ID:        "pl-run",
+		Name:      " Sunday  run ",
+		Items:     []string{first.ID, second.ID, third.ID},
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := library.SavePlaylist(ctx, saved); err != nil {
+		t.Fatalf("save playlist: %v", err)
+	}
+
+	got, err := library.PlaylistByID(ctx, "pl-run")
+	if err != nil {
+		t.Fatalf("read playlist: %v", err)
+	}
+	if got.Name != "Sunday  run" {
+		t.Fatalf("name = %q, want the trimmed name", got.Name)
+	}
+	if len(got.Items) != 3 || got.Items[0] != first.ID || got.Items[1] != second.ID || got.Items[2] != third.ID {
+		t.Fatalf("items = %v, want play order", got.Items)
+	}
+
+	// Reordering rewrites positions rather than appending duplicates.
+	saved.Name = "Sunday"
+	saved.Items = []string{third.ID, first.ID}
+	if err := library.SavePlaylist(ctx, saved); err != nil {
+		t.Fatalf("reorder: %v", err)
+	}
+	got, err = library.PlaylistByID(ctx, "pl-run")
+	if err != nil {
+		t.Fatalf("read reordered: %v", err)
+	}
+	if len(got.Items) != 2 || got.Items[0] != third.ID || got.Items[1] != first.ID {
+		t.Fatalf("items after reorder = %v", got.Items)
+	}
+
+	all, err := library.ListPlaylists(ctx)
+	if err != nil || len(all) != 1 {
+		t.Fatalf("list = %+v %v", all, err)
+	}
+	if len(all[0].Items) != 2 {
+		t.Fatalf("listed items = %v, want the membership too", all[0].Items)
+	}
+
+	// Deleting a clip drops it from every playlist (foreign key cascade);
+	// the playlist itself survives, one clip shorter.
+	if err := library.Delete(ctx, first.ID); err != nil {
+		t.Fatalf("delete clip: %v", err)
+	}
+	got, err = library.PlaylistByID(ctx, "pl-run")
+	if err != nil {
+		t.Fatalf("read after clip delete: %v", err)
+	}
+	if len(got.Items) != 1 || got.Items[0] != third.ID {
+		t.Fatalf("items after clip delete = %v, want only the remaining clip", got.Items)
+	}
+
+	if err := library.DeletePlaylist(ctx, "pl-run"); err != nil {
+		t.Fatalf("delete playlist: %v", err)
+	}
+	if _, err := library.PlaylistByID(ctx, "pl-run"); !errors.Is(err, ErrPlaylistNotFound) {
+		t.Fatalf("read deleted err = %v, want ErrPlaylistNotFound", err)
+	}
+	if err := library.DeletePlaylist(ctx, "pl-run"); !errors.Is(err, ErrPlaylistNotFound) {
+		t.Fatalf("second delete err = %v, want ErrPlaylistNotFound", err)
+	}
+}
+
+func TestPlaylistSaveRefusesWhatCouldNotPlay(t *testing.T) {
+	library, ctx := newTestLibrary(t)
+	source := t.TempDir()
+
+	picture, _, err := library.Import(ctx, []string{writeTestImage(t, source, "cross.png", 80, 60)})
+	if err != nil || len(picture) != 1 {
+		t.Fatalf("import picture: %+v %v", picture, err)
+	}
+	clip := importPlaylistClip(t, library, ctx, "clip.mp4")
+
+	// An image would strand the run: it never ends, so nothing advances.
+	err = library.SavePlaylist(ctx, Playlist{
+		ID: "pl-image", Name: "Stills", Items: []string{clip.ID, picture[0].ID},
+		CreatedAt: time.Now().UTC(),
+	})
+	if !errors.Is(err, ErrPlaylistImage) {
+		t.Fatalf("image in playlist err = %v, want ErrPlaylistImage", err)
+	}
+
+	// An unknown clip id is refused by the foreign key on membership.
+	err = library.SavePlaylist(ctx, Playlist{
+		ID: "pl-ghost", Name: "Ghost", Items: []string{"no-such-media"},
+		CreatedAt: time.Now().UTC(),
+	})
+	if err == nil {
+		t.Fatal("saving a playlist over an unknown clip succeeded")
+	}
+
+	if err := library.SavePlaylist(ctx, Playlist{
+		ID: "pl-noname", Name: "   ", CreatedAt: time.Now().UTC(),
+	}); !errors.Is(err, ErrPlaylistName) {
+		t.Fatalf("nameless playlist err = %v, want ErrPlaylistName", err)
 	}
 }

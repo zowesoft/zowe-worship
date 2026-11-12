@@ -13,6 +13,11 @@ var (
 	ErrTooLarge       = errors.New("media file is too large")
 	ErrAssetNotFound  = errors.New("media asset not found")
 	ErrNotTheSameFile = errors.New("that file is not the one the library holds a record of")
+
+	ErrPlaylistNotFound = errors.New("media playlist not found")
+	ErrPlaylistName     = errors.New("a playlist needs a name")
+	ErrPlaylistImage    = errors.New("a playlist holds video and audio clips - an image never ends, so nothing would advance past it")
+	ErrPlaylistEmpty    = errors.New("this playlist has no clips")
 )
 
 type Kind string
@@ -82,4 +87,14 @@ type ImportProblem struct {
 	Path      string `json:"path"`
 	Reason    string `json:"reason"`
 	Duplicate bool   `json:"duplicate"`
+}
+
+// Playlist is an ordered run of clips the operator plays back to back. Items
+// are library ids in play order; only video and audio belong here, because a
+// run advances when a clip ends and an image never ends.
+type Playlist struct {
+	ID        string
+	Name      string
+	Items     []string
+	CreatedAt time.Time
 }

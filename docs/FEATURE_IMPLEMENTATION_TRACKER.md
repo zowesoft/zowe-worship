@@ -736,7 +736,15 @@ Different files from detection, so these run alongside it:
 - [ ] Licensed translation content (L): NIV/ESV/NLT/NASB stay gated on
       written permission (import tracked with the package work above).
 - [ ] Speech-assisted scripture search (S–M), cheap once slices 2–3 exist.
-- [ ] Media playlists (M).
+- [x] Media playlists (M): a playlist is a named, ordered run of video and
+      audio clips (`media_playlists`, migration 018); playing one runs the
+      clips back to back - each clip's end cues the next through
+      `MediaEnded`, the run ends at the last clip, at transport stop, or the
+      moment anything else goes live, and a clip whose file is gone is
+      refused before the run starts. The media workspace creates, renames,
+      reorders and refills playlists and shows the live run (position and
+      stop) from the `playlist-run` event. Images are refused by
+      construction: a still never ends, so nothing would advance past it.
 - [ ] Additional audience outputs (M–L).
 
 ### Phase 4 — P1 discovery and migration

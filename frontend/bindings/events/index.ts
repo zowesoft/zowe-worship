@@ -29,6 +29,11 @@ export const MediaEnded = "media-ended";
 export const MediaProgress = "media-progress";
 
 /**
+ * Name of the custom event "playlist-run".
+ */
+export const PlaylistRun = "playlist-run";
+
+/**
  * Name of the custom event "presentation".
  */
 export const Presentation = "presentation";

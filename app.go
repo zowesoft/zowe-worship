@@ -47,6 +47,9 @@ type App struct {
 	display        application.Window
 	target         displayTarget
 	wanted         bool
+	// run is the playlist playing right now, nil when none is: it is a
+	// snapshot, so editing a playlist mid-run never moves the room.
+	run *playlistRun
 }
 
 type AppInfo struct {
@@ -655,9 +658,12 @@ func (a *App) UpdateServiceItemMeta(itemID, notes string, duration int) (Service
 
 // applied hands a controller result to the frontend and, when it succeeded,
 // pushes the same slide to the audience display. Reading state never republish,
-// so a reopening display catches up on its own.
+// so a reopening display catches up on its own. A successful command is also
+// where a playlist run checks the wall still shows its clip, so projecting
+// anything else ends the run at once.
 func (a *App) applied(state presentation.State, err error) (PresentationView, error) {
 	if err == nil {
+		a.syncRunToLive(state)
 		a.publishToDisplay(state)
 	}
 	return presentationView(state), err

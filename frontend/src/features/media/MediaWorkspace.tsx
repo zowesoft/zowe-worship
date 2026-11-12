@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
+import { Events } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
-import type { MediaImportResult, MediaView } from '../../../bindings/zowe-worship/models';
+import type { MediaImportResult, MediaPlaylistInput, MediaPlaylistView, MediaView, PlaylistRunView } from '../../../bindings/zowe-worship/models';
 import type { Aspect } from '../../../bindings/zowe-worship/internal/media/models';
 import { FittedImage } from '../../components/FittedImage';
 import { Icon } from '../../components/Icon';
@@ -51,6 +52,12 @@ export function MediaWorkspace() {
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ kind: 'message' | 'error'; text: string } | null>(null);
+  const [playlists, setPlaylists] = useState<MediaPlaylistView[]>([]);
+  const [run, setRun] = useState<PlaylistRunView | null>(null);
+  // The playlist being edited, and the name in its box until blur saves it.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const [addChoice, setAddChoice] = useState('');
 
   const shown = useMemo(() => studio.media.filter((item) => {
     if (filter !== 'all' && item.kind !== filter) return false;
@@ -108,6 +115,23 @@ export function MediaWorkspace() {
     if (studio.bridgeAvailable) void studio.refreshMedia();
   }, []);
 
+  // Playlists load with the tab, and the run badge follows the backend's
+  // event - which clip is on the wall moves on its own while a playlist
+  // plays, so the row must not depend on the operator clicking here.
+  useEffect(() => {
+    if (!studio.bridgeAvailable) return;
+    void refreshPlaylists();
+    return Events.On('playlist-run', (event) => setRun(event.data as PlaylistRunView));
+  }, [studio.bridgeAvailable]);
+
+  async function refreshPlaylists() {
+    try {
+      setPlaylists((await App.ListMediaPlaylists()) ?? []);
+    } catch {
+      // The bridge being gone is already reported by the provider.
+    }
+  }
+
   async function openEditor(item: MediaView) {
     setBusy(true);
     setStatus(null);
@@ -149,6 +173,65 @@ export function MediaWorkspace() {
   }
 
   const smallButton = 'min-h-7 inline-flex items-center justify-center gap-1.5 px-[9px] py-1 border border-[#35445C] rounded-md bg-elevated text-[10.5px] font-medium whitespace-nowrap disabled:text-secondary disabled:bg-[#142033] disabled:border-[#2A3950]';
+
+  async function createPlaylist() {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const created = await App.SaveMediaPlaylist({
+        id: '', name: `Playlist ${playlists.length + 1}`, mediaIds: [],
+      });
+      await refreshPlaylists();
+      setEditing(created.id);
+      setDraftName(created.name);
+      setAddChoice('');
+      setStatus({ kind: 'message', text: 'Playlist created - add clips below.' });
+    } catch (error: unknown) {
+      setStatus({ kind: 'error', text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updatePlaylist(playlist: MediaPlaylistInput, message: string) {
+    await act(async () => {
+      await App.SaveMediaPlaylist(playlist);
+      await refreshPlaylists();
+    }, message);
+  }
+
+  function playPlaylist(playlist: MediaPlaylistView) {
+    void act(() => App.PlayMediaPlaylist(playlist.id), `${playlist.name} is playing - clips run back to back.`);
+  }
+
+  function stopPlaylist(playlist: MediaPlaylistView) {
+    void act(() => studio.mediaControl('stop'), `Stopped ${playlist.name}.`);
+  }
+
+  async function removePlaylist(playlist: MediaPlaylistView) {
+    await act(async () => {
+      if (editing === playlist.id) setEditing(null);
+      await App.DeleteMediaPlaylist(playlist.id);
+      await refreshPlaylists();
+    }, `Deleted ${playlist.name}.`);
+  }
+
+  async function savePlaylistName(playlist: MediaPlaylistView) {
+    const name = draftName.trim();
+    if (name === '' || name === playlist.name) {
+      setDraftName(playlist.name);
+      return;
+    }
+    await updatePlaylist({ id: playlist.id, name, mediaIds: playlist.mediaIds ?? [] }, `Renamed to ${name}.`);
+  }
+
+  function moveClip(playlist: MediaPlaylistView, index: number, step: -1 | 1) {
+    const items = [...(playlist.mediaIds ?? [])];
+    const target = index + step;
+    if (target < 0 || target >= items.length) return;
+    [items[index], items[target]] = [items[target], items[index]];
+    void updatePlaylist({ id: playlist.id, name: playlist.name, mediaIds: items }, `Moved clip to position ${target + 1}.`);
+  }
 
   return (
     <section className="bg-panel border border-border rounded-[10px] overflow-hidden" aria-labelledby="media-title">
@@ -307,6 +390,198 @@ export function MediaWorkspace() {
             })}
           </ul>
         )}
+
+        <div className="grid gap-2 border-t border-border pt-3" aria-labelledby="playlists-title">
+          <div className="flex items-center justify-between gap-2">
+            <h3 id="playlists-title" className="text-[11px] m-0 flex items-center gap-[7px] uppercase tracking-[0.7px] text-secondary [&_svg]:text-secondary"><Icon name="layers" size={14} />Playlists</h3>
+            <button type="button" className={smallButton} disabled={!canAct} onClick={() => void createPlaylist()}>
+              <Icon name="plus" size={13} />New playlist
+            </button>
+          </div>
+
+          {playlists.length === 0 ? (
+            <p className="m-0 text-secondary text-[11px] leading-[1.7]">
+              A playlist runs clips back to back, one ending as the next begins. Clips only - video and audio, never stills.
+            </p>
+          ) : (
+            <ul className="list-none grid gap-1.5 m-0 p-0">
+              {playlists.map((playlist) => {
+                const items = playlist.mediaIds ?? [];
+                const playing = Boolean(run?.active && run.playlistId === playlist.id);
+                const editingThis = editing === playlist.id;
+                if (editingThis) {
+                  const available = studio.media.filter((clip) => (
+                    (clip.kind === 'video' || clip.kind === 'audio') && !clip.missing && !items.includes(clip.id)
+                  ));
+                  return (
+                    <li key={playlist.id} className="grid gap-2 px-2.5 py-2.5 border border-[#304C80]! rounded-md bg-app">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={draftName}
+                          aria-label="Playlist name"
+                          className="flex-1 min-w-0 h-7 px-2 border border-[#35445C] rounded-md bg-elevated text-text text-[11.5px] outline-none focus:border-blue"
+                          onChange={(event) => setDraftName(event.target.value)}
+                          onBlur={() => void savePlaylistName(playlist)}
+                        />
+                        <span className="text-secondary text-[10px] whitespace-nowrap">{items.length} {items.length === 1 ? 'clip' : 'clips'}</span>
+                        <button
+                          type="button"
+                          className={smallButton}
+                          onClick={() => {
+                            setEditing(null);
+                            setAddChoice('');
+                            setDraftName(playlist.name);
+                          }}
+                        >
+                          Done
+                        </button>
+                      </div>
+
+                      {items.length === 0 ? (
+                        <p className="m-0 text-secondary text-[11px]">No clips yet - add one below.</p>
+                      ) : (
+                        <ul className="list-none grid gap-1 m-0 p-0">
+                          {items.map((mediaID, index) => {
+                            const clip = studio.media.find((item) => item.id === mediaID);
+                            return (
+                              <li key={`${playlist.id}-${index}`} className="flex items-center gap-2 px-1.5 py-1 border border-border rounded-md bg-app min-w-0 text-[11px]">
+                                <span className="w-4 shrink-0 text-secondary tabular-nums text-[10px]">{index + 1}</span>
+                                <span className="shrink-0 text-[#4B5F7C]">
+                                  <Icon name={clip?.kind === 'audio' ? 'music' : 'media'} size={13} />
+                                </span>
+                                <span className={`flex-1 min-w-0 truncate ${clip ? '' : 'text-secondary'}`} title={clip?.title}>
+                                  {clip?.title ?? 'Unknown clip'}
+                                  {clip?.missing && <span className="text-amber"> · missing</span>}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="inline-grid place-items-center w-6 h-6 border-0 rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-40"
+                                  disabled={!canAct || index === 0}
+                                  aria-label={`Move ${clip?.title ?? 'clip'} up`}
+                                  onClick={() => moveClip(playlist, index, -1)}
+                                >
+                                  <Icon name="chevron" size={12} className="rotate-180" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-grid place-items-center w-6 h-6 border-0 rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-40"
+                                  disabled={!canAct || index === items.length - 1}
+                                  aria-label={`Move ${clip?.title ?? 'clip'} down`}
+                                  onClick={() => moveClip(playlist, index, 1)}
+                                >
+                                  <Icon name="chevron" size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-grid place-items-center w-6 h-6 border-0 rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-error disabled:opacity-40"
+                                  disabled={!canAct}
+                                  aria-label={`Remove ${clip?.title ?? 'clip'} from ${playlist.name}`}
+                                  onClick={() => void updatePlaylist(
+                                    { id: playlist.id, name: playlist.name, mediaIds: items.filter((_, i) => i !== index) },
+                                    `Removed ${clip?.title ?? 'clip'} from ${playlist.name}.`,
+                                  )}
+                                >
+                                  <Icon name="close" size={12} />
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+
+                      {available.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="flex-1 min-w-0 min-h-7 px-2 border border-[#35445C] rounded-md bg-elevated text-text text-[11px]"
+                            aria-label="Clip to add to the playlist"
+                            value={addChoice}
+                            onChange={(event) => setAddChoice(event.target.value)}
+                          >
+                            <option value="">Add a clip…</option>
+                            {available.map((clip) => (
+                              <option key={clip.id} value={clip.id}>{clip.title}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className={smallButton}
+                            disabled={!canAct || addChoice === ''}
+                            onClick={() => {
+                              const chosen = studio.media.find((item) => item.id === addChoice);
+                              setAddChoice('');
+                              void updatePlaylist(
+                                { id: playlist.id, name: playlist.name, mediaIds: [...items, addChoice] },
+                                `Added ${chosen?.title ?? 'clip'} to ${playlist.name}.`,
+                              );
+                            }}
+                          >
+                            <Icon name="plus" size={13} />Add
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                }
+                return (
+                  <li key={playlist.id} className="flex items-center gap-2 px-2 py-1.5 border border-border rounded-md bg-app min-w-0">
+                    {playing ? (
+                      <button
+                        type="button"
+                        className="inline-grid place-items-center w-7 h-7 border border-[#3A222A] rounded-md bg-[#221019] text-error shrink-0"
+                        aria-label={`Stop ${playlist.name}`}
+                        title="Stop the run"
+                        disabled={!canAct}
+                        onClick={() => stopPlaylist(playlist)}
+                      >
+                        <Icon name="square" size={12} />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-40 shrink-0"
+                        aria-label={`Play ${playlist.name}`}
+                        title={items.length === 0 ? 'Add clips first' : `Play ${playlist.name} from the top`}
+                        disabled={!canAct || items.length === 0}
+                        onClick={() => playPlaylist(playlist)}
+                      >
+                        <Icon name="play" size={12} />
+                      </button>
+                    )}
+                    <strong className="min-w-0 truncate text-[11.5px] font-medium" title={playlist.name}>{playlist.name}</strong>
+                    <span className="text-secondary text-[10px] whitespace-nowrap">
+                      {items.length} {items.length === 1 ? 'clip' : 'clips'}
+                      {playing && run ? ` · playing ${run.index + 1}/${run.length}` : ''}
+                    </span>
+                    <span className="flex-1" />
+                    <button
+                      type="button"
+                      className={smallButton}
+                      disabled={!canAct}
+                      onClick={() => {
+                        setEditing(playlist.id);
+                        setDraftName(playlist.name);
+                        setAddChoice('');
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-grid place-items-center w-7 h-7 border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-error disabled:opacity-40 shrink-0"
+                      aria-label={`Delete playlist ${playlist.name}`}
+                      title="Delete playlist"
+                      disabled={!canAct}
+                      onClick={() => void removePlaylist(playlist)}
+                    >
+                      <Icon name="close" size={13} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
         {status && (
           <p className={`text-[11.5px] ${status.kind === 'error' ? 'text-error' : 'text-teal'}`} aria-live="polite">

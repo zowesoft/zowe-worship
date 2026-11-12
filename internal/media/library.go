@@ -306,6 +306,41 @@ func (l *Library) writeThumbnail(asset Asset) (int, int, error) {
 	return bounds.Dx(), bounds.Dy(), nil
 }
 
+func (l *Library) ListPlaylists(ctx context.Context) ([]Playlist, error) {
+	return l.repo.ListPlaylists(ctx)
+}
+
+func (l *Library) PlaylistByID(ctx context.Context, id string) (Playlist, error) {
+	return l.repo.PlaylistByID(ctx, id)
+}
+
+// SavePlaylist stores a run only if it could actually play: it needs a name,
+// and every item has to be a clip. Images are refused because the run
+// advances when a clip ends - an image never ends, so the room would sit on
+// it forever. A file that is merely missing is allowed through so a playlist
+// can still be reordered while its clip is away being relinked; playing
+// refuses it at the point it matters.
+func (l *Library) SavePlaylist(ctx context.Context, playlist Playlist) error {
+	playlist.Name = strings.TrimSpace(playlist.Name)
+	if playlist.Name == "" {
+		return ErrPlaylistName
+	}
+	for _, id := range playlist.Items {
+		asset, err := l.repo.ByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if asset.Kind == KindImage {
+			return fmt.Errorf("%w: %s", ErrPlaylistImage, asset.Title)
+		}
+	}
+	return l.repo.SavePlaylist(ctx, playlist)
+}
+
+func (l *Library) DeletePlaylist(ctx context.Context, id string) error {
+	return l.repo.DeletePlaylist(ctx, id)
+}
+
 func decodeImage(path string) (image.Image, error) {
 	file, err := os.Open(path)
 	if err != nil {

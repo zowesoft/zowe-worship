@@ -87,6 +87,10 @@ export function DeleteMedia(id: string): $CancellablePromise<$models.MediaView[]
     return $Call.ByID(3365336450, id);
 }
 
+export function DeleteMediaPlaylist(id: string): $CancellablePromise<$models.MediaPlaylistView[] | null> {
+    return $Call.ByID(1315471732, id);
+}
+
 export function DeleteSong(songID: string): $CancellablePromise<$models.SongsView> {
     return $Call.ByID(348664795, songID);
 }
@@ -224,6 +228,10 @@ export function ListMedia(): $CancellablePromise<$models.MediaView[] | null> {
     return $Call.ByID(1688718951);
 }
 
+export function ListMediaPlaylists(): $CancellablePromise<$models.MediaPlaylistView[] | null> {
+    return $Call.ByID(605898214);
+}
+
 /**
  * ListScreens leaves the studio's own screen out rather than assuming "the
  * primary", because which monitor is primary depends on how the room is wired.
@@ -275,7 +283,9 @@ export function MediaControl(command: $models.MediaCommand): $CancellablePromise
 
 /**
  * MediaEnded is the display's own report that a clip reached its end. The
- * studio is told because it is the window showing the transport button.
+ * studio is told because it is the window showing the transport button - but
+ * only when the clip's end is the end of something: a playlist clip's end is
+ * the cue for the next one, which starts before the transport would hear it.
  */
 export function MediaEnded(): $CancellablePromise<void> {
     return $Call.ByID(2523104073);
@@ -355,6 +365,16 @@ export function PickMediaFile(): $CancellablePromise<string> {
  */
 export function PickMediaFiles(): $CancellablePromise<string[] | null> {
     return $Call.ByID(4150223347);
+}
+
+/**
+ * PlayMediaPlaylist starts the run at the first clip. Every file is checked
+ * up front: refusing at the start is a message the operator can act on,
+ * where stopping halfway through a run because clip three walked off the
+ * disk is a service disruption.
+ */
+export function PlayMediaPlaylist(id: string): $CancellablePromise<$models.PresentationView> {
+    return $Call.ByID(1010994675, id);
 }
 
 export function PreviewMedia(mediaID: string): $CancellablePromise<$models.PresentationView> {
@@ -466,6 +486,14 @@ export function RestoreBackup(name: string): $CancellablePromise<$models.Storage
  */
 export function RestoreProjection(historyID: string): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(3520303596, historyID);
+}
+
+/**
+ * SaveMediaPlaylist creates or rewrites a playlist and reports the stored
+ * result, so a create knows the id it got without a second read.
+ */
+export function SaveMediaPlaylist(input: $models.MediaPlaylistInput): $CancellablePromise<$models.MediaPlaylistView> {
+    return $Call.ByID(3776944586, input);
 }
 
 export function SaveMediaPresentation(mediaID: string, presentation: media$0.Presentation): $CancellablePromise<media$0.Slide> {
