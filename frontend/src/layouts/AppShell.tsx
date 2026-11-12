@@ -346,7 +346,7 @@ function DisplaySelector() {
   );
 }
 
-function AppHeader() {
+function AppHeader({ isolated = false }: { isolated?: boolean }) {
   const studio = useStudio();
   const connected = studio.bridgeAvailable;
   const now = useClock();
@@ -354,7 +354,7 @@ function AppHeader() {
   const timeLabel = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
   return (
-    <header className="col-start-2 row-start-1 flex items-center justify-between gap-[18px] px-5 border-b border-border bg-panel min-w-0 max-[959px]:px-3.5 max-[959px]:gap-2.5">
+    <header className={`${isolated ? 'col-start-1' : 'col-start-2'} row-start-1 flex items-center justify-between gap-[18px] px-5 border-b border-border bg-panel min-w-0 max-[959px]:px-3.5 max-[959px]:gap-2.5`}>
       <div className="flex items-center gap-[18px] min-w-0">
         <ServiceSwitcher />
         <div className="flex items-center gap-3.5 pl-[18px] border-l border-border text-secondary text-[10.5px] whitespace-nowrap max-[1000px]:hidden">
@@ -1463,16 +1463,21 @@ export function AppShell({ activePage, onNavigate, onOpenBible, children }: {
   }, [activePage]);
 
   const showDock = activePage !== 'home';
+  // The home page is a landing page: the schedule rail, the live and preview
+  // panes and the detection, history and production panels are the working
+  // surfaces of a service, and they are not offered until one is chosen. What
+  // is left is the list of services and the way to start one.
+  const isolated = activePage === 'home';
   // Bible pins its search header and scrolls only the reading pane, so that pane
   // needs a real height to overflow; other pages grow with their content.
   const selfScrolls = activePage === 'bible';
 
   return (
-    <div className="min-w-[768px] grid grid-cols-[var(--sidebar-width)_minmax(0,1fr)] grid-rows-[var(--header-height)_minmax(0,1fr)] h-dvh overflow-hidden max-[1300px]:[--sidebar-width:212px] max-[959px]:[--sidebar-width:184px]">
+    <div className={`min-w-[768px] grid ${isolated ? 'grid-cols-1' : 'grid-cols-[var(--sidebar-width)_minmax(0,1fr)]'} grid-rows-[var(--header-height)_minmax(0,1fr)] h-dvh overflow-hidden max-[1300px]:[--sidebar-width:212px] max-[959px]:[--sidebar-width:184px]`}>
       <a className="fixed z-10 top-3 left-3 px-4 py-2.5 bg-text text-app rounded-md -translate-y-[160%] focus:translate-y-0" href="#workspace">Skip to workspace</a>
-      <ScheduleSidebar onNavigate={onNavigate} />
-      <AppHeader />
-      <main id="workspace" className="col-start-2 row-start-2 grid grid-cols-[minmax(0,1fr)_320px] grid-rows-[minmax(0,1fr)] items-stretch gap-[18px] p-[18px] overflow-hidden min-h-0 focus:outline-none focus:[outline-offset:-3px] min-[1600px]:grid-cols-[minmax(0,1fr)_352px] max-[1300px]:grid-cols-[minmax(0,1fr)_292px] max-[1300px]:gap-3.5 max-[1300px]:p-3.5 max-[1150px]:grid-cols-[minmax(0,1fr)_264px] max-[1150px]:gap-3 max-[1150px]:p-3 max-[959px]:grid-cols-[minmax(0,1fr)] max-[959px]:grid-rows-[auto] max-[959px]:p-3 max-[959px]:gap-3 max-[959px]:overflow-y-auto" tabIndex={-1} aria-label={`${activeLabel} workspace`}>
+      {!isolated && <ScheduleSidebar onNavigate={onNavigate} />}
+      <AppHeader isolated={isolated} />
+      <main id="workspace" className={`${isolated ? 'col-start-1' : 'col-start-2'} row-start-2 grid ${isolated ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_320px]'} grid-rows-[minmax(0,1fr)] items-stretch gap-[18px] p-[18px] overflow-hidden min-h-0 focus:outline-none focus:[outline-offset:-3px] min-[1600px]:grid-cols-[minmax(0,1fr)_352px] max-[1300px]:grid-cols-[minmax(0,1fr)_292px] max-[1300px]:gap-3.5 max-[1300px]:p-3.5 max-[1150px]:grid-cols-[minmax(0,1fr)_264px] max-[1150px]:gap-3 max-[1150px]:p-3 max-[959px]:grid-cols-[minmax(0,1fr)] max-[959px]:grid-rows-[auto] max-[959px]:p-3 max-[959px]:gap-3 max-[959px]:overflow-y-auto`} tabIndex={-1} aria-label={`${activeLabel} workspace`}>
         <div className={`min-h-0 min-w-0 overflow-x-hidden max-[959px]:overflow-visible ${selfScrolls ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'} `} ref={workspaceRef}>
           {showDock && (
             <div className="sticky top-0 z-4 grid gap-3.5 pb-3.5 bg-app after:absolute after:inset-x-0 after:bottom-[-8px] after:h-2 after:bg-linear-to-b after:from-app after:to-[rgba(8,15,28,0)] after:pointer-events-none max-[1300px]:gap-3 max-[1300px]:pb-3 max-[959px]:static max-[959px]:pb-0 max-[959px]:after:hidden">
@@ -1489,11 +1494,13 @@ export function AppShell({ activePage, onNavigate, onOpenBible, children }: {
             {children}
           </section>
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
-          <DetectionPanel onOpenBible={onOpenBible} />
-          <HistoryPanel />
-          <ProductionCard />
-        </div>
+        {!isolated && (
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5 content-start min-h-0 min-w-0 overflow-y-auto max-[959px]:overflow-visible">
+            <DetectionPanel onOpenBible={onOpenBible} />
+            <HistoryPanel />
+            <ProductionCard />
+          </div>
+        )}
       </main>
       {shortcutNotice && (
         <div className="fixed bottom-6 right-6 z-[1000] flex items-center gap-2.5 px-4 py-2.5 bg-elevated border border-border shadow-[0_10px_30px_rgba(0,0,0,0.45)] rounded-lg text-text text-[12px] font-medium animate-toast-in pointer-events-none" role="status">

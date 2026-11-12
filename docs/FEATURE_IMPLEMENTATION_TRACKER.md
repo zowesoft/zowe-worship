@@ -79,6 +79,12 @@ Done:
       this build does not know (`SchemaAheadError`), and the reason shows in
       Settings rather than storage failing silently (`app.go`
       `storageProblem`, `StorageView.Problem`).
+- [x] The home page is isolated from the working surfaces of a service: the
+      schedule rail and the live/preview, detection, history and production
+      panels are the surfaces of a service being run, and the home page - the
+      landing page that lists the services and starts one - does not show them
+      (`AppShell.tsx`). Choosing a service brings the studio back, so a service
+      cannot be worked on from a page that has none.
 - [x] Cross-platform packaging wired: per-platform Taskfiles for macOS
       (`build/darwin` — .app bundle, universal binary, DMG task) and Linux
       (`build/linux` — deb/rpm/AppImage via nfpm, .desktop entry), with the
