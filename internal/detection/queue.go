@@ -61,19 +61,24 @@ type Candidate struct {
 // while still letting a genuine return to the passage be its own card.
 const RepeatWindow = 2 * time.Minute
 
-// The detector produces two kinds of match. An explicit reference is scored from
-// its phrasing by internal/confidence; a spoken quotation carries the overlap
-// score its full-text match already earned.
+// The detector produces three kinds of match. An explicit reference is scored
+// from its phrasing by internal/confidence; a spoken quotation carries the
+// overlap score its full-text match already earned; a contextual mention of a
+// verse in the passage established on the wall is the weakest evidence of the
+// three and is always queued for the operator, never auto-projected.
 const (
-	MethodExplicitReference      = "explicit-reference"
-	ExplanationExplicitReference = "Explicit reference detected"
-	MethodSpokenQuote            = "spoken-quote"
-	ExplanationSpokenQuote       = "Spoken quote matched in the selected translation"
+	MethodExplicitReference        = "explicit-reference"
+	ExplanationExplicitReference   = "Explicit reference detected"
+	MethodSpokenQuote              = "spoken-quote"
+	ExplanationSpokenQuote         = "Spoken quote matched in the selected translation"
+	MethodContextualReference      = "contextual-reference"
+	ExplanationContextualReference = "Contextual reference: the verse called for by the passage on the wall"
 )
 
 // scoreDetection resolves the method, explanation and confidence for one
-// hearing. A quotation keeps the score its match earned; anything else is an
-// explicit reference, scored from the phrasing behind it. Sharing this keeps Add,
+// hearing. A quotation keeps the score its match earned, and a contextual
+// mention keeps its deliberately low one; anything else is an explicit
+// reference, scored from the phrasing behind it. Sharing this keeps Add,
 // MergeLive, Finalize and foldRepeat from drifting apart, and lets an explicit
 // re-hearing of a quote card upgrade it rather than leave the weaker label.
 func scoreDetection(transcript string, detection asr.Detection) (method, explanation string, score float64) {

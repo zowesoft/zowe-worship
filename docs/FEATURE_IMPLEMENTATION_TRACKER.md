@@ -428,6 +428,40 @@ fills from the start of the recording rather than restarting at each chunk.
 `app_detection_chunk_test.go` drives a stub engine across three chunks and
 asserts all three references finalize.
 
+Cards now appear while a recording is still analyzing, not only when the whole
+request resolves. Offline engines such as the bundled Moonshine print nothing
+until a chunk finishes, so the streaming partials that used to be the panel's
+only live feed never fired for them and the queue sat silent until the end.
+`DetectScripture` therefore publishes the queue after every settled chunk
+(`publishDetectionProgress`, shared with the partial path), carrying the
+cumulative transcript and the current candidate list, so each verse lands on
+screen the moment its chunk closes regardless of engine kind.
+
+The detector also hears the way preachers actually phrase a reference instead
+of only the clean written form. `parseVerseTail` steps over the hedging that
+sits between a chapter and its verse ("from verse 25", "around verses 35",
+"especially the first verse", "probably verse 28") and closes a range on the
+spoken joiners "to", "through" and "until" as well as the dash and "and", so
+"Matthew 6 from verse 25 to verse 34" resolves to the passage rather than the
+bare chapter. The backward book scan steps over doubt inserted between a book
+and its chapter ("Isaiah, I think it's chapter 41"), recovering references the
+contiguous window used to drop; the hedge vocabulary deliberately excludes any
+word that appears in a canonical book name so a real multi-word book like "song
+of solomon" is never trimmed. `detect_spoken_test.go` covers the hedged and
+ranged forms and asserts the whole sermon sample queues all seven references
+in order.
+
+The reason a whole recording used to collapse to a single card was the repeat
+fold, not the parser: `overlaps` compared verse numbers alone, so a new hearing
+whose verses intersected an earlier card's — "1 Peter 5:7" against "Philippians
+4:6-7", or "Romans 8:28" inside "Matthew 6:25-34" — overwrote that card instead
+of queuing beside it, and a bare chapter hearing (an open-ended verse range)
+swallowed every reference that followed. `overlaps` now requires the same book
+and chapter before it compares verses, so distinct passages keep their own
+cards while a genuine re-hearing of the same passage still folds.
+`segment_test.go` finalizes the seven sermon references a segment apart and
+asserts all seven survive with no false repeats.
+
 The panel's current transcript is collapsible so a long sermon does not push
 the queue off screen: collapsed it shows a one-line tail of what was heard,
 and expanding reveals a height-capped, scrollable box that follows the live
@@ -522,6 +556,33 @@ whose level barely moves is discarded as sustained music when it closes, which
 keeps a worship band from producing candidates. These are heuristics tuned
 offline, not a trained speech/music classifier: they need a listen on real
 sanctuary audio before the thresholds are trusted.
+
+Every pending card carries the passage itself, not just its address: `App.toDetectionViews`
+reads the reference from the operator's selected translation (`App.selectedTranslation`)
+and fills `DetectionView.VerseText` plus the translation's abbreviation, so the
+panel shows the exact stored words that will go on the wall beside the
+reference and what was heard. A passage the selected translation does not hold
+leaves the text empty rather than substituting another translation's wording
+(`app_detection_verse_text_test.go` switches NIV to KJV under one pending card
+and asserts both the text and the abbreviation follow the selection).
+
+The detector now hears the preacher's own words as evidence too: a spoken
+quotation ("the Lord is my shepherd") finds the verses it matches without any
+reference being spoken. `MatchQuote` in `internal/bible` ranks the
+translation's verses against the distinctive words of the transcript (content
+words only; bm25 rarity weighting), and `DetectQuotes` in `internal/detection`
+keeps only verses whose words the transcript reproduces closely enough (word
+overlap scoring from `internal/confidence`, minimum word count, coverage and
+a verbatim run), merges neighbouring verses into the quoted range, caps the
+result per chunk, and drops anything an explicit reference or a pending card
+already covers, so a spelled-out reference is never matched a second time as
+a quotation. A quote is capped under the high band on purpose: it is a strong
+suggestion for the operator to confirm, never something sent to the room
+unasked. Quote cards wear a cooler tone on the panel than explicit references
+(`AppShell.tsx`), and a missing translation or index simply yields no quote
+cards rather than stopping the explicit path (`internal/detection/quote.go`,
+`internal/bible/quote.go`, `internal/confidence/quote.go`,
+`app_detection_quote_test.go`).
 
 Still open (later slices): moving the confidence edges onto real recorded
 services (the sweep is in `cmd/asr-bench`, which needs those recordings). The

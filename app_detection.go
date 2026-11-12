@@ -43,15 +43,22 @@ type DetectionView struct {
 	Confidence     float64 `json:"confidence"`
 	ConfidenceBand string  `json:"confidenceBand"`
 	Explanation    string  `json:"explanation"`
-	Segment        int     `json:"segment"`
-	Version        int     `json:"version"`
-	Finalized      bool    `json:"finalized"`
-	Repeats        int     `json:"repeats"`
-	BookID         int     `json:"bookId"`
-	Chapter        int     `json:"chapter"`
-	VerseStart     int     `json:"verseStart"`
-	VerseEnd       int     `json:"verseEnd"`
-	CreatedAt      string  `json:"createdAt"`
+	// VerseText is the exact text the selected translation holds for this
+	// reference, and Translation is that translation's abbreviation. The PRD
+	// requires the operator to read what will go on the wall before deciding;
+	// the text comes from the canonical verse table, never from the transcript
+	// or the recogniser. Both are empty when the passage cannot be read.
+	VerseText   string `json:"verseText"`
+	Translation string `json:"translation"`
+	Segment     int    `json:"segment"`
+	Version     int    `json:"version"`
+	Finalized   bool   `json:"finalized"`
+	Repeats     int    `json:"repeats"`
+	BookID      int    `json:"bookId"`
+	Chapter     int    `json:"chapter"`
+	VerseStart  int    `json:"verseStart"`
+	VerseEnd    int    `json:"verseEnd"`
+	CreatedAt   string `json:"createdAt"`
 	// AutoProjection explains a card the gates held back; nil when the switch is
 	// off, the card would have gone out, or it is not settled yet.
 	AutoProjection *AutoProjectionChecklist `json:"autoProjection,omitempty"`
@@ -168,6 +175,10 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 		if transcript != "" {
 			heard = append(heard, transcript)
 		}
+		// Offline engines emit no partials, so a settled chunk is the first
+		// moment its cards exist: publish them now instead of letting the
+		// queue sit silent until the whole recording finishes.
+		a.publishDetectionProgress(strings.Join(heard, " "))
 		result.Candidates = chunk.Candidates
 		result.Segment = chunk.Segment
 		result.Repeats += chunk.Repeats
@@ -187,6 +198,7 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	}
 	explicit := asr.DetectReferences(transcript)
 	detections := append(explicit, a.detectContextual(transcript, explicit)...)
+	detections = append(detections, a.detectQuotes(transcript, explicit)...)
 	settled, err := a.detection.Finalize(transcript, detections, a.currentServiceID(a.context()))
 	if err != nil {
 		return DetectionResult{}, err
@@ -198,6 +210,30 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 		Repeats:       settled.Repeats,
 		AutoProjected: a.autoProject(settled.Settled),
 	}, nil
+}
+
+// quoteMatchLimit is how many ranked verses the index returns per chunk: enough
+// to find the neighbours of a quoted passage so they can merge into one range,
+// without pulling half the translation into memory for a thirty-second hearing.
+const quoteMatchLimit = 32
+
+// detectQuotes runs the spoken-quote path best-effort. A missing translation or
+// an index that cannot be read must not stop explicit references from queuing, so
+// a failure here simply yields no quote cards. Quotes are filtered against the
+// explicit detections and the pending queue inside DetectQuotes, so a passage the
+// preacher named is never queued a second time as a quotation.
+func (a *App) detectQuotes(transcript string, explicit []asr.Detection) []asr.Detection {
+	if a.bible == nil || a.settings == nil || strings.TrimSpace(transcript) == "" {
+		return nil
+	}
+	ctx := a.context()
+	translation := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
+	matches, err := a.bible.MatchQuote(ctx, translation, transcript, quoteMatchLimit)
+	if err != nil {
+		log.Printf("zopresent: quote match: %v", err)
+		return nil
+	}
+	return detection.DetectQuotes(transcript, matches, explicit, a.detection.List(a.currentServiceID(ctx)))
 }
 
 // detectContextual turns a bare "verse N" mention into a card tied to the
@@ -244,12 +280,22 @@ func (a *App) streamDetectionProgress(base, partial string) {
 	if _, err := a.detection.MergeLive(partial, detections, a.currentServiceID(a.context())); err != nil {
 		return
 	}
+	a.publishDetectionProgress(strings.TrimSpace(base + " " + partial))
+}
+
+// publishDetectionProgress sends the queue as it stands to the studio. Both
+// streaming partials and settled chunks call it, so a card appears the moment
+// it exists no matter which kind of engine produced it.
+func (a *App) publishDetectionProgress(transcript string) {
+	if a.detection == nil {
+		return
+	}
 	if desktop := application.Get(); desktop != nil {
 		if studio, ok := desktop.Window.GetByName(studioWindow); ok {
 			studio.DispatchWailsEvent(&application.CustomEvent{
 				Name: detectionProgressEvent,
 				Data: DetectionProgressView{
-					Transcript: strings.TrimSpace(base + " " + partial),
+					Transcript: transcript,
 					Candidates: a.toDetectionViews(a.detection.List(a.currentServiceID(a.context()))),
 					Segment:    a.detection.CurrentSegment(),
 				},
@@ -282,10 +328,10 @@ type DetectionHistoryView struct {
 // large limit from scanning the whole table.
 const maxDetectionHistoryRows = 50
 
-// ListDetectionHistory returns past decisions newest first. A limit of zero
-// means the panel default.
+// ListDetectionHistory returns the decisions of the current service, newest
+// first. A limit of zero means the panel default.
 func (a *App) ListDetectionHistory(limit int) ([]DetectionHistoryView, error) {
-	if a.core == nil {
+	if a.core == nil || a.detection == nil {
 		return nil, errStorageUnavailable
 	}
 	if limit <= 0 {
@@ -630,6 +676,26 @@ func (a *App) autoProjectionChecklist(candidate detection.Candidate, settledInSe
 	return checklist
 }
 
+// selectedTranslation is the translation the panel reads verse text from: the
+// operator's choice, or the same "kjv" default the search and projection paths
+// fall back to. The abbreviation comes from the installed catalogue. A
+// translation that is missing or unreadable yields no text at all rather than
+// another translation's wording.
+func (a *App) selectedTranslation(ctx context.Context) (string, string) {
+	if a.settings == nil {
+		return "", ""
+	}
+	id := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
+	if a.bible == nil || id == "" {
+		return id, ""
+	}
+	translation, err := a.bible.Translation(ctx, id)
+	if err != nil {
+		return id, ""
+	}
+	return id, translation.Abbreviation
+}
+
 func (a *App) detectionDisabled() bool {
 	if a.settings == nil {
 		return false
@@ -649,6 +715,32 @@ func (a *App) toDetectionViews(candidates []detection.Candidate) []DetectionView
 	// One card per settled passage is the norm; two from the same segment means
 	// the conflict gate refused both, and the checklist has to say so.
 	settledBySegment := make(map[int]int, len(candidates))
+
+	ctx := a.context()
+	translationID, translationName := a.selectedTranslation(ctx)
+	// The panel republishes the queue on every streaming partial, so the same
+	// passage is read repeatedly; one lookup per reference keeps that cheap.
+	passageCache := make(map[string]string, len(candidates))
+	verseText := func(reference scripture.Reference) string {
+		key := reference.String()
+		if text, ok := passageCache[key]; ok {
+			return text
+		}
+		text := ""
+		if a.bible != nil && translationID != "" {
+			verses, err := a.bible.Passage(ctx, translationID, reference.Book.ID,
+				reference.Chapter, reference.VerseStart, reference.VerseEnd)
+			if err == nil {
+				lines := make([]string, 0, len(verses))
+				for _, verse := range verses {
+					lines = append(lines, verse.Text)
+				}
+				text = strings.Join(lines, " ")
+			}
+		}
+		passageCache[key] = text
+		return text
+	}
 	for _, candidate := range candidates {
 		if candidate.Finalized {
 			settledBySegment[candidate.Segment]++
@@ -666,6 +758,8 @@ func (a *App) toDetectionViews(candidates []detection.Candidate) []DetectionView
 			Confidence:     candidate.Confidence,
 			ConfidenceBand: confidence.BandOf(candidate.Confidence),
 			Explanation:    candidate.Explanation,
+			VerseText:      verseText(reference),
+			Translation:    translationName,
 			Segment:        candidate.Segment,
 			Version:        candidate.Version,
 			Finalized:      candidate.Finalized,

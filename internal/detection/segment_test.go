@@ -195,6 +195,44 @@ func TestRepeatAfterWindowQueuesNewCard(t *testing.T) {
 	}
 }
 
+func TestSermonReferencesStayDistinctAcrossSegments(t *testing.T) {
+	queue, clock := newClockedQueue(t)
+
+	// The sample sermon names these in order, a chunk apart. Several share
+	// verse numbers across different books — Philippians 4:6-7 and 1 Peter 5:7
+	// both touch verse 7, and Matthew 6:25-34 contains Romans 8:28's verse 28 —
+	// which used to fold into a single card because overlap compared verses
+	// without the book and chapter.
+	refs := []string{
+		"Philippians 4:6-7", "Matthew 6:25-34", "Mark 4:35-41", "Isaiah 41:10",
+		"1 Peter 5:7", "Psalms 23:1", "Romans 8:28",
+	}
+	for _, ref := range refs {
+		queue.BeginSegment()
+		if _, err := queue.Finalize(ref, []asr.Detection{detectionOf(t, ref)}, "service-1"); err != nil {
+			t.Fatalf("finalize %q: %v", ref, err)
+		}
+		*clock = clock.Add(20 * time.Second)
+	}
+
+	pending := queue.List("service-1")
+	if len(pending) != len(refs) {
+		got := make([]string, 0, len(pending))
+		for _, c := range pending {
+			got = append(got, c.Reference.String())
+		}
+		t.Fatalf("queue holds %d candidates (%v), want all %d distinct references", len(pending), got, len(refs))
+	}
+	for i, ref := range refs {
+		if pending[i].Reference.String() != ref {
+			t.Errorf("card %d = %q, want %q", i, pending[i].Reference.String(), ref)
+		}
+		if pending[i].Repeats != 0 {
+			t.Errorf("card %d repeats = %d, want 0: a different book is not a repeat", i, pending[i].Repeats)
+		}
+	}
+}
+
 func TestRefinementInsideWindowDoesNotCountAsRepeat(t *testing.T) {
 	queue, clock := newClockedQueue(t)
 

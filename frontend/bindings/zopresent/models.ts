@@ -188,6 +188,16 @@ export interface DetectionView {
     "confidence": number;
     "confidenceBand": string;
     "explanation": string;
+
+    /**
+     * VerseText is the exact text the selected translation holds for this
+     * reference, and Translation is that translation's abbreviation. The PRD
+     * requires the operator to read what will go on the wall before deciding;
+     * the text comes from the canonical verse table, never from the transcript
+     * or the recogniser. Both are empty when the passage cannot be read.
+     */
+    "verseText": string;
+    "translation": string;
     "segment": number;
     "version": number;
     "finalized": boolean;

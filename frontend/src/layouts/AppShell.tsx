@@ -766,6 +766,23 @@ function confidenceTone(band: string): string {
   return 'border-[#2A3950]! bg-elevated! text-secondary!';
 }
 
+// methodLabel spells the detection method out; color alone must not carry it.
+function methodLabel(method: string): string {
+  if (method === 'explicit-reference') return 'Explicit reference';
+  if (method === 'spoken-quote') return 'Spoken quote';
+  if (method === 'contextual-reference') return 'Contextual reference';
+  return method;
+}
+
+// A quotation is matched by its words rather than named, so it wears a cooler
+// tone than the explicit reference's violet — the operator can tell at a glance
+// which cards the preacher actually addressed and which the index inferred.
+function methodTone(method: string): string {
+  if (method === 'spoken-quote') return 'border-[#1E3A5C]! bg-[#13243E]! text-[#7FB0FF]!';
+  if (method === 'contextual-reference') return 'border-[#3E3424]! bg-[#241F14]! text-[#F4BD4F]!';
+  return 'border-[#3B355C]! bg-[#24203E]! text-[#B3A4FF]!';
+}
+
 function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) => void }) {
   const detection = useDetection();
   const [problem, setProblem] = useState<string | null>(null);
@@ -1079,9 +1096,22 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
                     <span className="ml-auto text-secondary text-[9.5px] whitespace-nowrap">{candidate.createdAt}</span>
                   </div>
                   <p className="text-secondary text-[9.5px] leading-[1.5] line-clamp-2">“{candidate.transcript}”</p>
+                  {/* The exact stored text of the selected translation, so the
+                      operator reads what will go on the wall, not the
+                      recogniser's words. */}
+                  {candidate.verseText ? (
+                    <p className="text-text text-[10.5px] leading-[1.55] line-clamp-3">
+                      {candidate.verseText}
+                      {candidate.translation ? (
+                        <span className="ml-1.5 align-baseline text-secondary text-[9px] uppercase tracking-[0.6px]">
+                          {candidate.translation}
+                        </span>
+                      ) : null}
+                    </p>
+                  ) : null}
                   <p className="flex flex-wrap items-center gap-1.5 text-secondary text-[9px] leading-[1.4]">
-                    <span className="inline-flex items-center px-1.5 py-px border border-[#3B355C]! rounded-full bg-[#24203E]! text-[#B3A4FF]! whitespace-nowrap">
-                      {candidate.method === 'explicit-reference' ? 'Explicit reference' : candidate.method}
+                    <span className={`inline-flex items-center px-1.5 py-px border rounded-full whitespace-nowrap ${methodTone(candidate.method)}`}>
+                      {methodLabel(candidate.method)}
                     </span>
                     <span
                       className={`inline-flex items-center px-1.5 py-px border rounded-full whitespace-nowrap tabular-nums ${confidenceTone(candidate.confidenceBand)}`}

@@ -14,6 +14,14 @@ type Detection struct {
 	Reference scripture.Reference
 	// Raw is the normalized candidate string, useful for debugging ASR near misses.
 	Raw string
+	// Method names how the passage was found. Empty means an explicit spoken
+	// reference, the rule-based detector's only output; the quote path sets its
+	// own value so the queue can label and score it differently.
+	Method string
+	// Confidence carries a score the detector already computed. Zero means "score
+	// the phrasing", which is what an explicit reference needs; a quote match
+	// supplies its own overlap score here instead.
+	Confidence float64
 }
 
 // DetectReferences scans transcript text for spoken scripture references
@@ -78,6 +86,12 @@ func DetectReferences(text string) []Detection {
 		for bookEnd >= 0 && consumed[bookEnd] {
 			bookEnd--
 		}
+		// A speaker may hedge between the book and its chapter ("Isaiah, I
+		// think it's chapter 41"); step back over that doubt so the window
+		// still ends on the book name rather than on "its".
+		for bookEnd >= 0 && !consumed[bookEnd] && hedgeFiller[tokens[bookEnd]] {
+			bookEnd--
+		}
 		window := i
 		if window > 6 {
 			window = 6
@@ -116,8 +130,16 @@ func DetectReferences(text string) []Detection {
 }
 
 // parseVerseTail reads the verse numbers after a chapter token (": 28 - 30",
-// bare "28 30", or "28 and 30") and returns them with the last token consumed.
+// bare "28 30", "28 and 30", or a hedged "from 25 to 34") and returns them with
+// the last token consumed.
 func parseVerseTail(tokens []string, consumed []bool, index int) (verseStart, verseEnd, last int) {
+	// Speakers hedge the verse ("from verse 25", "around verses 35",
+	// "especially the first verse", "probably verse 28"); once the connector
+	// words drop, that filler carries no number, so step over it to reach the
+	// verse itself.
+	for index < len(tokens) && !consumed[index] && (verseFiller[tokens[index]] || hedgeFiller[tokens[index]]) {
+		index++
+	}
 	last = index - 1
 	if index >= len(tokens) || consumed[index] {
 		return
@@ -149,18 +171,9 @@ func parseVerseTail(tokens []string, consumed []bool, index int) (verseStart, ve
 		}
 	}
 
-	if verseStart > 0 && index < len(tokens) && tokens[index] == "-" &&
-		index+1 < len(tokens) && !consumed[index+1] {
-		if v, ok := tokenNumber(tokens[index+1]); ok {
-			verseEnd = v
-			last = index + 1
-		}
-	}
-
-	// Spoken ranges join with "and": "verses 6 and 7" leaves the tokens
-	// "6 and 7" once the connector words are dropped, so the conjunction
-	// closes the range exactly like a dash would.
-	if verseEnd == 0 && verseStart > 0 && index < len(tokens) && tokens[index] == "and" &&
+	// A range closes with a dash or a spoken joiner: "28 - 30", "6 and 7",
+	// "25 to 34", "35 through 41" all mean the same span.
+	if verseStart > 0 && index < len(tokens) && !consumed[index] && rangeJoiner[tokens[index]] &&
 		index+1 < len(tokens) && !consumed[index+1] {
 		if v, ok := tokenNumber(tokens[index+1]); ok {
 			verseEnd = v
@@ -168,6 +181,29 @@ func parseVerseTail(tokens []string, consumed []bool, index int) (verseStart, ve
 		}
 	}
 	return verseStart, verseEnd, last
+}
+
+// verseFiller is the hedging a speaker puts between a chapter and its verse
+// once the connector words ("verse", "verses") are already dropped.
+var verseFiller = map[string]bool{
+	"from": true, "around": true, "about": true, "especially": true,
+	"the": true, "approximately": true, "roughly": true,
+}
+
+// rangeJoiner closes a verse range: the written dash and the spoken words that
+// carry the same meaning.
+var rangeJoiner = map[string]bool{
+	"-": true, "and": true, "to": true, "through": true, "until": true,
+}
+
+// hedgeFiller is the doubt a speaker inserts between a book name and its
+// chapter ("Isaiah, I think it's chapter 41"). None of these words appear in a
+// canonical book name, so trimming them from the book window's edge cannot eat
+// into a real multi-word book like "song of solomon".
+var hedgeFiller = map[string]bool{
+	"i": true, "im": true, "think": true, "its": true, "it": true,
+	"believe": true, "maybe": true, "probably": true, "is": true,
+	"was": true, "that": true, "this": true, "there": true,
 }
 
 func buildReference(book bible.Book, chapter, verseStart, verseEnd int) (scripture.Reference, bool) {
