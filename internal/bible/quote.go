@@ -45,8 +45,19 @@ var quoteStopWords = map[string]bool{
 	"above": true, "below": true, "each": true, "other": true, "another": true,
 }
 
+// disfluencies are the filler words a speaker inserts mid-quote ("uh", "um").
+// They carry no meaning and appear in no verse, so the same vocabulary drops
+// them from both the index query and the overlap measure; otherwise a single
+// "uh" between two verse words would break the verbatim run and a word-for-word
+// quotation would stop matching. A real scripture word ("ah") is deliberately
+// left out so stripping never removes meaning.
+var disfluencies = map[string]bool{
+	"uh": true, "um": true, "er": true, "erm": true, "hmm": true,
+	"mm": true, "uhh": true, "umm": true, "uhuh": true, "ahem": true,
+}
+
 // ContentWords lowercases text and returns the words worth matching, in order,
-// with grammar words, punctuation and bare numbers dropped. The quote path uses
+// with grammar words, disfluencies, punctuation and bare numbers dropped. The quote path uses
 // this one vocabulary both to build the index query and to measure how much of a
 // verse the preacher said, so the two never disagree about what counts as a word.
 // Numbers are dropped because in a transcript they are almost always a spoken
@@ -63,7 +74,7 @@ func ContentWords(text string) []string {
 
 	words := make([]string, 0, 16)
 	for _, word := range strings.Fields(normalized.String()) {
-		if quoteStopWords[word] || isAllDigits(word) {
+		if quoteStopWords[word] || disfluencies[word] || isAllDigits(word) {
 			continue
 		}
 		words = append(words, word)

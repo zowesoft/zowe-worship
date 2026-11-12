@@ -126,6 +126,54 @@ func TestQueueKeepsAQuoteScoreAndUpgradesOnAnExplicitRehearing(t *testing.T) {
 	}
 }
 
+func TestFinalizeLetsAQuoteSupersedeTheSameSegmentsContextualCard(t *testing.T) {
+	queue := newTestQueue(t)
+	service := aService(t, queue, "quote-supersede-contextual")
+	reference := detectionOf(t, "Romans 8:28").Reference
+
+	// The app settles a chunk with contextual detections before the quote path,
+	// so both land in one Finalize: the stronger spoken-quote evidence must win
+	// the card's label and score instead of leaving the weaker contextual one.
+	queue.BeginSegment()
+	contextual := asr.Detection{
+		Reference:  reference,
+		Raw:        "Romans 8:28 (same passage as the wall)",
+		Method:     MethodContextualReference,
+		Confidence: contextualConfidence,
+	}
+	quote := asr.Detection{Reference: reference, Raw: reference.String(), Method: MethodSpokenQuote, Confidence: 0.88}
+	if _, err := queue.Finalize("read verse 28", []asr.Detection{contextual, quote}, service); err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+
+	pending := queue.List(service)
+	if len(pending) != 1 {
+		t.Fatalf("pending = %d, want the quote superseding the contextual card into one", len(pending))
+	}
+	card := pending[0]
+	if card.Method != MethodSpokenQuote || card.Explanation != ExplanationSpokenQuote {
+		t.Errorf("method/explanation = %q/%q, want the spoken-quote pair", card.Method, card.Explanation)
+	}
+	if card.Confidence != 0.88 {
+		t.Errorf("confidence = %v, want the quote score 0.88", card.Confidence)
+	}
+}
+
+func TestDetectQuotesToleratesDisfluencyInsideTheQuote(t *testing.T) {
+	// The preacher quotes verse 4:6 word for word but stutters on the way; each
+	// "uh" lands between verse words, and without the disfluency vocabulary it
+	// splits the verbatim run into chunks of at most three, under the run gate.
+	transcript := "be careful for nothing uh but in every thing uh by prayer and supplication " +
+		"uh with thanksgiving let your requests uh be made known unto God"
+	detections := DetectQuotes(transcript, philippiansMatches(), nil, nil)
+	if len(detections) != 1 {
+		t.Fatalf("detections = %d, want 1: an interleaved disfluency must not break the run", len(detections))
+	}
+	if got := detections[0].Reference.String(); got != "Philippians 4:6" {
+		t.Errorf("reference = %q, want Philippians 4:6", got)
+	}
+}
+
 func TestLongestRunFindsTheVerbatimStretch(t *testing.T) {
 	verse := []string{"peace", "god", "passeth", "understanding"}
 	spoken := []string{"keep", "peace", "god", "passeth", "understanding", "hearts"}
