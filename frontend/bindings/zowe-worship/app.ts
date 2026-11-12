@@ -7,6 +7,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as audio$0 from "./internal/audio/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as media$0 from "./internal/media/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -45,6 +48,50 @@ export function AddSongSectionToService(request: $models.SongSectionRequest): $C
  */
 export function ApproveDetection(id: string): $CancellablePromise<$models.PresentationView> {
     return $Call.ByID(1190351181, id);
+}
+
+/**
+ * AudioInputs lists the capture devices the operator can choose from, with
+ * the default marked.
+ */
+export function AudioInputs(): $CancellablePromise<audio$0.Device[] | null> {
+    return $Call.ByID(1441938524);
+}
+
+/**
+ * AudioStart opens the input device - the default when the id is empty - and
+ * begins publishing levels and health. It emits audio.input.started with the
+ * device that was actually opened, which is not always the one that was
+ * asked for.
+ */
+export function AudioStart(deviceID: string): $CancellablePromise<void> {
+    return $Call.ByID(1711816003, deviceID);
+}
+
+/**
+ * AudioStop ends the capture. The buffered audio stays readable, so a
+ * segment that closed just before the operator stopped the microphone can
+ * still be transcribed.
+ */
+export function AudioStop(): $CancellablePromise<void> {
+    return $Call.ByID(890990801);
+}
+
+/**
+ * AudioTakeLast returns the last seconds of captured audio as base64 PCM, the
+ * encoding the bridge and DetectScripture speak.
+ */
+export function AudioTakeLast(seconds: number): $CancellablePromise<string> {
+    return $Call.ByID(3745696838, seconds);
+}
+
+/**
+ * AudioTakeRange returns the absolute sample span a segment closed over, as
+ * base64 PCM. A span that has already wrapped out of the ring comes back
+ * clamped to what is still held.
+ */
+export function AudioTakeRange($from: number, to: number): $CancellablePromise<string> {
+    return $Call.ByID(3869129695, $from, to);
 }
 
 export function BackupNow(): $CancellablePromise<$models.StorageView> {

@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"zowe-worship/internal/audio"
 	"zowe-worship/internal/bible"
 	"zowe-worship/internal/database"
 	"zowe-worship/internal/detection"
@@ -50,6 +52,11 @@ type App struct {
 	// run is the playlist playing right now, nil when none is: it is a
 	// snapshot, so editing a playlist mid-run never moves the room.
 	run *playlistRun
+	// audio is the capture service behind Live Detection. It owns the
+	// microphone, so it is wired once and lives as long as the app does.
+	audio *audio.Service
+	// audioMu guards building that service, which happens on first use.
+	audioMu sync.Mutex
 }
 
 type AppInfo struct {
@@ -131,6 +138,10 @@ func newAppAt(dataRoot string) *App {
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
 
+	// The capture service is wired before anything else can fail: the
+	// microphone belongs to the app, not to its storage.
+	a.wireAudio()
+
 	paths, err := a.paths()
 	if err != nil {
 		log.Printf("zowe: storage unavailable: %v", err)
@@ -185,6 +196,11 @@ func (a *App) rewireStores(core *sql.DB, paths database.Paths) {
 }
 
 func (a *App) ServiceShutdown() error {
+	// The microphone is released before anything else, so the device is free
+	// for the next run even if the database refuses to close.
+	if a.audio != nil {
+		a.audio.Stop()
+	}
 	if a.core == nil {
 		return nil
 	}

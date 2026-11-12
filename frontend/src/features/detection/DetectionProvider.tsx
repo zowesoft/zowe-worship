@@ -4,7 +4,7 @@ import { Events } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { useStudio } from '../../stores/StudioProvider';
-import { MicCapture, listAudioInputs, toBase64 } from './mic';
+import { listAudioInputs, toBase64 } from './mic';
 import type { AudioInput } from './mic';
 import { decodeAudioFile } from './audioFile';
 import { SpeechSegmenter } from './segmenter';
@@ -84,7 +84,6 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const [segmenting, setSegmenting] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  const captureRef = useRef<MicCapture | null>(null);
   const deviceIdRef = useRef('');
   deviceIdRef.current = deviceId;
 
@@ -94,7 +93,16 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const zeroCrossingRef = useRef(0);
   const segmenterRef = useRef(new SpeechSegmenter());
   const busyRef = useRef(false);
-  const queuedRef = useRef<Int16Array | null>(null);
+  const queuedRef = useRef<string | null>(null);
+  // capturedSamples is the backend's count of what it has captured: the
+  // segmenter places its segments against that clock.
+  const capturedRef = useRef(0);
+  // rangeChain keeps the reads of closed segments in order, so two segments
+  // can never be fetched - or transcribed - out of order.
+  const rangeChainRef = useRef<Promise<void>>(Promise.resolve());
+  // healthMessage is the warning the health event put on screen, so it can be
+  // taken away again when the device recovers.
+  const healthMessageRef = useRef<string | null>(null);
 
   const refreshConfig = useCallback(async () => {
     try {
@@ -151,43 +159,77 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     return () => { cancel(); };
   }, [refreshConfig]);
 
-  // Device labels only become readable once permission is granted, so the
-  // list is reread when listening starts.
+  // The backend measures the level and the zero-crossing rate: the segmenter
+  // lives on those readings, and the panel's meter is the same number.
   useEffect(() => {
-    if (!listening) return;
+    const cancel = Events.On('audio.input.level', (event) => {
+      const reading = event.data as {
+        level: number;
+        zeroCrossingRate: number;
+        bufferedSeconds: number;
+        capturedSamples: number;
+      };
+      levelRef.current = reading.level;
+      zeroCrossingRef.current = reading.zeroCrossingRate;
+      capturedRef.current = reading.capturedSamples;
+      setLevel(reading.level);
+      setBufferedSeconds(reading.bufferedSeconds);
+    });
+    return () => { cancel(); };
+  }, []);
+
+  // Device names come from the audio stack itself, so the list is read when the
+  // panel mounts and again whenever listening starts.
+  useEffect(() => {
     listAudioInputs().then(setDevices).catch(() => setDevices([]));
   }, [listening]);
 
   const stopCapture = useCallback(() => {
-    captureRef.current?.stop();
-    captureRef.current = null;
+    void App.AudioStop().catch(() => {});
     segmenterRef.current.reset();
     queuedRef.current = null;
+    capturedRef.current = 0;
     setSegmenting(false);
     setListening(false);
     setLevel(0);
   }, []);
 
-  const startCapture = useCallback(async () => {
-    if (captureRef.current?.listening) return;
-    const capture = new MicCapture();
-    // The level callback fires per audio block, which doubles as the clock for
-    // the buffered-seconds readout.
-    capture.setLevelListener((features, seconds) => {
-      levelRef.current = features.level;
-      zeroCrossingRef.current = features.zeroCrossingRate;
-      setLevel(features.level);
-      setBufferedSeconds(seconds);
+  // Health says what happened to the stream: a device that was removed ends
+  // the capture, a device that went quiet is worth saying out loud.
+  useEffect(() => {
+    const cancel = Events.On('audio.input.health_changed', (event) => {
+      const health = event.data as { state: string; detail?: string };
+      if (health.state === 'error') {
+        healthMessageRef.current = null;
+        setLastError(health.detail || 'The microphone stopped delivering audio.');
+        stopCapture();
+        return;
+      }
+      if (health.state === 'stalled') {
+        const message = 'The microphone has gone quiet - check the input device.';
+        healthMessageRef.current = message;
+        setLastError(message);
+        return;
+      }
+      if (health.state === 'ok' && healthMessageRef.current) {
+        const stale = healthMessageRef.current;
+        healthMessageRef.current = null;
+        setLastError((current) => (current === stale ? null : current));
+      }
     });
+    return () => { cancel(); };
+  }, [stopCapture]);
+
+  const startCapture = useCallback(async () => {
+    if (listening) return;
     try {
-      await capture.start(deviceIdRef.current || undefined);
+      await App.AudioStart(deviceIdRef.current || '');
     } catch (error) {
       setTranscript('');
       throw new Error(`Microphone unavailable: ${errorMessage(error)}`);
     }
-    captureRef.current = capture;
     setListening(true);
-  }, []);
+  }, [listening]);
 
   const toggleListening = useCallback(async () => {
     if (listening) {
@@ -198,15 +240,17 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   }, [listening, startCapture, stopCapture]);
 
   const analyze = useCallback(async () => {
-    const capture = captureRef.current;
-    if (!capture || analyzing) return;
+    if (!listening || analyzing) return;
     setAnalyzing(true);
     try {
-      const pcm = capture.takeLast(ANALYZE_SECONDS);
-      setBufferedSeconds(pcm.length / 16000);
+      const pcm = await App.AudioTakeLast(ANALYZE_SECONDS);
+      if (!pcm) {
+        setLastError('Nothing has been captured yet - turn listening on and give it a moment.');
+        return;
+      }
       setRepeats(0);
       setAutoProjected([]);
-      const result = await App.DetectScripture(toBase64(pcm));
+      const result = await App.DetectScripture(pcm);
       setTranscript(result.transcript);
       setSegment(result.segment);
       setRepeats(result.repeats);
@@ -215,7 +259,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     } finally {
       setAnalyzing(false);
     }
-  }, [analyzing]);
+  }, [listening, analyzing]);
 
   // A recording goes through the same pipeline, so detection can be tried
   // without a microphone.
@@ -240,8 +284,9 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
 
   // One analysis at a time: a segment that closes mid-transcription waits in a
   // single slot, so a fast speaker cannot grow an unbounded request queue.
-  const analyzeSegment = useCallback(async (pcm: Int16Array) => {
-    if (pcm.length === 0) return;
+  // The audio arrives as base64 PCM, the encoding the bridge speaks.
+  const analyzeSegment = useCallback(async (pcm: string) => {
+    if (!pcm) return;
     if (busyRef.current) {
       queuedRef.current = pcm;
       return;
@@ -249,11 +294,10 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     busyRef.current = true;
     setAnalyzing(true);
     setLastError(null);
-    let next: Int16Array | null = pcm;
+    let next: string | null = pcm;
     try {
       while (next) {
-        setBufferedSeconds(next.length / 16000);
-        const result = await App.DetectScripture(toBase64(next));
+        const result = await App.DetectScripture(next);
         setTranscript(result.transcript);
         setSegment(result.segment);
         setRepeats(result.repeats);
@@ -284,14 +328,18 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     }
     segmenterRef.current.reset();
     const timer = window.setInterval(() => {
-      const capture = captureRef.current;
-      if (!capture) return;
       const range = segmenterRef.current.feed(
         { level: levelRef.current, zeroCrossingRate: zeroCrossingRef.current },
-        capture.capturedSamples,
+        capturedRef.current,
       );
       setSegmenting(segmenterRef.current.hearing);
-      if (range) void analyzeSegment(capture.takeRange(range.from, range.to));
+      if (!range) return;
+      // The read is chained so two closed segments can never be fetched - or
+      // transcribed - out of order.
+      rangeChainRef.current = rangeChainRef.current
+        .then(() => App.AudioTakeRange(range.from, range.to))
+        .then((pcm) => { void analyzeSegment(pcm); })
+        .catch(() => {});
     }, 120);
     return () => window.clearInterval(timer);
   }, [listening, continuous, disabled, analyzeSegment]);

@@ -322,8 +322,8 @@ Open:
 ## F07 — Offline AI scripture detection (Partial)
 
 First slice landed: mic → transcript → candidate → approval → preview. The
-webview captures the input device (`getUserMedia` + AudioWorklet) into a
-16 kHz mono Int16 ring buffer; **Analyze** (panel button) sends the last ~20 s
+backend captures the input device (`internal/audio`, WASAPI in shared mode) into
+a 16 kHz mono Int16 ring buffer; **Analyze** (panel button) sends the last ~20 s
 to `DetectScripture`, which wraps the PCM in a temp WAV, runs the engine spec
 from settings, transcribes, and queues every reference `DetectReferences`
 finds. `internal/detection` holds the candidate queue in memory and records
@@ -443,8 +443,9 @@ offline, not a trained speech/music classifier: they need a listen on real
 sanctuary audio before the thresholds are trusted.
 
 Still open (later slices): moving the confidence edges onto real recorded
-services (the sweep is in `cmd/asr-bench`, which needs those recordings), and
-the empty `internal/audio` package. The shipped engine is
+services (the sweep is in `cmd/asr-bench`, which needs those recordings). The
+capture service now lives in `internal/audio` (see the Phase 2 row). The
+shipped engine is
 Moonshine (`internal/speech`, below); Whisper works only from a hand-typed spec
 and has no model lifecycle of its own.
 
@@ -744,7 +745,7 @@ The tracker understated the app, which is why this audit was needed:
    already measures and closes a segment on a spoken pause (or at the 25 s cap,
    under the backend's 30 s limit), so listening no longer waits for the
    operator to press Analyze. Segments are drained by absolute sample offset
-   (`MicCapture.takeRange`), transcribed one at a time with a single pending
+   (`App.AudioTakeRange`), transcribed one at a time with a single pending
    slot, and the manual Analyze button remains as a fallback when the toggle is
    off.
 6. **Panel parity + candidate keyboard (S–M).** Project, Search and Preview per
@@ -774,8 +775,22 @@ Different files from detection, so these run alongside it:
       and only then show, so a mixed-DPI or mismatched-resolution pair gets
       a window sized for the target monitor and no mis-sized frame is ever
       visible.
-- [ ] `internal/audio` decision (S–M): build the Go capture service, or record
-      the webview capture as the accepted adapter and emit `audio.input.*`.
+- [x] `internal/audio` decision (S–M): the Go capture service was built and the
+      webview capture retired. `internal/audio` opens the input over WASAPI in
+      shared mode - pure Go, no cgo and no capture library - downmixes and
+      resamples the engine's mix format into 16 kHz mono Int16, keeps it in a
+      bounded 60 s ring addressed in absolute samples, measures the level and
+      zero-crossing rate the segmenter lives on, and watches the stream's
+      health. It publishes the PRD's `audio.input.started` and
+      `audio.input.health_changed` plus `audio.input.level` for the readings
+      (`app_audio.go`), and the bridge carries `App.AudioInputs`,
+      `App.AudioStart`, `App.AudioStop`, `App.AudioTakeLast` and
+      `App.AudioTakeRange`. `mic.ts` and `DetectionProvider.tsx` no longer open
+      the microphone: there is no `getUserMedia` or AudioWorklet left in the
+      app, and the panel reads the devices, levels and health from the
+      backend. Evidence: the package's tests, including
+      `TestLiveCaptureDeliversSamplesFromTheDefaultDevice`, which opens this
+      machine's own microphone and reads audio back through WASAPI.
 - [x] Bible reference/full-text p95 benchmarks, plus the acceptance sweep
       (navigation not interrupting live, media failure preserving the slide).
       Re-run 2026-11-12 with `go run ./cmd/bible-bench -runs 40`, both
@@ -826,7 +841,7 @@ All three are gated on external input, which is why they come last:
 
 - Per-type enablement for auto-projection (the switch defaults off and boots paused).
 - Whisper vs Moonshine as the V1 engine — it changes the model-lifecycle work
-  (before 1.5 and the `internal/audio` decision).
+  (before 1.5).
 - Whether Live Detection stays a persistent panel or becomes a page (before 1.6).
 - Translation rights and whether the app carries a top-level LICENSE (3.x).
 - Supported EasyWorship formats and the semantic model choice (4.x).
