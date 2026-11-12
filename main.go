@@ -1,16 +1,14 @@
+//go:build !displaycheck
+
 package main
 
 import (
-	"embed"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
-
-//go:embed all:frontend/dist
-var assets embed.FS
 
 func main() {
 	studio := NewApp()

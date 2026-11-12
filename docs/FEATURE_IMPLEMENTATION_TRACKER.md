@@ -214,11 +214,18 @@ Done:
       the display and keeps projecting with the wall intact).
 
 Open:
-- [ ] Mixed-DPI, disconnect/reconnect recovery tests against live windows:
+- [ ] Mixed-DPI recovery against an actual monitor mix: this machine has one
+      screen, so a pair with different scale factors cannot be reproduced
+      here. The live-window half is covered now: `display_check.go` (the
+      `displaycheck` build of the program) opens the audience output on a
+      real screen, has the room close it and reconnects it, and
+      `display_live_test.go` runs it (`ZOWE_LIVE_WINDOWS=1 go test -run
+      TestLiveAudienceWindow .`). The run on 2026-11-12: the window opened
+      on Display 1 (1920x1080), closing it left the operator's intent and
+      the remembered screen standing (`Open:false, Wanted:true,
+      ScreenID:65537`), and the reconnect brought a real window back. The
       `resolveScreen` matching (device name, geometry/primary, missing
-      screen), close-keeping-intent and the headless guards are covered in
-      `display_test.go`, but running a real window through an actual
-      monitor mix is not.
+      screen) and the headless guards stay in `display_test.go`.
 - [ ] Additional audience outputs (intentionally deferred past single-output).
 
 ## F04 — Songs and lyric presentation (Partial)
