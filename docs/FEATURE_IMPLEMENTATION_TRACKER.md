@@ -86,9 +86,10 @@ Done:
       conventions (About lands in the Help menu on Windows/Linux, the
       application menu on macOS).
 - [x] Startup splash: inline brand screen in the embedded bundle paints the
-      ZOWESOFT mark, wordmark and tagline before any React code runs, and the
-      studio drops it once the first data lands (`frontend/index.html`,
-      `StudioProvider.tsx`).
+      ZOWESOFT mark, wordmark and tagline before any script runs, holds for
+      about a second so the mark reads (the embedded bundle loads in tens of
+      milliseconds), and fades out once the first data lands
+      (`frontend/index.html`, `StudioProvider.tsx`).
 - [x] Brand artwork wired in: appicon.png regenerated from the rounded-square
       Zowe Worship icon, ico/icns rebuilt with `wails3 generate icons`, and the
       Windows installer carries a branded 164x314 welcome/finish panel, a

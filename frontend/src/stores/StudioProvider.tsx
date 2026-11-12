@@ -102,6 +102,17 @@ function toSectionRequest(input: SongSectionInput): models.SongSectionRequest {
 }
 
 export function StudioProvider({ children }: { children: ReactNode }) {
+  // The splash holds for a beat even on a fast machine: the embedded bundle
+  // loads in tens of milliseconds and a flash of branding reads as a flicker
+  // rather than a hello. ~1.1s total from page load.
+  const MIN_SPLASH_MS = 1100;
+  const dropSplash = () => {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+    splash.classList.add('splash-leaving');
+    window.setTimeout(() => splash.remove(), 340);
+  };
+
   const [ready, setReady] = useState(false);
   const [bridgeAvailable, setBridgeAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,9 +162,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => {
         if (active) setReady(true);
-        // The splash holds the wall until the first data lands, then gets out
-        // of the way on the clean paint.
-        document.getElementById('splash')?.remove();
+        // Hold the splash long enough to read it, then fade it out.
+        const remaining = Math.max(0, MIN_SPLASH_MS - performance.now());
+        window.setTimeout(dropSplash, remaining);
       });
 
     return () => {
