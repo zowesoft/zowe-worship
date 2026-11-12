@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -674,5 +675,66 @@ func TestPlaylistSaveRefusesWhatCouldNotPlay(t *testing.T) {
 		ID: "pl-noname", Name: "   ", CreatedAt: time.Now().UTC(),
 	}); !errors.Is(err, ErrPlaylistName) {
 		t.Fatalf("nameless playlist err = %v, want ErrPlaylistName", err)
+	}
+}
+
+// TestDeclaredFormatsAgreeAcrossPickerImportAndUI pins the three surfaces of
+// the one declaration: the dialog filter, KindFor's verdict and the list the
+// import UI shows must describe the same set of files.
+func TestDeclaredFormatsAgreeAcrossPickerImportAndUI(t *testing.T) {
+	groups := SupportedFormats()
+	if len(groups) == 0 {
+		t.Fatal("SupportedFormats reported nothing")
+	}
+
+	seen := map[string]Kind{}
+	for _, group := range groups {
+		if len(group.Extensions) == 0 {
+			t.Errorf("kind %q has no extensions", group.Kind)
+		}
+		wantCodecs := codecNotes[group.Kind]
+		if group.Codecs != wantCodecs {
+			t.Errorf("kind %q codecs = %q, want %q", group.Kind, group.Codecs, wantCodecs)
+		}
+		for _, ext := range group.Extensions {
+			if !strings.HasPrefix(ext, ".") {
+				t.Errorf("extension %q must include its dot so both filter and KindFor can use it", ext)
+			}
+			if prior, dup := seen[ext]; dup {
+				t.Errorf("extension %s listed for both %s and %s", ext, prior, group.Kind)
+			}
+			seen[ext] = group.Kind
+			// The name the importer actually sees must resolve to this kind.
+			if got := KindFor("clip" + ext); got != group.Kind {
+				t.Errorf("KindFor(clip%s) = %q, want %q", ext, got, group.Kind)
+			}
+			if KindFor("CLIP"+strings.ToUpper(ext)) != group.Kind {
+				t.Errorf("KindFor is not case-insensitive for %s", ext)
+			}
+		}
+	}
+
+	if len(seen) != len(declaredFormats) {
+		t.Errorf("UI lists %d extensions, declaration holds %d", len(seen), len(declaredFormats))
+	}
+
+	filter := strings.Split(PickerFilter(), ";")
+	if len(filter) != len(declaredFormats) {
+		t.Fatalf("picker filter offers %d entries, declaration holds %d", len(filter), len(declaredFormats))
+	}
+	for i, format := range declaredFormats {
+		if filter[i] != "*"+format.ext {
+			t.Errorf("filter entry %d = %q, want *%s", i, filter[i], format.ext)
+		}
+		if kind, listed := seen[format.ext]; !listed || kind != format.kind {
+			t.Errorf("%s is in the dialog filter but absent or mislabelled in the UI list", format.ext)
+		}
+	}
+
+	// The containers Chromium refuses stay declared out, whatever codec they carry.
+	for _, refused := range []string{".mkv", ".avi"} {
+		if KindFor("clip"+refused) != "" {
+			t.Errorf("KindFor accepts %s, which WebView2 cannot decode", refused)
+		}
 	}
 }

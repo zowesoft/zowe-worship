@@ -36,8 +36,9 @@ type MediaImportResult struct {
 	Problems []media.ImportProblem `json:"problems"`
 }
 
-// mediaFilter is shared so both pickers offer exactly what the importer enforces.
-const mediaFilter = "*.jpg;*.jpeg;*.png;*.gif;*.webp;*.bmp;*.mp4;*.m4v;*.mov;*.webm;*.mp3;*.m4a;*.aac;*.wav;*.ogg;*.flac"
+// mediaFilter is derived from the declared formats so both pickers offer
+// exactly what the importer enforces, from the one list.
+var mediaFilter = media.PickerFilter()
 
 // PickMediaFiles opens the native picker, so an operator never needs to know
 // where the library keeps its copies.
@@ -188,6 +189,12 @@ func (a *App) OpenMediaEditor(mediaID string) (EditorView, error) {
 // renderer ratio are one list rather than three.
 func (a *App) MediaAspects() []media.Aspect {
 	return media.Aspects()
+}
+
+// MediaFormats comes from the backend so the list the import UI promises is
+// the same list the file dialog and the importer enforce.
+func (a *App) MediaFormats() []media.FormatGroup {
+	return media.SupportedFormats()
 }
 
 func (a *App) GetMediaPresentation(mediaID string) (media.Presentation, error) {

@@ -274,7 +274,13 @@ Done:
       `app_media_test.go` keeps covering deletion under a live slide).
 
 Open:
-- [ ] Explicit declared-format/codec list surfaced to the user.
+- [x] Explicit declared-format/codec list surfaced to the user
+      (`media.SupportedFormats` derived from the one `declaredFormats`
+      declaration that also builds the file-dialog filter and `KindFor`;
+      `App.MediaFormats` and the caption above the import grid in
+      `MediaWorkspace.tsx` state extensions and codecs per kind, and note the
+      .mkv/.avi exclusions; `TestDeclaredFormatsAgreeAcrossPickerImportAndUI`
+      pins the three surfaces to the same set).
 
 ## F06 — Custom theme editor (Done)
 

@@ -12,6 +12,16 @@ export interface Aspect {
 }
 
 /**
+ * FormatGroup is one kind's declared extensions and codecs, as the import UI
+ * shows them.
+ */
+export interface FormatGroup {
+    "kind": Kind;
+    "extensions": string[] | null;
+    "codecs": string;
+}
+
+/**
  * ImportProblem explains one file the library did not take. Duplicates are
  * reported here too: they are a normal outcome of re-dropping a folder, not an
  * error worth an alarm.
@@ -21,6 +31,17 @@ export interface ImportProblem {
     "reason": string;
     "duplicate": boolean;
 }
+
+export enum Kind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    KindImage = "image",
+    KindVideo = "video",
+    KindAudio = "audio",
+};
 
 /**
  * Presentation is where an image sits in the output frame.

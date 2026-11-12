@@ -292,6 +292,14 @@ export function MediaEnded(): $CancellablePromise<void> {
 }
 
 /**
+ * MediaFormats comes from the backend so the list the import UI promises is
+ * the same list the file dialog and the importer enforce.
+ */
+export function MediaFormats(): $CancellablePromise<media$0.FormatGroup[] | null> {
+    return $Call.ByID(1221139893);
+}
+
+/**
  * MediaProgress is the player's report of where the clip is, twice a second
  * while it runs.
  */

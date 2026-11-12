@@ -3,7 +3,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { Events } from '@wailsio/runtime';
 import { App } from '../../../bindings/zowe-worship';
 import type { MediaImportResult, MediaPlaylistInput, MediaPlaylistView, MediaView, PlaylistRunView } from '../../../bindings/zowe-worship/models';
-import type { Aspect } from '../../../bindings/zowe-worship/internal/media/models';
+import type { Aspect, FormatGroup } from '../../../bindings/zowe-worship/internal/media/models';
 import { FittedImage } from '../../components/FittedImage';
 import { Icon } from '../../components/Icon';
 import { formatBytes } from '../../lib/format';
@@ -46,6 +46,21 @@ function ratioOf(aspects: Aspect[], value: string): number {
   return aspects.find((aspect) => aspect.value === value)?.ratio ?? 0;
 }
 
+const kindLabels: Record<string, string> = { image: 'Images', video: 'Video', audio: 'Audio' };
+
+// The declaration comes from the backend - the same list the file dialog and
+// the importer enforce - so this caption states it verbatim instead of
+// promising a format the next import would reject.
+function formatsSummary(groups: FormatGroup[]): string {
+  return groups
+    .map((group) => {
+      const extensions = (group.extensions ?? []).map((ext) => ext.replace('.', '').toUpperCase()).join(', ');
+      const codecs = group.codecs ? ` (${group.codecs})` : '';
+      return `${kindLabels[group.kind] ?? group.kind}: ${extensions}${codecs}`;
+    })
+    .join(' · ');
+}
+
 export function MediaWorkspace() {
   const studio = useStudio();
   const [filter, setFilter] = useState<Filter>('all');
@@ -58,6 +73,9 @@ export function MediaWorkspace() {
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [addChoice, setAddChoice] = useState('');
+  // Declared formats come from the backend once, so the caption under the
+  // import button can never promise something the picker would not offer.
+  const [formats, setFormats] = useState<FormatGroup[]>([]);
 
   const shown = useMemo(() => studio.media.filter((item) => {
     if (filter !== 'all' && item.kind !== filter) return false;
@@ -114,6 +132,12 @@ export function MediaWorkspace() {
   useEffect(() => {
     if (studio.bridgeAvailable) void studio.refreshMedia();
   }, []);
+
+  // The format list is static, so it is read with the tab and never refreshed.
+  useEffect(() => {
+    if (!studio.bridgeAvailable) return;
+    void (async () => setFormats((await App.MediaFormats()) ?? []))();
+  }, [studio.bridgeAvailable]);
 
   // Playlists load with the tab, and the run badge follows the backend's
   // event - which clip is on the wall moves on its own while a playlist
@@ -251,6 +275,12 @@ export function MediaWorkspace() {
       </div>
 
       <div className="grid gap-3.5 p-4">
+        {formats.length > 0 && (
+          <p className="m-0 -mb-0.5 text-[10.5px] leading-[1.7] text-[#6F809B]">
+            Accepted: {formatsSummary(formats)} — what WebView2 decodes. Containers it refuses, such as
+            .mkv and .avi, will not import whatever codec they carry.
+          </p>
+        )}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[220px] flex items-center gap-2 h-[34px] px-[11px] border border-[#35445C] rounded-[7px] bg-app focus-within:border-blue focus-within:shadow-[0_0_0_2px_rgba(71,120,255,0.18)] [&>svg]:text-secondary">
             <Icon name="search" size={15} />
@@ -284,7 +314,6 @@ export function MediaWorkspace() {
             <span className="grid place-items-center w-12 h-12 border border-[#30466A] bg-selected text-[#8CABFF] rounded-[11px] shrink-0"><Icon name="media" size={24} /></span>
             <h3>No media yet</h3>
             <p>Use Add media to choose images, video or audio from any folder. Zowe keeps its own copy, so moving a file later cannot break a service.</p>
-            <p className="text-[10.5px]! text-[#6F809B]!">Video: MP4, MOV, WebM · Images: JPG, PNG, GIF, WebP, BMP · Audio: MP3, M4A, WAV, OGG, FLAC</p>
           </div>
         ) : shown.length === 0 ? (
           <p className="p-[22px] text-secondary text-[11.5px] text-center">Nothing matches this filter.</p>
