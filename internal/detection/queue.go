@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/confidence"
-	"zowe-worship/internal/database"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/confidence"
+	"zopresent/internal/database"
+	"zopresent/internal/scripture"
 )
 
 // ErrCandidateNotFound covers both an id already decided and one lost to a

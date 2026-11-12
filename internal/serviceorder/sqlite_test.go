@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 func newTestRepository(t *testing.T) (*SQLiteRepository, *sql.DB, string) {
 	t.Helper()
 
-	root := filepath.Join(t.TempDir(), "Zowe Worship")
+	root := filepath.Join(t.TempDir(), "Zopresent")
 	paths := database.Paths{Root: root}
 	if err := paths.Ensure(); err != nil {
 		t.Fatalf("prepare directories: %v", err)

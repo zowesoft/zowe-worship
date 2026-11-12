@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"zowe-worship/internal/bible"
+	"zopresent/internal/bible"
 )
 
 func philippianVerse(verse int, text string) bible.SearchResult {

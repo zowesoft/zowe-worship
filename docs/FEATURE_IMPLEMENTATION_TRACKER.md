@@ -1,6 +1,6 @@
-# Zowe Worship — Feature Implementation Tracker
+# Zopresent — Feature Implementation Tracker
 
-Living status of the work described in `Zowe_Worship_Full_PRD_and_Design_Guide.txt`.
+Living status of the work described in `Zopresent_Full_PRD_and_Design_Guide.txt`.
 The PRD describes intent; this file records what is
 actually built, where it lives, and what is still open, so any agent can pick up
 the next slice without re-deriving the state of the repo.
@@ -25,7 +25,7 @@ The generated bindings were refreshed from the current services on 2026-11-09
 and failed typecheck. Keep the bindings in the same change as a Go API edit.
 
 Real Bible data is exercised by `internal/bible/integration_test.go`, which is
-skipped unless `ZOWE_BIBLE_DATASETS` points at a directory holding `KJV/` (and
+skipped unless `ZOPRESENT_BIBLE_DATASETS` points at a directory holding `KJV/` (and
 optionally `AMP/`). Treat reference/phrase/prefix search as *unverified against
 real text* on a machine without that env var.
 
@@ -70,7 +70,7 @@ Done:
       `KeyDefaultTranslation`, `KeyVersesPerSlide`).
 - [x] Utility-window helper for editors (`windows.go` `openUtilityWindow`).
 - [x] Single-instance guard (`main.go` `SingleInstance`, id
-      `com.zowesoft.zowe-worship`). A second launch is refused and the running
+      `com.zowesoft.zopresent`). A second launch is refused and the running
       studio is restored and focused instead. Keyed on the identifier, not the
       executable name, so a renamed copy is refused too. Two studios would each
       hold their own preview/live state while driving one projector and one
@@ -86,19 +86,29 @@ Done:
       conventions (About lands in the Help menu on Windows/Linux, the
       application menu on macOS).
 - [x] Startup splash: inline brand screen in the embedded bundle paints the
-      ZOWESOFT mark, wordmark and tagline before any script runs; it holds a
+      Zopresent mark, wordmark and tagline before any script runs; it holds a
       fixed ten seconds and, while it does, cycles seven short public-domain
       KJV verses (one about every four seconds) above the version and the
       F8/F9/F12 shortcut hints, then fades out (`frontend/index.html`,
       `StudioProvider.tsx`).
 - [x] Brand artwork wired in: appicon.png regenerated from the rounded-square
-      Zowe Worship icon, ico/icns rebuilt with `wails3 generate icons`, and the
+      Zopresent icon, ico/icns rebuilt with `wails3 generate icons`, and the
       Windows installer carries a branded 164x314 welcome/finish panel, a
-      150x57 interior header, the Zowe licence as a license page and the brand
+      150x57 interior header, the Zopresent licence as a license page and the brand
       icon; the macOS DMG carries a branded background from the same artwork
       (`project.nsi`, `build/windows/nsis/resources/`,
       `build/darwin/dmg-background.png`). The licence itself is a source-
       available draft - it is not OSI open source and not yet legally vetted.
+- [x] Rebrand to Zopresent (2026-11-12): product renamed from Zowe Worship;
+      Go module, binary, window title, splash, icons and installer artwork
+      regenerated from the new Zopresent mark (projection screen and play
+      button over the Zowesoft three-colour open book); data root moved to
+      `%LOCALAPPDATA%\Zowesoft\Zopresent` and the database to
+      `zopresent.db`; package names (nfpm, .desktop, AppImage, deb/rpm),
+      `productIdentifier` (com.zowesoft.zopresent) and the workflow artifact
+      names follow; the GitHub repo is renamed zowesoft/zowe-worship ->
+      zowesoft/zopresent. Zowesoft remains the parent brand and copyright
+      holder of the source-available licence.
 - [x] The home page is isolated from the working surfaces of a service: the
       schedule rail and the live/preview, detection, history and production
       panels are the surfaces of a service being run, and the home page - the
@@ -108,7 +118,7 @@ Done:
 - [x] Cross-platform packaging wired: per-platform Taskfiles for macOS
       (`build/darwin` — .app bundle, universal binary, DMG task) and Linux
       (`build/linux` — deb/rpm/AppImage via nfpm, .desktop entry), with the
-      app's identity (com.zowesoft.zowe-worship) in Info.plist, nfpm.yaml and
+      app's identity (com.zowesoft.zopresent) in Info.plist, nfpm.yaml and
       the desktop file. `.github/workflows/release.yml` builds all three OSes
       on native GitHub runners on every `v*` tag and attaches the packages to
       the release — no local Mac or Linux machine needed.
@@ -120,14 +130,14 @@ Open:
       needed: cross-volume copy fallback in the engine installer, no actool
       Assets.car step, GTK libs before the Wails CLI on linux, NSIS is no
       longer preinstalled on the amd64 windows image (nsis-dev/setup-nsis),
-      makensis writes to bin/zowe-worship-amd64-installer.exe, and the macOS
+      makensis writes to bin/zopresent-amd64-installer.exe, and the macOS
       .app must be zipped with ditto before upload. Still to do: smoke-run
       the packages on real macOS/Linux machines.
 - [ ] Package signing (Windows Authenticode, macOS Developer ID + notarization)
       — the workflow ships unsigned packages until certificates exist.
 - [x] Bundling the offline speech engine into the Linux/macOS packages: the
       darwin `.app` carries `Contents/MacOS/engines`, deb/rpm install it to
-      `/usr/local/lib/zowe-worship/engines` with a lookup fallback in
+      `/usr/local/lib/zopresent/engines` with a lookup fallback in
       `app_speech.go`, and the AppImage embeds `usr/bin/engines` via
       `repack-engines.sh` (wails3's appimage generator has no hook for extra
       files, so the AppDir is repacked with appimagetool). Proven by the
@@ -263,7 +273,7 @@ Open:
       here. The live-window half is covered now: `display_check.go` (the
       `displaycheck` build of the program) opens the audience output on a
       real screen, has the room close it and reconnects it, and
-      `display_live_test.go` runs it (`ZOWE_LIVE_WINDOWS=1 go test -run
+      `display_live_test.go` runs it (`ZOPRESENT_LIVE_WINDOWS=1 go test -run
       TestLiveAudienceWindow .`). The run on 2026-11-12: the window opened
       on Display 1 (1920x1080), closing it left the operator's intent and
       the remembered screen standing (`Open:false, Wanted:true,
@@ -617,7 +627,7 @@ to `<data root>/engines` because that is the writable, per-user location.
 
 #### Installer
 
-`cmd/zowe-engine` stages the engine tree for packaging (`task engines:stage`),
+`cmd/zopresent-engine` stages the engine tree for packaging (`task engines:stage`),
 drawing from the pinned releases so the shipped bytes are the verified ones.
 Because `InstallFor` takes an explicit GOOS/GOARCH, the staging is
 platform-parameterized: the model is shared and only the runtime differs, so
@@ -631,7 +641,7 @@ packages and the app falls back to "Get engine"). Installing to Program Files
 keeps the bundled engine read-only to a standard user.
 
 Verified end to end: the installer compiled (121 MB install data), a silent
-install laid down `zowe-worship.exe` plus a 138 MB `engines/` tree whose every
+install laid down `zopresent.exe` plus a 138 MB `engines/` tree whose every
 file matched its pinned hash, and that installed engine transcribed the smoke
 clip and detected **Romans 8:28**.
 

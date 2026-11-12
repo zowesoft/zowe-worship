@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 var ErrEmptyQuery = errors.New("search text is empty")

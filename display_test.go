@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"zowe-worship/internal/presentation"
+	"zopresent/internal/presentation"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

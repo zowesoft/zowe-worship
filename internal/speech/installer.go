@@ -219,7 +219,7 @@ func (i *Installer) installRuntime(root string, engine Engine, r Runtime, done, 
 		return nil
 	}
 
-	tmp, err := os.MkdirTemp("", "zowe-runtime-")
+	tmp, err := os.MkdirTemp("", "zopresent-runtime-")
 	if err != nil {
 		return err
 	}

@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Events } from '@wailsio/runtime';
-import { App } from '../../../bindings/zowe-worship';
-import * as models from '../../../bindings/zowe-worship/models';
+import { App } from '../../../bindings/zopresent';
+import * as models from '../../../bindings/zopresent/models';
 import { useStudio } from '../../stores/StudioProvider';
 import { listAudioInputs, toBase64 } from './mic';
 import type { AudioInput } from './mic';

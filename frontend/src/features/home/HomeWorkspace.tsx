@@ -168,7 +168,7 @@ export function HomeWorkspace({ onNavigate }: { onNavigate: (page: PageId) => vo
       {/* ── header ── */}
       <header className="flex items-end justify-between gap-5 pb-[22px] border-b border-border max-[959px]:flex-col max-[959px]:items-start">
         <div className="grid gap-[5px]">
-          <span className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">Zowe Worship</span>
+          <span className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">Zopresent</span>
           <h1 className="text-[24px] font-bold tracking-[-0.5px] text-text">
             {isEmpty ? 'Get started' : 'Your services'}
           </h1>

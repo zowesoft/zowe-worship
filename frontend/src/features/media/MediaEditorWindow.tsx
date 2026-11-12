@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App } from '../../../bindings/zowe-worship';
-import type { MediaView } from '../../../bindings/zowe-worship/models';
-import type { Aspect, Presentation } from '../../../bindings/zowe-worship/internal/media/models';
+import { App } from '../../../bindings/zopresent';
+import type { MediaView } from '../../../bindings/zopresent/models';
+import type { Aspect, Presentation } from '../../../bindings/zopresent/internal/media/models';
 import { FittedImage } from '../../components/FittedImage';
 import { Icon } from '../../components/Icon';
 

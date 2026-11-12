@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), "Zowe Worship")
+	root := filepath.Join(t.TempDir(), "Zopresent")
 	paths := database.Paths{Root: root}
 	if err := paths.Ensure(); err != nil {
 		t.Fatalf("prepare directories: %v", err)

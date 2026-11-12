@@ -16,11 +16,11 @@ import (
 // A Wails application has to own the process's main thread, so the check runs
 // as the diagnostic build of the program rather than inside the test binary:
 //
-//	ZOWE_LIVE_WINDOWS=1 go test -run TestLiveAudienceWindow .
+//	ZOPRESENT_LIVE_WINDOWS=1 go test -run TestLiveAudienceWindow .
 //
 // The machine has to allow it: the check opens a real window on a real screen.
 const (
-	liveWindowEnv = "ZOWE_LIVE_WINDOWS"
+	liveWindowEnv = "ZOPRESENT_LIVE_WINDOWS"
 	liveWindowOK  = "the audience window opened, closed and came back"
 )
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Window } from '@wailsio/runtime';
-import { App } from '../../../bindings/zowe-worship';
+import { App } from '../../../bindings/zopresent';
 import { Icon } from '../../components/Icon';
 
 type Draft = {

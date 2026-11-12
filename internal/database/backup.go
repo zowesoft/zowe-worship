@@ -11,7 +11,7 @@ import (
 
 // backup writes a consistent snapshot of the database before a schema upgrade.
 func backup(ctx context.Context, db *sql.DB, dir string, nextVersion int) error {
-	name := fmt.Sprintf("zowe-before-v%d-%s.db", nextVersion, time.Now().UTC().Format("20060102T150405Z"))
+	name := fmt.Sprintf("zopresent-before-v%d-%s.db", nextVersion, time.Now().UTC().Format("20060102T150405Z"))
 	return snapshot(ctx, db, dir, name)
 }
 
@@ -19,7 +19,7 @@ func backup(ctx context.Context, db *sql.DB, dir string, nextVersion int) error 
 // named apart from the pre-upgrade copies so a folder of backups still says
 // which ones were taken on purpose.
 func ManualBackup(ctx context.Context, db *sql.DB, dir string) (string, error) {
-	name := fmt.Sprintf("zowe-manual-%s.db", time.Now().UTC().Format("20060102T150405Z"))
+	name := fmt.Sprintf("zopresent-manual-%s.db", time.Now().UTC().Format("20060102T150405Z"))
 	if err := snapshot(ctx, db, dir, name); err != nil {
 		return "", err
 	}
@@ -29,7 +29,7 @@ func ManualBackup(ctx context.Context, db *sql.DB, dir string) (string, error) {
 // BeforeRestore writes the safety copy a restore is measured against, named
 // apart from the operator's own backups.
 func BeforeRestore(ctx context.Context, db *sql.DB, dir string) (string, error) {
-	name := fmt.Sprintf("zowe-before-restore-%s.db", time.Now().UTC().Format("20060102T150405Z"))
+	name := fmt.Sprintf("zopresent-before-restore-%s.db", time.Now().UTC().Format("20060102T150405Z"))
 	if err := snapshot(ctx, db, dir, name); err != nil {
 		return "", err
 	}

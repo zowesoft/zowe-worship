@@ -9,8 +9,8 @@ import (
 	"sort"
 	"time"
 
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/database"
+	"zopresent/internal/bible"
+	"zopresent/internal/database"
 )
 
 // The targets the tracker records. A service operator feels a slow reference

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/serviceorder"
+	"zopresent/internal/serviceorder"
 )
 
 func scriptureAt(bookID, chapter, verse int) ScriptureRequest {

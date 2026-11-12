@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { FormEvent, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
-import { App } from '../../../bindings/zowe-worship';
-import * as models from '../../../bindings/zowe-worship/models';
+import { App } from '../../../bindings/zopresent';
+import * as models from '../../../bindings/zopresent/models';
 import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
 import { focusReference, wallScripture, wallReference } from './focus';
 import type { BibleFocus } from './focus';
@@ -122,7 +122,7 @@ export function BibleWorkspace({
   const [translations, setTranslations] = useState<models.TranslationView[]>([]);
   const [translationId, setTranslationId] = useState('');
   const [translationError, setTranslationError] = useState<string | null>(
-    bridgeAvailable ? null : 'Open the Zowe Worship desktop app to search installed translations.',
+    bridgeAvailable ? null : 'Open the Zopresent desktop app to search installed translations.',
   );
   const [loadingTranslations, setLoadingTranslations] = useState(bridgeAvailable);
 

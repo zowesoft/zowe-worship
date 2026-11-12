@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/themes"
+	"zopresent/internal/themes"
 )
 
 func TestThemeCommandsRoundTrip(t *testing.T) {

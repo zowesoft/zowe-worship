@@ -218,7 +218,7 @@ tasks:
       Usage: task engines:stage [GOOS=windows] [GOARCH=amd64] [ENGINE=moonshine-tiny-en] [OUT=build/engines]
       Reruns are cheap: files already present and correct are left alone.
     cmds:
-      - go run ./cmd/zowe-engine -engine {{.ENGINE | default "moonshine-tiny-en"}} -out "{{.OUT | default "build/engines"}}" -goos {{.GOOS | default OS}} -goarch {{.GOARCH | default ARCH}}
+      - go run ./cmd/zopresent-engine -engine {{.ENGINE | default "moonshine-tiny-en"}} -out "{{.OUT | default "build/engines"}}" -goos {{.GOOS | default OS}} -goarch {{.GOARCH | default ARCH}}
     vars:
       ENGINE: '{{.ENGINE}}'
       OUT: '{{.OUT}}'

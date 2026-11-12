@@ -13,17 +13,17 @@ import (
 	"testing"
 	"time"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 // TestRealDatasets installs the full KJV and AMP datasets and checks that the
 // search targets hold on real content. Run with:
 //
-//	ZOWE_BIBLE_DATASETS=C:/Projects/Python/bible go test -tags integration ./internal/bible -run TestRealDatasets -v
+//	ZOPRESENT_BIBLE_DATASETS=C:/Projects/Python/bible go test -tags integration ./internal/bible -run TestRealDatasets -v
 func TestRealDatasets(t *testing.T) {
-	datasets := os.Getenv("ZOWE_BIBLE_DATASETS")
+	datasets := os.Getenv("ZOPRESENT_BIBLE_DATASETS")
 	if datasets == "" {
-		t.Skip("set ZOWE_BIBLE_DATASETS to the directory holding KJV/ and AMP/")
+		t.Skip("set ZOPRESENT_BIBLE_DATASETS to the directory holding KJV/ and AMP/")
 	}
 
 	ctx := context.Background()
@@ -122,11 +122,11 @@ func TestRealDatasets(t *testing.T) {
 // TestInstalledPackages checks packages that were installed into the real
 // per-user data directory:
 //
-//	ZOWE_INSTALLED_DATA="$LOCALAPPDATA/Zowesoft/Zowe Worship" go test -tags integration ./internal/bible -run TestInstalledPackages -v
+//	ZOPRESENT_INSTALLED_DATA="$LOCALAPPDATA/Zowesoft/Zopresent" go test -tags integration ./internal/bible -run TestInstalledPackages -v
 func TestInstalledPackages(t *testing.T) {
-	root := os.Getenv("ZOWE_INSTALLED_DATA")
+	root := os.Getenv("ZOPRESENT_INSTALLED_DATA")
 	if root == "" {
-		t.Skip("set ZOWE_INSTALLED_DATA to the installed application data directory")
+		t.Skip("set ZOPRESENT_INSTALLED_DATA to the installed application data directory")
 	}
 
 	ctx := context.Background()

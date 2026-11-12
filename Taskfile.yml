@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "zowe-worship"
+  APP_NAME: "zopresent"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
@@ -10,7 +10,7 @@ vars:
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: '{{.GOOS | default OS}}'
 
-# Zowe Worship targets every desktop OS Wails v3 supports — Windows packaging
+# Zopresent targets every desktop OS Wails v3 supports — Windows packaging
 # lives in ./build/windows today; other platform Taskfiles join as those
 # packaging targets come online.
 includes:

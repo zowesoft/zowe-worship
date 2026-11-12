@@ -1,4 +1,4 @@
-ZOWE WORSHIP
+ZOPRESENT
 Full Product Requirements Document, UI Design Guide, and Technical Implementation Specification
 Version 1.1 | Zowesoft | Expanded feature roadmap: 2026-10-28
 SCRIPTURE FIRST. ALWAYS.
@@ -6,7 +6,7 @@ SCRIPTURE FIRST. ALWAYS.
 
 Executive Summary
 -----------------
-Zowe Worship is a desktop-first, AI-powered worship presentation application by Zowesoft. It combines the simplicity of traditional church presentation software with advanced live-production controls and an intelligent, scripture-first assistant.
+Zopresent is a desktop-first, AI-powered worship presentation application by Zowesoft. It combines the simplicity of traditional church presentation software with advanced live-production controls and an intelligent, scripture-first assistant.
 
 The defining principle is that the live service must remain in the operator's control, while scripture discovery and presentation become faster and more intelligent. Full-text Bible search is a core feature, not merely a reference lookup. Live output, preview, audio status, and essential controls remain available while operators navigate the application.
 
@@ -113,7 +113,7 @@ Navigating between pages must not stop audio capture, change the live slide, res
 
 5. Full-Text Bible Search — Core Feature
 ----------------------------------------
-Full-text search is a first-class feature in Zowe Worship. Users must be able to search the actual text of installed Bible translations, not just book names, chapter numbers, or reference strings.
+Full-text search is a first-class feature in Zopresent. Users must be able to search the actual text of installed Bible translations, not just book names, chapter numbers, or reference strings.
 
 
 Search modes
@@ -356,11 +356,11 @@ EasyWorship database import
 ------------------
 
 Brand direction
-  • Product name: Zowe Worship.
+  • Product name: Zopresent.
   • Brand line: “Scripture First. Always.”
   • Character: minimal, confident, modern and production-focused.
   • Avoid decorative religious clip art, excessive gradients, crowded toolbars and overly playful controls.
-  • Use Zowesoft as parent brand and Zowe Worship as product brand.
+  • Use Zowesoft as parent brand and Zopresent as product brand.
 
 Color tokens
 
@@ -516,7 +516,7 @@ Services communicate through typed commands and events. The UI must not implemen
 
 
 Suggested project structure
-zowe-worship/\n├── app.go\n├── main.go\n├── internal/\n│   ├── bible/\n│   ├── search/\n│   ├── audio/\n│   ├── speech/\n│   ├── scripture/\n│   ├── confidence/\n│   ├── presentation/\n│   ├── serviceorder/\n│   ├── media/\n│   ├── settings/\n│   └── database/\n├── frontend/\n│   └── src/\n│       ├── app/\n│       ├── components/\n│       ├── layouts/\n│       ├── features/\n│       │   ├── bible/\n│       │   ├── service-order/\n│       │   ├── media/\n│       │   ├── live-detection/\n│       │   └── presentation/\n│       ├── stores/\n│       └── styles/\n├── migrations/\n├── assets/\n└── tests/
+zopresent/\n├── app.go\n├── main.go\n├── internal/\n│   ├── bible/\n│   ├── search/\n│   ├── audio/\n│   ├── speech/\n│   ├── scripture/\n│   ├── confidence/\n│   ├── presentation/\n│   ├── serviceorder/\n│   ├── media/\n│   ├── settings/\n│   └── database/\n├── frontend/\n│   └── src/\n│       ├── app/\n│       ├── components/\n│       ├── layouts/\n│       ├── features/\n│       │   ├── bible/\n│       │   ├── service-order/\n│       │   ├── media/\n│       │   ├── live-detection/\n│       │   └── presentation/\n│       ├── stores/\n│       └── styles/\n├── migrations/\n├── assets/\n└── tests/
 
 
 Additional planned feature modules

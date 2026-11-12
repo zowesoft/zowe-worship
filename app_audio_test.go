@@ -16,7 +16,7 @@ func TestAudioTakeIsEmptyBeforeAnyCapture(t *testing.T) {
 func TestAudioStartRefusesADeviceThatIsNotThere(t *testing.T) {
 	app := newTestApp(t)
 
-	if err := app.AudioStart("zowe-no-such-microphone"); err == nil {
+	if err := app.AudioStart("zopresent-no-such-microphone"); err == nil {
 		t.Fatal("starting a microphone that does not exist succeeded")
 	}
 	if app.audioService().Running() {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/confidence"
+	"zopresent/internal/confidence"
 )
 
 // passing is the one candidate shape every gate accepts, so each test below can

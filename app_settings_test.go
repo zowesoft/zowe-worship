@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 func TestSettingsReportsStorageAndTakesBackups(t *testing.T) {
@@ -46,7 +46,7 @@ func TestSettingsReportsStorageAndTakesBackups(t *testing.T) {
 	if after.BackupCount != 1 || len(after.Backups) != 1 {
 		t.Fatalf("backups = %+v", after.Backups)
 	}
-	if !strings.HasPrefix(after.Backups[0].Name, "zowe-manual-") {
+	if !strings.HasPrefix(after.Backups[0].Name, "zopresent-manual-") {
 		t.Fatalf("backup name = %q", after.Backups[0].Name)
 	}
 	if after.Backups[0].SizeBytes <= 0 {
@@ -55,11 +55,11 @@ func TestSettingsReportsStorageAndTakesBackups(t *testing.T) {
 }
 
 func TestBackupNeedsStorage(t *testing.T) {
-	app := newAppAt(filepath.Join(t.TempDir(), "Zowe Worship"))
+	app := newAppAt(filepath.Join(t.TempDir(), "Zopresent"))
 	if _, err := app.BackupNow(); !errors.Is(err, errStorageUnavailable) {
 		t.Fatalf("backup without storage err = %v", err)
 	}
-	if _, err := app.RestoreBackup("zowe-manual-x.db"); !errors.Is(err, errStorageUnavailable) {
+	if _, err := app.RestoreBackup("zopresent-manual-x.db"); !errors.Is(err, errStorageUnavailable) {
 		t.Fatalf("restore without storage err = %v", err)
 	}
 }
@@ -149,12 +149,12 @@ func TestRestoreBackupRefusesForeignFiles(t *testing.T) {
 	if err := db.Close(); err != nil {
 		t.Fatalf("close future backup: %v", err)
 	}
-	if _, err := app.RestoreBackup("future.db"); err == nil || !strings.Contains(err.Error(), "update Zowe Worship") {
+	if _, err := app.RestoreBackup("future.db"); err == nil || !strings.Contains(err.Error(), "update Zopresent") {
 		t.Fatalf("future backup err = %v, want a too-new refusal", err)
 	}
 
 	// Traversal never reaches outside the backups folder.
-	if _, err := app.RestoreBackup("../zowe.db"); err == nil {
+	if _, err := app.RestoreBackup("../zopresent.db"); err == nil {
 		t.Fatal("a path outside the backups folder was accepted")
 	}
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Window } from '@wailsio/runtime';
-import { App } from '../../../bindings/zowe-worship';
-import type { EngineOption, ShortcutsView, StorageView } from '../../../bindings/zowe-worship/models';
+import { App } from '../../../bindings/zopresent';
+import type { EngineOption, ShortcutsView, StorageView } from '../../../bindings/zopresent/models';
 import { Icon } from '../../components/Icon';
 import { formatBytes, formatDateTime } from '../../lib/format';
 import { DEFAULT_SHORTCUTS, SHORTCUT_ACTIONS, comboFromEvent, formatCombo, isBindable } from '../../lib/shortcuts';
@@ -281,7 +281,7 @@ export function SettingsWindow() {
     <main className="h-full grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3.5 pt-3.5 px-4 pb-4 overflow-hidden" aria-label="Settings">
       <header className="flex items-end justify-between gap-3.5 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h2]:mt-[3px]">
         <div>
-          <p className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">Zowe Worship {storage?.version ?? ''}</p>
+          <p className="text-[9.5px] uppercase tracking-[1.3px] font-semibold text-secondary">Zopresent {storage?.version ?? ''}</p>
           <h2>Settings</h2>
         </div>
         <button type="button" className="inline-grid place-items-center w-[34px] h-[34px] border border-transparent rounded-md bg-transparent text-secondary hover:not-disabled:bg-elevated hover:not-disabled:text-text disabled:opacity-50" onClick={() => Window.Close()} aria-label="Close settings" title="Close">

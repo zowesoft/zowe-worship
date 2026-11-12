@@ -10,16 +10,16 @@ import (
 // and a downloaded one under <data root>/engines (writable). This pins the
 // order and the exact folders.
 func TestDetectionEngineRootsLayout(t *testing.T) {
-	exe := filepath.Join("P:", string(filepath.Separator), "Apps", "Zowe Worship", "zowe-worship.exe")
-	dataRoot := filepath.Join("P:", string(filepath.Separator), "User", "Zowesoft", "Zowe Worship")
-	cwd := filepath.Join("P:", string(filepath.Separator), "src", "zoe-worship")
+	exe := filepath.Join("P:", string(filepath.Separator), "Apps", "Zopresent", "zopresent.exe")
+	dataRoot := filepath.Join("P:", string(filepath.Separator), "User", "Zowesoft", "Zopresent")
+	cwd := filepath.Join("P:", string(filepath.Separator), "src", "zopresent")
 
 	roots := detectionEngineRoots(cwd, exe, dataRoot)
 
 	want := []string{
 		filepath.Join(cwd, "benchmarks"),
-		filepath.Join("P:", string(filepath.Separator), "Apps", "Zowe Worship", "benchmarks"),
-		filepath.Join("P:", string(filepath.Separator), "Apps", "Zowe Worship", "engines"),
+		filepath.Join("P:", string(filepath.Separator), "Apps", "Zopresent", "benchmarks"),
+		filepath.Join("P:", string(filepath.Separator), "Apps", "Zopresent", "engines"),
 		filepath.Join(dataRoot, "engines"),
 	}
 	if len(roots) != len(want) {

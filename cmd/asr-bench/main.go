@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/confidence"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/confidence"
+	"zopresent/internal/scripture"
 )
 
 type manifest struct {

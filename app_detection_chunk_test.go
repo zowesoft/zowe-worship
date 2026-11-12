@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/asr"
+	"zopresent/internal/asr"
 )
 
 // The test binary doubles as a fake engine: invoked with the sentinel argument

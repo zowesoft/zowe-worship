@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/scripture"
 )
 
 // gate returns the checklist line with this ID, or nil.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { App } from '../../../bindings/zowe-worship';
+import { App } from '../../../bindings/zopresent';
 import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import type { SongSectionInput } from '../../stores/StudioProvider';

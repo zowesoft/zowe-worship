@@ -1,4 +1,4 @@
-ZOE WORSHIP LICENSE
+ZOPRESENT LICENSE
 Version 1.0
 
 Copyright (c) 2026 Zowesoft. All rights reserved, except as expressly granted in this licence.
@@ -7,7 +7,7 @@ Copyright (c) 2026 Zowesoft. All rights reserved, except as expressly granted in
 
 Zowesoft grants you a non-exclusive, non-transferable, royalty-free licence to:
 
-  a. download, install and run Zowe Worship on computers you own or control;
+  a. download, install and run Zopresent on computers you own or control;
   b. use the application, internally, for worship, presentation, media and related
      production purposes, commercial or not;
   c. view, read and study the source code;
@@ -24,7 +24,7 @@ You may not, without the prior written permission of Zowesoft:
      engine or the bundled models, except to the extent this restriction is prohibited
      by applicable law;
   c. remove or alter this licence, the copyright notice or any attribution to Zowesoft;
-  d. use the name "Zowe Worship", the Zowe logo or the Zowesoft mark to promote any
+  d. use the name "Zopresent", the Zopresent logo or the Zowesoft mark to promote any
      product or service other than the unmodified application.
 
 3. Source availability

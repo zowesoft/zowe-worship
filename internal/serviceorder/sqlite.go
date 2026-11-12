@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 const itemColumns = `id, service_id, position, kind, title, translation_id, book_id, chapter,

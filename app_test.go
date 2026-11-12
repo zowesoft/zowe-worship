@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/bible"
+	"zopresent/internal/bible"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -17,7 +17,7 @@ import (
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 
-	app := newAppAt(filepath.Join(t.TempDir(), "Zowe Worship"))
+	app := newAppAt(filepath.Join(t.TempDir(), "Zopresent"))
 	if err := app.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {
 		t.Fatalf("service startup: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestStartupStoresRuntimeContext(t *testing.T) {
 }
 
 func TestStartupInitializesPersistentStorage(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "Zowe Worship")
+	root := filepath.Join(t.TempDir(), "Zopresent")
 	app := newAppAt(root)
 
 	ctx := context.Background()
@@ -82,7 +82,7 @@ func TestStartupInitializesPersistentStorage(t *testing.T) {
 	if app.core == nil || app.bible == nil {
 		t.Fatal("startup did not open storage")
 	}
-	if _, err := os.Stat(filepath.Join(root, "zowe.db")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, "zopresent.db")); err != nil {
 		t.Fatalf("core database missing: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "translations")); err != nil {
@@ -130,7 +130,7 @@ func TestStartupInitializesPersistentStorage(t *testing.T) {
 
 func TestGetAppInfo(t *testing.T) {
 	info := NewApp().GetAppInfo()
-	if info.Name != "Zowe Worship" || info.Version != "0.1.0" {
+	if info.Name != "Zopresent" || info.Version != "0.1.0" {
 		t.Fatalf("unexpected application info: %+v", info)
 	}
 
@@ -138,7 +138,7 @@ func TestGetAppInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != `{"name":"Zowe Worship","version":"0.1.0"}` {
+	if string(data) != `{"name":"Zopresent","version":"0.1.0"}` {
 		t.Fatalf("unexpected bridge payload: %s", data)
 	}
 }
@@ -509,7 +509,7 @@ func TestServiceOrderAndPresentationFlow(t *testing.T) {
 }
 
 func TestSchedulePersistsAcrossRestart(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "Zowe Worship")
+	root := filepath.Join(t.TempDir(), "Zopresent")
 
 	first := newAppAt(root)
 	if err := first.ServiceStartup(context.Background(), application.ServiceOptions{}); err != nil {

@@ -55,7 +55,7 @@ func Components() []Component {
 // app, so the terms travel with the binaries even when it is never opened.
 func Notices() string {
 	var b strings.Builder
-	b.WriteString("Zowe Worship — third-party notices\n")
+	b.WriteString("Zopresent — third-party notices\n")
 	b.WriteString("This build redistributes the speech engine below. Their licenses follow.\n")
 
 	for _, c := range Components() {

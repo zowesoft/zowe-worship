@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/media"
+	"zopresent/internal/media"
 )
 
 // wallSlide is the wall's observable content, compared by value: the

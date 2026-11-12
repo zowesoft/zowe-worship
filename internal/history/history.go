@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 // SourceManual marks an operator projection. The detection workstream will add

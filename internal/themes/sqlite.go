@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 const themeColumns = `id, name, kind, is_default, font_family, font_size, line_height, bold, italic,

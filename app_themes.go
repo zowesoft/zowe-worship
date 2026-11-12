@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"zowe-worship/internal/themes"
+	"zopresent/internal/themes"
 )
 
 // themesWindow doubles as the reuse key: opening the editor again moves the

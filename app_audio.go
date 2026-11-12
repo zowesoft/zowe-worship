@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"strings"
 
-	"zowe-worship/internal/audio"
+	"zopresent/internal/audio"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

@@ -2,7 +2,7 @@
 # The .desktop file and icon paths match what the linux Taskfile stages:
 # the binary, the icon and the desktop entry land under their conventional
 # system locations so desktop environments pick the app up on install.
-name: "zowe-worship"
+name: "zopresent"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
@@ -15,18 +15,18 @@ license: "Proprietary"
 release: "1"
 
 contents:
-  - src: "./bin/zowe-worship"
-    dst: "/usr/local/bin/zowe-worship"
+  - src: "./bin/zopresent"
+    dst: "/usr/local/bin/zopresent"
   # The bundled speech engine, staged by `task engines:stage`. Installs to a
   # read-only FHS location; discovery falls back to it when nothing sits
   # beside the executable. Staged by the packaging tasks, so it is always
   # present when the package is built.
   - src: "./build/engines"
-    dst: "/usr/local/lib/zowe-worship/engines"
+    dst: "/usr/local/lib/zopresent/engines"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/zowe-worship.png"
-  - src: "./build/linux/zowe-worship.desktop"
-    dst: "/usr/share/applications/zowe-worship.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/zopresent.png"
+  - src: "./build/linux/zopresent.desktop"
+    dst: "/usr/share/applications/zopresent.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

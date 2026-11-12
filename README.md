@@ -1,8 +1,8 @@
-# Zowe Worship
+# Zopresent
 
 **Scripture-first worship presentation for a single operator and one audience display.**
 
-Zowe Worship is a desktop application for church worship services: one operator
+Zopresent is a desktop application for church worship services: one operator
 runs the service — scripture, songs, media and themes — from a studio window,
 while the audience display shows exactly what is on air. It works fully
 offline, including its AI scripture detection, and it never ships copyrighted
@@ -57,7 +57,7 @@ per-user settings with typed keys.
 ## Installation
 
 Download the installer for your platform from the
-[releases page](https://github.com/zowesoft/zowe-worship/releases):
+[releases page](https://github.com/zowesoft/zopresent/releases):
 
 | Platform | Package |
 |---|---|
@@ -69,7 +69,7 @@ Packages are currently **unsigned** — SmartScreen (Windows) or Gatekeeper
 (macOS) will ask for confirmation on first run.
 
 Per-user data (database, backups, installed translations, media library) lives
-under the OS convention: `%LOCALAPPDATA%\Zowesoft\Zowe Worship` on Windows.
+under the OS convention: `%LOCALAPPDATA%\Zowesoft\Zopresent` on Windows.
 
 ### Installing Bible translations
 
@@ -155,7 +155,7 @@ internal/                      domain packages (bible, songs, media, themes,
 cmd/bible-import               translation dataset importer
 cmd/bible-bench                bible latency benchmark
 cmd/asr-bench                  scripture-detection benchmark
-cmd/zowe-engine                offline speech-engine installer/fetcher
+cmd/zopresent-engine                offline speech-engine installer/fetcher
 frontend/                      React + TypeScript UI (Vite)
 build/                         per-platform packaging (NSIS, nfpm, darwin)
 docs/                          feature implementation tracker
@@ -165,9 +165,10 @@ docs/                          feature implementation tracker
 
 ## License
 
-Copyright © 2026 Zowesoft. All rights reserved. An open-source license is
-under consideration; until one is chosen, no license to redistribute is
-granted. Bible translations installed through the importer remain subject to
+Copyright © 2026 Zowesoft. All rights reserved. The source-available licence in
+`LICENSE` — free to use, source visible, no redistribution, no reverse
+engineering — governs the software; it is not an OSI open-source licence and
+has not had legal review. Bible translations installed through the importer remain subject to
 their own copyright holders — note that several popular translations (NIV,
 ESV, NLT, NASB) may **not** be redistributed without their publishers'
 permission, which is why the app ships none of them.

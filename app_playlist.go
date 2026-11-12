@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"zowe-worship/internal/database"
-	"zowe-worship/internal/media"
-	"zowe-worship/internal/presentation"
+	"zopresent/internal/database"
+	"zopresent/internal/media"
+	"zopresent/internal/presentation"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App } from '../../bindings/zowe-worship';
+import { App } from '../../bindings/zopresent';
 import { useStudio } from '../stores/StudioProvider';
 
 type BridgeState =

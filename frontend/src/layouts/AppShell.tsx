@@ -15,11 +15,11 @@ import { useShortcuts } from '../stores/ShortcutsProvider';
 import { TEXT_GUARDED, actionForCombo, comboFromEvent, QUEUE_SHORTCUTS } from '../lib/shortcuts';
 import { HistoryPanel } from '../features/presentation/HistoryPanel';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
-import { App } from '../../bindings/zowe-worship';
-import * as models from '../../bindings/zowe-worship/models';
-import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
-import type { Theme } from '../../bindings/zowe-worship/internal/themes/models';
-import { Kind as ThemeKind } from '../../bindings/zowe-worship/internal/themes/models';
+import { App } from '../../bindings/zopresent';
+import * as models from '../../bindings/zopresent/models';
+import type { Content } from '../../bindings/zopresent/internal/presentation/models';
+import type { Theme } from '../../bindings/zopresent/internal/themes/models';
+import { Kind as ThemeKind } from '../../bindings/zopresent/internal/themes/models';
 
 export type PageId = 'home' | 'bible' | 'songs' | 'media' | 'service';
 
@@ -85,7 +85,7 @@ function ScheduleSidebar({ onNavigate }: { onNavigate: (page: PageId) => void })
       <div className="flex items-center gap-[11px] h-(--header-height) px-[18px] shrink-0 border-b border-border max-[959px]:px-3 max-[959px]:gap-2">
         <span className="grid place-items-center w-8 h-8 border border-blue rounded-lg text-text bg-selected text-[25px] font-bold italic leading-none pb-1 max-[959px]:w-[29px] max-[959px]:h-[29px] max-[959px]:text-[22px]" aria-hidden="true">z</span>
         <div>
-          <strong className="block text-[15px] tracking-[-0.3px] whitespace-nowrap max-[959px]:text-[13.5px]">Zowe Worship</strong>
+          <strong className="block text-[15px] tracking-[-0.3px] whitespace-nowrap max-[959px]:text-[13.5px]">Zopresent</strong>
           <span className="block text-secondary text-[8.5px] tracking-[1.6px] mt-0.5">BY ZOWESOFT</span>
         </div>
       </div>

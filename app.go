@@ -11,18 +11,18 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"zowe-worship/internal/audio"
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/database"
-	"zowe-worship/internal/detection"
-	"zowe-worship/internal/history"
-	"zowe-worship/internal/media"
-	"zowe-worship/internal/presentation"
-	"zowe-worship/internal/scripture"
-	"zowe-worship/internal/serviceorder"
-	"zowe-worship/internal/settings"
-	"zowe-worship/internal/songs"
-	"zowe-worship/internal/themes"
+	"zopresent/internal/audio"
+	"zopresent/internal/bible"
+	"zopresent/internal/database"
+	"zopresent/internal/detection"
+	"zopresent/internal/history"
+	"zopresent/internal/media"
+	"zopresent/internal/presentation"
+	"zopresent/internal/scripture"
+	"zopresent/internal/serviceorder"
+	"zopresent/internal/settings"
+	"zopresent/internal/songs"
+	"zopresent/internal/themes"
 )
 
 var errStorageUnavailable = errors.New("storage is not available")
@@ -144,24 +144,24 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 
 	paths, err := a.paths()
 	if err != nil {
-		log.Printf("zowe: storage unavailable: %v", err)
+		log.Printf("zopresent: storage unavailable: %v", err)
 		return nil
 	}
 	if err := paths.Ensure(); err != nil {
-		log.Printf("zowe: storage unavailable: %v", err)
+		log.Printf("zopresent: storage unavailable: %v", err)
 		return nil
 	}
 
 	core, err := database.Open(ctx, paths.CoreDatabase())
 	if err != nil {
 		a.storageProblem = err
-		log.Printf("zowe: open database: %v", err)
+		log.Printf("zopresent: open database: %v", err)
 		return nil
 	}
 	if err := database.Migrate(ctx, core, paths.Backups()); err != nil {
 		_ = core.Close()
 		a.storageProblem = err
-		log.Printf("zowe: migrate database: %v", err)
+		log.Printf("zopresent: migrate database: %v", err)
 		return nil
 	}
 
@@ -188,7 +188,7 @@ func (a *App) rewireStores(core *sql.DB, paths database.Paths) {
 		pauseCtx = context.Background()
 	}
 	if err := a.settings.Set(pauseCtx, settings.KeyAutoProjectionPaused, "true"); err != nil {
-		log.Printf("zowe: pause auto-projection on start: %v", err)
+		log.Printf("zopresent: pause auto-projection on start: %v", err)
 	}
 	a.presentation = presentation.New(a.bible, a.order, a.songs, a.media, a.themes)
 	a.detection = detection.New(core)
@@ -221,7 +221,7 @@ func (a *App) paths() (database.Paths, error) {
 
 func (a *App) GetAppInfo() AppInfo {
 	return AppInfo{
-		Name:    "Zowe Worship",
+		Name:    "Zopresent",
 		Version: appVersion,
 	}
 }
@@ -719,7 +719,7 @@ func (a *App) recordProjection(state presentation.State) {
 	}
 
 	if err := a.history.Record(a.context(), entry); err != nil {
-		log.Printf("zowe: record projection: %v", err)
+		log.Printf("zopresent: record projection: %v", err)
 	}
 }
 

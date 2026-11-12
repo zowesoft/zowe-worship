@@ -7,7 +7,7 @@ package policy
 import (
 	"fmt"
 
-	"zowe-worship/internal/confidence"
+	"zopresent/internal/confidence"
 )
 
 // Gate IDs are stable: tests name them, and the panel can explain which one

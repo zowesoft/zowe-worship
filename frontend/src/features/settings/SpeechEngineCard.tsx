@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { App } from '../../../bindings/zowe-worship';
-import type { SpeechAttributionView, SpeechEngineView } from '../../../bindings/zowe-worship/models';
+import { App } from '../../../bindings/zopresent';
+import type { SpeechAttributionView, SpeechEngineView } from '../../../bindings/zopresent/models';
 import { Icon } from '../../components/Icon';
 import { formatBytes } from '../../lib/format';
 

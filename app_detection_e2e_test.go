@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/bible"
+	"zopresent/internal/asr"
+	"zopresent/internal/bible"
 )
 
 // End-to-end over the real engines on disk: a spoken clip goes through the

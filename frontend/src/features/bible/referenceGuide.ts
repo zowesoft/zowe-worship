@@ -1,4 +1,4 @@
-import type * as models from '../../../bindings/zowe-worship/models';
+import type * as models from '../../../bindings/zopresent/models';
 
 type Book = models.BibleBookView;
 

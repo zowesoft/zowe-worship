@@ -1,8 +1,8 @@
-# Agent notes for Zowe Worship
+# Agent notes for Zopresent
 
 ## Always rebuild after a change
 
-Every change ends with a full Wails rebuild of `bin/zowe-worship.exe`. A green
+Every change ends with a full Wails rebuild of `bin/zopresent.exe`. A green
 `go build`, `tsc` or test run is not enough: the app the team runs is the
 packaged binary, and the frontend is baked into it, so an un-rebuilt tree means
 the change is not actually testable in the app.
@@ -30,17 +30,17 @@ cannot run, report that instead of claiming the change is live.
 `wails3 build` runs `go mod tidy`, icons, bindings, the Vite production build and
 then the production `go build`. It takes several minutes and outlasts a 5-minute
 shell timeout, so start it in the background with output redirected to a log,
-then poll that log and `bin/zowe-worship.exe`.
+then poll that log and `bin/zopresent.exe`.
 
 ```bash
-/c/Users/JohnCode/go/bin/wails3 build > /tmp/zowe-build.log 2>&1   # background
-ls -l bin/zowe-worship.exe                                        # timestamp must advance
-cmd //c start "" "bin\\zowe-worship.exe"
-powershell -NoProfile -Command "Get-Process zowe-worship | Select-Object Id,MainWindowTitle"
+/c/Users/JohnCode/go/bin/wails3 build > /tmp/zopresent-build.log 2>&1   # background
+ls -l bin/zopresent.exe                                        # timestamp must advance
+cmd //c start "" "bin\\zopresent.exe"
+powershell -NoProfile -Command "Get-Process zopresent | Select-Object Id,MainWindowTitle"
 ```
 
 The rebuilt binary is only verified when the exe timestamp has moved and the
-process is running with the `Zowe Worship` window title.
+process is running with the `Zopresent` window title.
 
 `scripts/rebuild.sh` does all of that in one command: build, side-effect
 cleanup, relaunch, and the window check, exiting non-zero if any step fails.
@@ -90,7 +90,7 @@ Do not push, tag, rewrite history or reset branches unless asked.
 
 ### Build side effects to clean up
 
-- `wails3 build` stops running `zowe-worship` processes itself; relaunch after.
+- `wails3 build` stops running `zopresent` processes itself; relaunch after.
 - The Vite step deletes the tracked `frontend/dist/.gitkeep`. Restore it with
   `git checkout -- frontend/dist/.gitkeep` so it is not staged as a deletion.
 - The bindings step can leave a stray untracked `frontend/frontend/` directory.

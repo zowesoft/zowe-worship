@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Icon } from '../../components/Icon';
 import { useStudio } from '../../stores/StudioProvider';
 import { moveWithin, useDragOrder } from '../../lib/useDragOrder';
-import type * as models from '../../../bindings/zowe-worship/models';
+import type * as models from '../../../bindings/zopresent/models';
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -215,7 +215,7 @@ export function ServiceOrderWorkspace() {
             </form>
 
             {!studio.bridgeAvailable && (
-              <p className="pt-2.5 border-t border-border text-secondary text-[10px]">Open the Zowe Worship desktop app to store a service.</p>
+              <p className="pt-2.5 border-t border-border text-secondary text-[10px]">Open the Zopresent desktop app to store a service.</p>
             )}
           </>
         ) : (

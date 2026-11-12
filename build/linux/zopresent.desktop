@@ -1,11 +1,10 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Zowe Worship
+Name=Zopresent
 Comment=Scripture-first worship presentation for a single operator and one audience display.
-Exec=/usr/local/bin/zowe-worship %u
+Exec=/usr/local/bin/zopresent %u
 Terminal=false
-Type=Application
-Icon=zowe-worship
+Icon=zopresent
 Categories=AudioVideo;Utility;
-StartupWMClass=zowe-worship
+StartupWMClass=zopresent

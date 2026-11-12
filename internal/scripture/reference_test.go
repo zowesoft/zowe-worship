@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"zowe-worship/internal/bible"
+	"zopresent/internal/bible"
 )
 
 func TestParseReferences(t *testing.T) {

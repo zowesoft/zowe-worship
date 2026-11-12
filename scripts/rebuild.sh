@@ -16,8 +16,8 @@ if [ -z "$wails3_bin" ]; then
   exit 1
 fi
 
-exe="bin/zowe-worship.exe"
-log="${TMPDIR:-/tmp}/zowe-rebuild.log"
+exe="bin/zopresent.exe"
+log="${TMPDIR:-/tmp}/zopresent-rebuild.log"
 before=$(stat -c %Y "$exe" 2>/dev/null || echo 0)
 
 echo "rebuild: building (log: $log)"
@@ -39,14 +39,14 @@ rm -rf frontend/frontend
 git checkout -- frontend/dist/.gitkeep 2>/dev/null || true
 
 # wails3 build stops running instances itself, so this always starts the new one.
-cmd //c start "" "bin\\zowe-worship.exe"
+cmd //c start "" "bin\\zopresent.exe"
 sleep 5
 
 pid=$(powershell -NoProfile -Command \
-  "Get-Process -Name zowe-worship -ErrorAction SilentlyContinue | Where-Object { \$_.MainWindowTitle -eq 'Zowe Worship' } | Select-Object -First 1 -ExpandProperty Id" \
+  "Get-Process -Name zopresent -ErrorAction SilentlyContinue | Where-Object { \$_.MainWindowTitle -eq 'Zopresent' } | Select-Object -First 1 -ExpandProperty Id" \
   | tr -d '\r' | head -n 1)
 if [ -z "$pid" ]; then
-  echo "rebuild: the app did not come up with the Zowe Worship window" >&2
+  echo "rebuild: the app did not come up with the Zopresent window" >&2
   exit 1
 fi
 

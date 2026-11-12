@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"zowe-worship/internal/presentation"
+	"zopresent/internal/presentation"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -191,7 +191,7 @@ func (a *App) openAudienceOn(desktop *application.App, screens []*application.Sc
 	label := screenLabelFor(screens, target)
 	window := desktop.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             audienceWindow,
-		Title:            fmt.Sprintf("Zowe Worship — %s", label),
+		Title:            fmt.Sprintf("Zopresent — %s", label),
 		Screen:           target,
 		Frameless:        true,
 		Hidden:           true,

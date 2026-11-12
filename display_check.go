@@ -25,18 +25,18 @@ import (
 )
 
 func main() {
-	root, err := os.MkdirTemp("", "zowe-worship-display-check")
+	root, err := os.MkdirTemp("", "zopresent-display-check")
 	if err != nil {
 		fmt.Println("display check failed:", err)
 		os.Exit(1)
 	}
 	defer os.RemoveAll(root)
 
-	studio := newAppAt(filepath.Join(root, "Zowe Worship"))
+	studio := newAppAt(filepath.Join(root, "Zopresent"))
 	verdict := make(chan error, 1)
 
 	app := application.New(application.Options{
-		Name: "Zowe Worship display check",
+		Name: "Zopresent display check",
 		Services: []application.Service{
 			application.NewService(studio),
 			application.NewService(&displayCheck{studio: studio, verdict: verdict}),

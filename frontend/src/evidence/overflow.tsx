@@ -1,8 +1,8 @@
 import { StrictMode, useCallback, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemedSlide } from '../components/ThemedSlide';
-import type { Theme } from '../../bindings/zowe-worship/internal/themes/models';
-import { BackgroundKind, Kind, TextCase } from '../../bindings/zowe-worship/internal/themes/models';
+import type { Theme } from '../../bindings/zopresent/internal/themes/models';
+import { BackgroundKind, Kind, TextCase } from '../../bindings/zopresent/internal/themes/models';
 import '../styles/tokens.css';
 import '../styles/global.css';
 

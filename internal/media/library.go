@@ -22,7 +22,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 // Tile sizes keep the library grid predictable without shipping a different

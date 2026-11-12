@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"zowe-worship/internal/database"
-	"zowe-worship/internal/settings"
+	"zopresent/internal/database"
+	"zopresent/internal/settings"
 )
 
 // settingsWindow doubles as the reuse key: opening Settings again moves the

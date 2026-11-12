@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { Events } from '@wailsio/runtime';
-import { App } from '../../../bindings/zowe-worship';
-import type { MediaImportResult, MediaPlaylistInput, MediaPlaylistView, MediaView, PlaylistRunView } from '../../../bindings/zowe-worship/models';
-import type { Aspect, FormatGroup } from '../../../bindings/zowe-worship/internal/media/models';
+import { App } from '../../../bindings/zopresent';
+import type { MediaImportResult, MediaPlaylistInput, MediaPlaylistView, MediaView, PlaylistRunView } from '../../../bindings/zopresent/models';
+import type { Aspect, FormatGroup } from '../../../bindings/zopresent/internal/media/models';
 import { FittedImage } from '../../components/FittedImage';
 import { Icon } from '../../components/Icon';
 import { formatBytes } from '../../lib/format';
@@ -313,7 +313,7 @@ export function MediaWorkspace() {
           <div className="grid justify-items-center gap-2 py-[34px] px-5 border border-dashed border-border rounded-[10px] text-center [&_h3]:text-[14px] [&_p]:max-w-[560px] [&_p]:text-secondary [&_p]:text-[11.5px] [&_p]:leading-[1.7]">
             <span className="grid place-items-center w-12 h-12 border border-[#30466A] bg-selected text-[#8CABFF] rounded-[11px] shrink-0"><Icon name="media" size={24} /></span>
             <h3>No media yet</h3>
-            <p>Use Add media to choose images, video or audio from any folder. Zowe keeps its own copy, so moving a file later cannot break a service.</p>
+            <p>Use Add media to choose images, video or audio from any folder. Zopresent keeps its own copy, so moving a file later cannot break a service.</p>
           </div>
         ) : shown.length === 0 ? (
           <p className="p-[22px] text-secondary text-[11.5px] text-center">Nothing matches this filter.</p>

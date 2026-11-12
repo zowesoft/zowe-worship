@@ -1,4 +1,4 @@
-// Command zowe-engine stages a speech engine for packaging: it builds the tree
+// Command zopresent-engine stages a speech engine for packaging: it builds the tree
 // the packager copies beside the app, using the pinned hashes in internal/speech
 // so the shipped bytes are the verified ones, not whatever is on the build
 // machine. The model is platform-independent; -goos/-goarch pick the runtime, so
@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	go run ./cmd/zowe-engine -out build/engines -goos windows -goarch amd64
+//	go run ./cmd/zopresent-engine -out build/engines -goos windows -goarch amd64
 package main
 
 import (
@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"zowe-worship/internal/speech"
+	"zopresent/internal/speech"
 )
 
 func main() {

@@ -12,11 +12,11 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/confidence"
-	"zowe-worship/internal/detection"
-	"zowe-worship/internal/policy"
-	"zowe-worship/internal/settings"
+	"zopresent/internal/asr"
+	"zopresent/internal/confidence"
+	"zopresent/internal/detection"
+	"zopresent/internal/policy"
+	"zopresent/internal/settings"
 )
 
 // detectionAudioRate matches what the webview captures: 16 kHz mono 16-bit
@@ -124,7 +124,7 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	}
 
 	// The engine reads files, not buffers.
-	dir, err := os.MkdirTemp("", "zowe-detect-")
+	dir, err := os.MkdirTemp("", "zopresent-detect-")
 	if err != nil {
 		return DetectionResult{}, fmt.Errorf("prepare audio temp dir: %w", err)
 	}
@@ -333,7 +333,7 @@ func (a *App) ProjectDetection(id string) (PresentationView, error) {
 	if _, err := a.detection.Approve(ctx, candidate.ID, a.currentServiceID(ctx)); err != nil {
 		// The passage is already on screen; a failed audit row must not make the
 		// operator think it did not go out.
-		log.Printf("zowe: record projected detection %s: %v", reference.String(), err)
+		log.Printf("zopresent: record projected detection %s: %v", reference.String(), err)
 	}
 	return view, nil
 }
@@ -535,11 +535,11 @@ func (a *App) autoProject(settled []detection.Candidate) []string {
 			reference.Book.ID, reference.Chapter, reference.VerseStart, reference.VerseEnd,
 			a.oneVersePerSlide(ctx))
 		if _, projectErr = a.projected(state, projectErr); projectErr != nil {
-			log.Printf("zowe: auto-project %s: %v", reference.String(), projectErr)
+			log.Printf("zopresent: auto-project %s: %v", reference.String(), projectErr)
 			continue
 		}
 		if _, err := a.detection.AutoProject(ctx, candidate.ID, a.currentServiceID(ctx)); err != nil {
-			log.Printf("zowe: record auto-projected %s: %v", reference.String(), err)
+			log.Printf("zopresent: record auto-projected %s: %v", reference.String(), err)
 			continue
 		}
 		projected = append(projected, reference.String())

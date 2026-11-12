@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App } from '../../../bindings/zowe-worship';
-import type * as models from '../../../bindings/zowe-worship/models';
+import { App } from '../../../bindings/zopresent';
+import type * as models from '../../../bindings/zopresent/models';
 import { useStudio } from '../../stores/StudioProvider';
 import { Icon } from '../../components/Icon';
 import type { IconName } from '../../components/Icon';

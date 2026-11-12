@@ -3,10 +3,10 @@ package main
 import (
 	"testing"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/confidence"
-	"zowe-worship/internal/detection"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/confidence"
+	"zopresent/internal/detection"
+	"zopresent/internal/scripture"
 )
 
 // queueDetection puts one reference in the pending queue the way DetectScripture

@@ -7,7 +7,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"zowe-worship/internal/settings"
+	"zopresent/internal/settings"
 )
 
 // shortcutsConfigEvent tells the studio its operator shortcuts changed. They

@@ -13,7 +13,7 @@ import (
 func openTestDatabase(t *testing.T) (*sql.DB, string) {
 	t.Helper()
 
-	dbPath := filepath.Join(t.TempDir(), "Zowe Worship", "zowe.db")
+	dbPath := filepath.Join(t.TempDir(), "Zopresent", "zopresent.db")
 	db, err := Open(context.Background(), dbPath)
 	if err != nil {
 		t.Fatalf("open database: %v", err)
@@ -164,7 +164,7 @@ func TestBackupProducesReadableSnapshot(t *testing.T) {
 		t.Fatalf("backup: %v", err)
 	}
 
-	files, err := filepath.Glob(filepath.Join(dir, "zowe-before-v2-*.db"))
+	files, err := filepath.Glob(filepath.Join(dir, "zopresent-before-v2-*.db"))
 	if err != nil || len(files) != 1 {
 		t.Fatalf("backup files = %v, err = %v", files, err)
 	}
@@ -200,7 +200,7 @@ func TestDefaultPathsStayLocal(t *testing.T) {
 		t.Fatalf("default paths: %v", err)
 	}
 
-	wantRoot := filepath.Join(base, "Zowesoft", "Zowe Worship")
+	wantRoot := filepath.Join(base, "Zowesoft", "Zopresent")
 	if paths.Root != wantRoot {
 		t.Fatalf("root = %q, want %q", paths.Root, wantRoot)
 	}

@@ -7,7 +7,7 @@ import (
 	"runtime"
 )
 
-const appDirName = "Zowe Worship"
+const appDirName = "Zopresent"
 
 // Paths describes the per-user, local-only storage layout. Translation packages
 // are large and user-downloadable, so they never live under roaming AppData.
@@ -52,12 +52,12 @@ func defaultRoot() (string, error) {
 			}
 			base = filepath.Join(home, ".local", "share")
 		}
-		return filepath.Join(base, "zowesoft", "zowe-worship"), nil
+		return filepath.Join(base, "zowesoft", "zopresent"), nil
 	}
 }
 
 func (p Paths) CoreDatabase() string {
-	return filepath.Join(p.Root, "zowe.db")
+	return filepath.Join(p.Root, "zopresent.db")
 }
 
 func (p Paths) Translations() string {

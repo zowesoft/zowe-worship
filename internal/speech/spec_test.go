@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"zowe-worship/internal/asr"
+	"zopresent/internal/asr"
 )
 
 func TestSpecBuildsParsableMoonshineCommand(t *testing.T) {
@@ -38,7 +38,7 @@ func TestEngineMatchesStoredSpecByCommand(t *testing.T) {
 
 	for _, spec := range []string{
 		`moonshine=/data/engines/bin/sherpa-onnx-offline --tokens=/x/tokens.txt {audio}`,
-		`moonshine="C:\Program Files\Zowe\engines\bin\sherpa-onnx-offline.exe" -f {audio}`,
+		`moonshine="C:\Program Files\Zopresent\engines\bin\sherpa-onnx-offline.exe" -f {audio}`,
 	} {
 		if !moonshine.Matches(spec) {
 			t.Fatalf("moonshine should match stored spec: %s", spec)

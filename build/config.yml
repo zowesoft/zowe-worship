@@ -6,8 +6,8 @@ version: '3'
 # This information is used to generate the build assets.
 info:
   companyName: "Zowesoft" # The name of the company
-  productName: "Zowe Worship" # The name of the application
-  productIdentifier: "com.zowesoft.zowe-worship" # The unique product identifier
+  productName: "Zopresent" # The name of the application
+  productIdentifier: "com.zowesoft.zopresent" # The unique product identifier
   description: "Scripture-first worship presentation for a single operator and one audience display." # The application description
   copyright: "(c) 2026, Zowesoft" # Copyright text
   comments: "Scripture First. Always." # Comments

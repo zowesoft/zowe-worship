@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/bible"
+	"zopresent/internal/scripture"
 )
 
 type Detection struct {

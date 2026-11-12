@@ -94,7 +94,7 @@ type SchemaAheadError struct {
 
 func (e *SchemaAheadError) Error() string {
 	if e.Highest > e.Known {
-		return fmt.Sprintf("the database was last written by a newer Zowe Worship: schema version %d, this build knows %d", e.Highest, e.Known)
+		return fmt.Sprintf("the database was last written by a newer Zopresent: schema version %d, this build knows %d", e.Highest, e.Known)
 	}
 	return fmt.Sprintf("the database records applied migration %d, which this build does not know", e.Highest)
 }

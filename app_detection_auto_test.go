@@ -3,9 +3,9 @@ package main
 import (
 	"testing"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/detection"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/detection"
+	"zopresent/internal/scripture"
 )
 
 // autoReadyApp has a Bible installed and auto-projection switched on and

@@ -3,8 +3,8 @@ package confidence
 import (
 	"testing"
 
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/bible"
+	"zopresent/internal/scripture"
 )
 
 func referenceOf(t *testing.T, text string) scripture.Reference {

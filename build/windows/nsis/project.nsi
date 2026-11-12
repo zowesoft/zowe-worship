@@ -38,9 +38,9 @@ Unicode true
 ## ahead of the include makes the include a no-op for them, so the installer's
 ## name, publisher and shortcuts are correct regardless of how it is built.
 ####
-!define INFO_PROJECTNAME    "zowe-worship"   # -> zowe-worship.exe, the app binary
+!define INFO_PROJECTNAME    "zopresent"   # -> zopresent.exe, the app binary
 !define INFO_COMPANYNAME    "Zowesoft"
-!define INFO_PRODUCTNAME    "Zowe Worship"
+!define INFO_PRODUCTNAME    "Zopresent"
 !define INFO_PRODUCTVERSION "0.1.0"
 !define INFO_COPYRIGHT      "(c) 2026, Zowesoft"
 ####
@@ -77,7 +77,7 @@ ManifestDPIAware true
 !define MUI_ABORTWARNING # This will warn the user if they exit from the installer.
 
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
-!insertmacro MUI_PAGE_LICENSE "resources\LICENSE.txt" # The Zowe Worship licence.
+!insertmacro MUI_PAGE_LICENSE "resources\LICENSE.txt" # The Zopresent licence.
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
 !insertmacro MUI_PAGE_FINISH # Finished installation page.

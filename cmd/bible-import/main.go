@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/database"
+	"zopresent/internal/bible"
+	"zopresent/internal/database"
 )
 
 func main() {

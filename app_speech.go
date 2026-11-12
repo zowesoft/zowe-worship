@@ -10,8 +10,8 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"zowe-worship/internal/settings"
-	"zowe-worship/internal/speech"
+	"zopresent/internal/settings"
+	"zopresent/internal/speech"
 )
 
 // speechProgressEvent exists so a ~140 MB download shows movement instead of a
@@ -254,10 +254,10 @@ func (a *App) speechLayout() speech.Layout {
 		dir := filepath.Dir(exe)
 		layout.BundledRoot = filepath.Join(dir, "engines")
 		// Linux packages install the binary to /usr/local/bin and the engine
-		// tree to /usr/local/lib/zowe-worship/engines (FHS); fall back to the
+		// tree to /usr/local/lib/zopresent/engines (FHS); fall back to the
 		// library location when nothing sits beside the executable.
 		if _, err := os.Stat(layout.BundledRoot); err != nil {
-			lib := filepath.Join(dir, "..", "lib", "zowe-worship", "engines")
+			lib := filepath.Join(dir, "..", "lib", "zopresent", "engines")
 			if info, err := os.Stat(lib); err == nil && info.IsDir() {
 				layout.BundledRoot = lib
 			}

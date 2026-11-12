@@ -3,7 +3,7 @@
 // the device list the panel shows and the base64 encoder the bridge needs for
 // the PCM the file decoder produces.
 
-import { App } from '../../../bindings/zowe-worship';
+import { App } from '../../../bindings/zopresent';
 
 export type AudioInput = {
   deviceId: string;

@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Events } from '@wailsio/runtime';
-import { App } from '../../bindings/zowe-worship';
-import type * as models from '../../bindings/zowe-worship/models';
+import { App } from '../../bindings/zopresent';
+import type * as models from '../../bindings/zopresent/models';
 import { DEFAULT_SHORTCUTS } from '../lib/shortcuts';
 
 type ShortcutsValue = {

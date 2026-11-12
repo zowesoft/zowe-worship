@@ -6,7 +6,7 @@
 # the "absent -> Get engine" behaviour of the other packages.
 set -euo pipefail
 
-name="${1:?AppImage base name, e.g. zowe-worship}"
+name="${1:?AppImage base name, e.g. zopresent}"
 outdir="${2:?output dir for the repacked image, e.g. ../../../bin}"
 engines="${3:-../../../build/engines}"
 

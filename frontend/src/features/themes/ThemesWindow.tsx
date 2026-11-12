@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Window } from '@wailsio/runtime';
-import { App } from '../../../bindings/zowe-worship';
-import type { MediaView } from '../../../bindings/zowe-worship/models';
-import type { FontFamily, Theme } from '../../../bindings/zowe-worship/internal/themes/models';
-import { BackgroundKind, Kind, TextCase } from '../../../bindings/zowe-worship/internal/themes/models';
+import { App } from '../../../bindings/zopresent';
+import type { MediaView } from '../../../bindings/zopresent/models';
+import type { FontFamily, Theme } from '../../../bindings/zopresent/internal/themes/models';
+import { BackgroundKind, Kind, TextCase } from '../../../bindings/zopresent/internal/themes/models';
 import { Icon } from '../../components/Icon';
 import { Dropdown } from '../../components/Dropdown';
 import { ThemedSlide } from '../../components/ThemedSlide';

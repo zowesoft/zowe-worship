@@ -1,4 +1,4 @@
-# Fetches the benchmark toolchain for Zowe Worship. The harness itself is pure
+# Fetches the benchmark toolchain for Zopresent. The harness itself is pure
 # Go and runs on Windows, macOS and Linux; only the downloads differ per OS.
 # Usage: powershell -File benchmarks/fetch.ps1
 $ErrorActionPreference = "Stop"

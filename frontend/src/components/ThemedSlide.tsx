@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { CSSProperties, Ref } from 'react';
-import type { Theme } from '../../bindings/zowe-worship/internal/themes/models';
-import { BackgroundKind, TextCase } from '../../bindings/zowe-worship/internal/themes/models';
+import type { Theme } from '../../bindings/zopresent/internal/themes/models';
+import { BackgroundKind, TextCase } from '../../bindings/zopresent/internal/themes/models';
 
 // Below this the words stop being readable across a room.
 const minScale = 0.3;

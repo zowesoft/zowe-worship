@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/bible"
+	"zopresent/internal/scripture"
 )
 
 // newClockedQueue returns a queue whose clock the test advances by hand, so the

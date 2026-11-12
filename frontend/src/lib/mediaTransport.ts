@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { Events } from '@wailsio/runtime';
-import { App } from '../../bindings/zowe-worship';
+import { App } from '../../bindings/zopresent';
 
 // useTransportPlayer wires one media element to the studio transport: it takes
 // commands and reports its clock back. The audience display uses it while it is

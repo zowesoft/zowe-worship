@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zowe-worship/internal/media"
+	"zopresent/internal/media"
 )
 
 // importPlaylistClip imports one placeholder clip and hands back its id.

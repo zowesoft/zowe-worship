@@ -3,9 +3,9 @@ import { Events } from '@wailsio/runtime';
 import { SlideMedia } from '../../components/SlideMedia';
 import { ThemedSlide } from '../../components/ThemedSlide';
 import { useTransportPlayer } from '../../lib/mediaTransport';
-import { App } from '../../../bindings/zowe-worship';
-import type { PresentationView } from '../../../bindings/zowe-worship/models';
-import type { Content } from '../../../bindings/zowe-worship/internal/presentation/models';
+import { App } from '../../../bindings/zopresent';
+import type { PresentationView } from '../../../bindings/zopresent/models';
+import type { Content } from '../../../bindings/zopresent/internal/presentation/models';
 
 export function AudienceDisplay() {
   const [state, setState] = useState<PresentationView | null>(null);

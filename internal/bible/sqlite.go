@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 const (

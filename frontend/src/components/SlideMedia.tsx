@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { FittedImage, frameStyle } from './FittedImage';
 import { Icon } from './Icon';
-import type { Content } from '../../bindings/zowe-worship/internal/presentation/models';
+import type { Content } from '../../bindings/zopresent/internal/presentation/models';
 
 type Props = {
   content: Content;

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zowe-worship/internal/bible"
+	"zopresent/internal/bible"
 )
 
 var (

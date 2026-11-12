@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/scripture"
 )
 
 // Bands name the policy outcome a score falls into. Only the confirmation queue

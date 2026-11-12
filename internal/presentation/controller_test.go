@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/media"
-	"zowe-worship/internal/serviceorder"
-	"zowe-worship/internal/songs"
-	"zowe-worship/internal/themes"
+	"zopresent/internal/bible"
+	"zopresent/internal/media"
+	"zopresent/internal/serviceorder"
+	"zopresent/internal/songs"
+	"zopresent/internal/themes"
 )
 
 type fakeScripture struct {

@@ -150,7 +150,7 @@ func CheckRestoreCandidate(ctx context.Context, backup string) error {
 		return err
 	}
 	if version > latest {
-		return fmt.Errorf("backup schema v%d is newer than this build (v%d); update Zowe Worship first",
+		return fmt.Errorf("backup schema v%d is newer than this build (v%d); update Zopresent first",
 			version, latest)
 	}
 	return nil

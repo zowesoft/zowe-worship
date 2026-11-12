@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"zowe-worship/internal/database"
+	"zopresent/internal/database"
 )
 
 var packageStatements = []string{

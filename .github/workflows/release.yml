@@ -39,8 +39,8 @@ jobs:
         run: wails3 task package INSTALL_SCOPE=machine
       - uses: actions/upload-artifact@v4
         with:
-          name: zowe-worship-windows
-          path: bin/zowe-worship-amd64-installer.exe
+          name: zopresent-windows
+          path: bin/zopresent-amd64-installer.exe
           if-no-files-found: error
 
   linux:
@@ -77,7 +77,7 @@ jobs:
           wails3 task linux:create:rpm
       - uses: actions/upload-artifact@v4
         with:
-          name: zowe-worship-linux
+          name: zopresent-linux
           path: |
             bin/*.deb
             bin/*.rpm
@@ -102,11 +102,11 @@ jobs:
       # loose contents that no release glob can pick up. ditto preserves the
       # bundle metadata macOS expects.
       - name: Zip the .app bundle
-        run: ditto -c -k --keepParent bin/zowe-worship.app zowe-worship-macos.zip
+        run: ditto -c -k --keepParent bin/zopresent.app zopresent-macos.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: zowe-worship-macos
-          path: zowe-worship-macos.zip
+          name: zopresent-macos
+          path: zopresent-macos.zip
           if-no-files-found: error
 
   release:

@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Events } from '@wailsio/runtime';
-import { App } from '../../bindings/zowe-worship';
-import * as models from '../../bindings/zowe-worship/models';
-import type { Aspect } from '../../bindings/zowe-worship/internal/media/models';
+import { App } from '../../bindings/zopresent';
+import * as models from '../../bindings/zopresent/models';
+import type { Aspect } from '../../bindings/zopresent/internal/media/models';
 
 export type ScriptureInput = {
   translationId: string;
@@ -157,7 +157,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       })
       .catch((cause: unknown) => {
         if (!active) return;
-        setError(`${errorMessage(cause)} — open the Zowe Worship desktop app to run a service.`);
+        setError(`${errorMessage(cause)} — open the Zopresent desktop app to run a service.`);
       })
       .finally(() => {
         if (active) setReady(true);

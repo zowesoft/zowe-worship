@@ -1,4 +1,4 @@
-module zowe-worship
+module zopresent
 
 go 1.26.0
 

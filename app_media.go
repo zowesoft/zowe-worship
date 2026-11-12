@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"zowe-worship/internal/media"
-	"zowe-worship/internal/serviceorder"
+	"zopresent/internal/media"
+	"zopresent/internal/serviceorder"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

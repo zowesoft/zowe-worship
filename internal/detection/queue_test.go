@@ -8,17 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"zowe-worship/internal/asr"
-	"zowe-worship/internal/bible"
-	"zowe-worship/internal/confidence"
-	"zowe-worship/internal/database"
-	"zowe-worship/internal/scripture"
+	"zopresent/internal/asr"
+	"zopresent/internal/bible"
+	"zopresent/internal/confidence"
+	"zopresent/internal/database"
+	"zopresent/internal/scripture"
 )
 
 func newTestQueue(t *testing.T) *Queue {
 	t.Helper()
 
-	paths := database.Paths{Root: filepath.Join(t.TempDir(), "Zowe Worship")}
+	paths := database.Paths{Root: filepath.Join(t.TempDir(), "Zopresent")}
 	if err := paths.Ensure(); err != nil {
 		t.Fatalf("prepare directories: %v", err)
 	}
