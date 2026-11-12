@@ -22,9 +22,10 @@ import (
 // PCM, the format every supported engine wants.
 const detectionAudioRate = 16000
 
-// maxDetectionAudioBytes caps one analysis request at 30 s of 16 kHz mono
-// 16-bit PCM. Longer inputs can push autoregressive engines like Moonshine
-// into a decode loop that pins the CPU and starves small machines of memory.
+// maxDetectionAudioBytes caps one engine chunk at 30 s of 16 kHz mono 16-bit
+// PCM. Longer inputs can push autoregressive engines like Moonshine into a
+// decode loop that pins the CPU and starves small machines of memory, so whole
+// recordings are split into chunks of this size rather than refused.
 const maxDetectionAudioBytes = 30 * detectionAudioRate * 2
 
 // DetectionView is one candidate in the approval queue.
@@ -112,9 +113,6 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	if len(pcm) == 0 {
 		return DetectionResult{}, errors.New("no audio was captured")
 	}
-	if len(pcm) > maxDetectionAudioBytes {
-		return DetectionResult{}, errors.New("audio chunk is too long — analyze at most 30 seconds at a time")
-	}
 	if a.detectionDisabled() {
 		return DetectionResult{}, errors.New("detection is disabled (F12)")
 	}
@@ -131,32 +129,54 @@ func (a *App) DetectScripture(pcm []byte) (DetectionResult, error) {
 	}
 	defer os.RemoveAll(dir)
 	wavPath := filepath.Join(dir, "chunk.wav")
-	if err := asr.WriteWAV(wavPath, asr.AudioSpec{
-		SampleRate:    detectionAudioRate,
-		Channels:      1,
-		BitsPerSample: 16,
-		FormatTag:     1,
-		Data:          pcm,
-	}); err != nil {
-		return DetectionResult{}, fmt.Errorf("write audio chunk: %w", err)
-	}
 
-	// Partials may only refine this segment's cards; the final transcript closes
-	// the segment and settles them under their existing IDs.
-	a.detection.BeginSegment()
-	transcript, err := spec.TranscribeStream(wavPath, a.streamDetectionProgress)
-	if err != nil {
-		a.detection.CloseSegment()
-		return DetectionResult{}, err
+	// A whole recording arrives in one request, but the engine only ever sees
+	// 30-second chunks: each one opens its own segment, so every verse in the
+	// file gets heard instead of only the opening seconds.
+	var result DetectionResult
+	var heard []string
+	for start := 0; start < len(pcm); start += maxDetectionAudioBytes {
+		end := min(start+maxDetectionAudioBytes, len(pcm))
+		if err := asr.WriteWAV(wavPath, asr.AudioSpec{
+			SampleRate:    detectionAudioRate,
+			Channels:      1,
+			BitsPerSample: 16,
+			FormatTag:     1,
+			Data:          pcm[start:end],
+		}); err != nil {
+			return DetectionResult{}, fmt.Errorf("write audio chunk: %w", err)
+		}
+
+		// Partials may only refine this segment's cards; the final transcript
+		// closes the segment and settles them under their existing IDs.
+		base := strings.Join(heard, " ")
+		a.detection.BeginSegment()
+		transcript, err := spec.TranscribeStream(wavPath, func(partial string) {
+			a.streamDetectionProgress(base, partial)
+		})
+		if err != nil {
+			a.detection.CloseSegment()
+			return DetectionResult{}, err
+		}
+		chunk, err := a.settleSegment(transcript)
+		if err != nil {
+			return DetectionResult{}, err
+		}
+		if transcript != "" {
+			heard = append(heard, transcript)
+		}
+		result.Candidates = chunk.Candidates
+		result.Segment = chunk.Segment
+		result.Repeats += chunk.Repeats
+		result.AutoProjected = append(result.AutoProjected, chunk.AutoProjected...)
 	}
-	return a.settleSegment(transcript)
+	result.Transcript = strings.Join(heard, " ")
+	return result, nil
 }
 
-// streamDetectionProgress merges each segment so a growing hearing replaces its
-// pending candidate, and forwards the partial transcript to the studio.
 // settleSegment closes the open segment on its final transcript: the queue
 // settles the cards under their existing IDs and the policy layer weighs them.
-// DetectScripture calls it once per analysis; tests drive it directly so the
+// DetectScripture calls it once per chunk; tests drive it directly so the
 // segment lifecycle needs no speech engine on disk.
 func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	if a.detection == nil {
@@ -175,7 +195,11 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	}, nil
 }
 
-func (a *App) streamDetectionProgress(partial string) {
+// streamDetectionProgress merges the chunk's own partial so a growing hearing
+// replaces its pending candidate, and forwards the transcript so far to the
+// studio. base is what earlier chunks already heard: it belongs in the display,
+// but re-detecting it would queue settled references again as new live cards.
+func (a *App) streamDetectionProgress(base, partial string) {
 	if a.detection == nil {
 		return
 	}
@@ -187,7 +211,7 @@ func (a *App) streamDetectionProgress(partial string) {
 			studio.DispatchWailsEvent(&application.CustomEvent{
 				Name: detectionProgressEvent,
 				Data: DetectionProgressView{
-					Transcript: partial,
+					Transcript: strings.TrimSpace(base + " " + partial),
 					Candidates: a.toDetectionViews(a.detection.List()),
 					Segment:    a.detection.CurrentSegment(),
 				},

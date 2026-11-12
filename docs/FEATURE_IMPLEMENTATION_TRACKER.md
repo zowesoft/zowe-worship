@@ -349,6 +349,16 @@ card) instead of queuing a duplicate the operator must dismiss twice; folding
 is not an operator decision, so `detection_history` keeps only what the
 operator actually decided.
 
+A whole recording is analyzed, not just its first half-minute: `DetectScripture`
+splits the incoming PCM into engine-safe chunks of at most 30 s and settles each
+one in turn, so every verse the speaker names across a long sermon reaches the
+queue instead of the request being refused or cut off at the first chunk. The
+file picker sends the entire decoded file for the same reason, and streamed
+progress carries the chunks heard so far plus the live partial, so the panel
+fills from the start of the recording rather than restarting at each chunk.
+`app_detection_chunk_test.go` drives a stub engine across three chunks and
+asserts all three references finalize.
+
 Auto-projection runs through `internal/policy`, the only code allowed to send a
 detection to the display (`app_detection.go` `autoProject`). The PRD's eight
 safety gates are named checks — finalized segment, unambiguous reference,

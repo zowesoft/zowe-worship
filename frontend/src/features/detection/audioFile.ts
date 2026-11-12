@@ -1,12 +1,9 @@
 // File-based audio for testing Live Detection without a microphone: decode
 // any format the webview supports (MP3, M4A, WAV, OGG…) and resample it to
-// the 16 kHz mono Int16 PCM the Go pipeline expects.
+// the 16 kHz mono Int16 PCM the Go pipeline expects. The whole file goes to
+// the backend, which splits it into engine-safe chunks so every spoken
+// reference is heard, not just the opening seconds.
 
-// Cap how much of a file gets analyzed. Long inputs can send autoregressive
-// engines (Moonshine in particular) into a decode loop that pins the CPU and
-// exhausts memory on small machines — 30 s is the proven-safe zone, and it
-// matches what the live mic loop analyzes anyway.
-const MAX_FILE_SECONDS = 30;
 const TARGET_RATE = 16000;
 
 export async function decodeAudioFile(file: File | Blob): Promise<Int16Array> {
@@ -19,8 +16,7 @@ export async function decodeAudioFile(file: File | Blob): Promise<Int16Array> {
     void context.close();
   }
 
-  const seconds = Math.min(decoded.duration, MAX_FILE_SECONDS);
-  const frames = Math.max(1, Math.ceil(seconds * TARGET_RATE));
+  const frames = Math.max(1, Math.ceil(decoded.duration * TARGET_RATE));
   const offline = new OfflineAudioContext(1, frames, TARGET_RATE);
   const source = offline.createBufferSource();
   source.buffer = decoded;
