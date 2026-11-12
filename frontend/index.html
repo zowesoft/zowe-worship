@@ -6,9 +6,21 @@
     <meta name="theme-color" content="#080F1C" />
     <meta name="description" content="Zopresent desktop production workspace." />
     <title>Zopresent</title>
+    <script>
+      // Every window loads this same bundle. The splash is a studio moment;
+      // the small editing windows and the audience display open at
+      // /?view=<name> and must never paint it (or keep it) - hide it before
+      // the first frame, not after.
+      if (new URLSearchParams(window.location.search).has('view')) {
+        document.documentElement.classList.add('skip-splash');
+      }
+    </script>
     <style>
       /* The splash is pure markup/CSS and part of the embedded bundle, so it
          paints on the very first frame, before any script runs. */
+      .skip-splash #splash {
+        display: none;
+      }
       #splash {
         position: fixed;
         inset: 0;
@@ -113,7 +125,12 @@
     <script>
       // The splash holds ten seconds. Cycle a short public-domain verse so the
       // hold reads as a moment rather than a wait. Pure DOM, no dependencies.
+      // The small editing windows and the audience display never paint the
+      // splash, so the timer is a no-op there too.
       (function () {
+        if (document.documentElement.classList.contains('skip-splash')) {
+          return;
+        }
         var verses = [
           ['Thy word is a lamp unto my feet, and a light unto my path.', 'Psalm 119:105'],
           ['All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness.', '2 Timothy 3:16'],

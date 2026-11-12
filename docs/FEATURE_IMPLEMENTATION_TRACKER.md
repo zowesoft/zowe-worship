@@ -89,8 +89,10 @@ Done:
       Zopresent mark, wordmark and tagline before any script runs; it holds a
       fixed ten seconds and, while it does, cycles seven short public-domain
       KJV verses (one about every four seconds) above the version and the
-      F8/F9/F12 shortcut hints, then fades out (`frontend/index.html`,
-      `StudioProvider.tsx`).
+      F8/F9/F12 shortcut hints, then fades out. It paints only in the
+      studio window: every window loads the same bundle at /?view=<name>,
+      so the markup is hidden before first paint when a view is set
+      (`skip-splash`) (`frontend/index.html`, `StudioProvider.tsx`).
 - [x] Brand artwork wired in: appicon.png regenerated from the rounded-square
       Zopresent icon, ico/icns rebuilt with `wails3 generate icons`, and the
       Windows installer carries a branded 164x314 welcome/finish panel, a
