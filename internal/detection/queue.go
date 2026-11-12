@@ -80,6 +80,9 @@ func scoreDetection(transcript string, detection asr.Detection) (method, explana
 	if detection.Method == MethodSpokenQuote {
 		return MethodSpokenQuote, ExplanationSpokenQuote, detection.Confidence
 	}
+	if detection.Method == MethodContextualReference {
+		return MethodContextualReference, ExplanationContextualReference, detection.Confidence
+	}
 	return MethodExplicitReference, ExplanationExplicitReference, confidence.Evaluate(transcript, detection.Reference)
 }
 

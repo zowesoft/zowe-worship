@@ -532,6 +532,17 @@ and has no model lifecycle of its own.
 Production card carries the standing switch, its Hybrid/Paused status, and the
 plain statement of what the gates will and will not project.
 
+Contextual references are detected too, per the PRD: a bare "verse N" in the
+transcript ("now read verse twenty-nine") resolves against the passage
+established on the wall - same book and chapter, the spoken verse - and queues
+as a `contextual-reference` candidate. Validation defers to the selected
+translation (a verse the chapter does not hold is dropped), an explicit
+reference from the same transcript supersedes the implied mention, a mention
+that cannot settle to exactly one number is skipped, and nothing queues at all
+with no scripture on the wall. The card is never auto-projected: its method is
+not the explicit one, so the safety intent gate blocks it at every setting
+(`internal/asr/contextual.go`, `internal/detection/contextual.go`).
+
 ### Engine provisioning (F07 slice — landed)
 
 The engine is only *discovered* if it already sits on disk. Discovery now scans

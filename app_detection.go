@@ -13,9 +13,11 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"zopresent/internal/asr"
+	"zopresent/internal/bible"
 	"zopresent/internal/confidence"
 	"zopresent/internal/detection"
 	"zopresent/internal/policy"
+	"zopresent/internal/scripture"
 	"zopresent/internal/settings"
 )
 
@@ -183,7 +185,9 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	if a.detection == nil {
 		return DetectionResult{}, errStorageUnavailable
 	}
-	settled, err := a.detection.Finalize(transcript, asr.DetectReferences(transcript))
+	explicit := asr.DetectReferences(transcript)
+	detections := append(explicit, a.detectContextual(transcript, explicit)...)
+	settled, err := a.detection.Finalize(transcript, detections, a.currentServiceID(a.context()))
 	if err != nil {
 		return DetectionResult{}, err
 	}
@@ -196,6 +200,37 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	}, nil
 }
 
+// detectContextual turns a bare "verse N" mention into a card tied to the
+// passage that is established on the wall - the same book and chapter, the
+// spoken verse. It produces nothing when no scripture is live: the mention
+// means nothing without a passage to resolve against. The lookup happens
+// here, at the app layer, so the detector stays pure.
+//
+// Contextual references are queued for the operator like everything else,
+// and can never be auto-projected: their method is not the explicit one, and
+// the policy intent gate requires it.
+func (a *App) detectContextual(transcript string, explicit []asr.Detection) []asr.Detection {
+	if a.bible == nil || a.settings == nil || strings.TrimSpace(transcript) == "" {
+		return nil
+	}
+	state := a.presentation.State()
+	if state.Live == nil || state.Live.BookID <= 0 || state.Live.Chapter <= 0 {
+		return nil
+	}
+	book, ok := bible.BookByID(state.Live.BookID)
+	if !ok {
+		return nil
+	}
+	established := scripture.Reference{Book: book, Chapter: state.Live.Chapter}
+	ctx := a.context()
+	translation := a.settings.GetDefault(ctx, settings.KeyDefaultTranslation, "kjv")
+	verseExists := func(verse int) bool {
+		verses, err := a.bible.Passage(ctx, translation, established.Book.ID, established.Chapter, verse, verse)
+		return err == nil && len(verses) > 0
+	}
+	return detection.DetectContextualReferences(transcript, established, explicit, verseExists)
+}
+
 // streamDetectionProgress merges the chunk's own partial so a growing hearing
 // replaces its pending candidate, and forwards the transcript so far to the
 // studio. base is what earlier chunks already heard: it belongs in the display,
@@ -204,7 +239,9 @@ func (a *App) streamDetectionProgress(base, partial string) {
 	if a.detection == nil {
 		return
 	}
-	if _, err := a.detection.MergeLive(partial, asr.DetectReferences(partial), a.currentServiceID(a.context())); err != nil {
+	explicit := asr.DetectReferences(partial)
+	detections := append(explicit, a.detectContextual(partial, explicit)...)
+	if _, err := a.detection.MergeLive(partial, detections, a.currentServiceID(a.context())); err != nil {
 		return
 	}
 	if desktop := application.Get(); desktop != nil {
