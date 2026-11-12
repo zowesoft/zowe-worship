@@ -43,7 +43,7 @@ func TestRecordThenRecentReturnsNewestFirst(t *testing.T) {
 		}
 	}
 
-	got, err := log.Recent(ctx, 10)
+	got, err := log.Recent(ctx, "", 10)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
@@ -64,6 +64,82 @@ func TestRecordThenRecentReturnsNewestFirst(t *testing.T) {
 	}
 }
 
+// aService creates a real service row: the history table references services,
+// so a projection can only be filed under a service that exists.
+func aService(t *testing.T, log *Log, name string) string {
+	t.Helper()
+
+	id := "service-" + name
+	stamp := time.Now().UTC().Format(time.RFC3339)
+	if _, err := log.db.Exec(
+		`INSERT OR IGNORE INTO services (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+		id, name, stamp, stamp); err != nil {
+		t.Fatalf("create service %s: %v", name, err)
+	}
+	return id
+}
+
+// A service keeps its own history: what one service put on the wall is never
+// listed under another, and a projection made outside any service is listed
+// under none of them.
+func TestRecentIsScopedToOneService(t *testing.T) {
+	ctx := context.Background()
+	log := newTestLog(t)
+
+	serviceA := aService(t, log, "a")
+	serviceB := aService(t, log, "b")
+
+	base := time.Date(2026, 11, 8, 9, 0, 0, 0, time.UTC)
+	rows := []struct {
+		service string
+		title   string
+	}{
+		{serviceA, "John 3:16"},
+		{serviceB, "Psalm 23:1"},
+		{serviceA, "Isaiah 41:10"},
+		{"", "No service at all"},
+	}
+	for _, row := range rows {
+		entry := Entry{
+			Kind: "scripture", Title: row.title, Label: row.title,
+			ServiceID: row.service, Source: SourceManual, ProjectedAt: base,
+		}
+		if err := log.Record(ctx, entry); err != nil {
+			t.Fatalf("record %s: %v", row.title, err)
+		}
+		base = base.Add(time.Minute)
+	}
+
+	got, err := log.Recent(ctx, "service-a", 10)
+	if err != nil {
+		t.Fatalf("recent: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d entries, want the two of service-a", len(got))
+	}
+	for _, entry := range got {
+		if entry.ServiceID != "service-a" {
+			t.Fatalf("entry %q belongs to %q, want service-a", entry.Title, entry.ServiceID)
+		}
+	}
+
+	other, err := log.Recent(ctx, "service-b", 10)
+	if err != nil {
+		t.Fatalf("recent for service-b: %v", err)
+	}
+	if len(other) != 1 || other[0].Title != "Psalm 23:1" {
+		t.Fatalf("service-b history = %+v, want only its own entry", other)
+	}
+
+	none, err := log.Recent(ctx, "", 10)
+	if err != nil {
+		t.Fatalf("recent without a service: %v", err)
+	}
+	if len(none) != 1 || none[0].Title != "No service at all" {
+		t.Fatalf("history without a service = %+v, want only the unattributed entry", none)
+	}
+}
+
 // The kind CHECK in migration 009 only knew about scripture/song/media/clear;
 // the schedule has since grown text, announcement and blank, so recording one
 // of those has to survive the schema rather than be rejected by it.
@@ -77,7 +153,7 @@ func TestRecordAcceptsEveryKindTheControllerCanProject(t *testing.T) {
 		}
 	}
 
-	got, err := log.Recent(ctx, 20)
+	got, err := log.Recent(ctx, "", 20)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
@@ -96,7 +172,7 @@ func TestRecentHonoursTheLimit(t *testing.T) {
 		}
 	}
 
-	got, err := log.Recent(ctx, 2)
+	got, err := log.Recent(ctx, "", 2)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
@@ -118,7 +194,7 @@ func TestRecentKeepsInsertionOrderWithinASecond(t *testing.T) {
 		}
 	}
 
-	got, err := log.Recent(ctx, 10)
+	got, err := log.Recent(ctx, "", 10)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
@@ -132,7 +208,7 @@ func TestNilDatabaseRecordsNothingAndReportsNoHistory(t *testing.T) {
 	if err := log.Record(context.Background(), Entry{Kind: "scripture", Title: "x"}); err != nil {
 		t.Fatalf("record with no database: %v", err)
 	}
-	got, err := log.Recent(context.Background(), 10)
+	got, err := log.Recent(context.Background(), "", 10)
 	if err != nil {
 		t.Fatalf("recent with no database: %v", err)
 	}
@@ -148,7 +224,7 @@ func TestRecentWithNonPositiveLimitReturnsNothing(t *testing.T) {
 		t.Fatalf("record: %v", err)
 	}
 
-	got, err := log.Recent(ctx, 0)
+	got, err := log.Recent(ctx, "", 0)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}

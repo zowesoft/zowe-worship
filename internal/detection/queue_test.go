@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"zowe-worship/internal/asr"
 	"zowe-worship/internal/bible"
@@ -39,6 +40,21 @@ func detectionOf(t *testing.T, text string) asr.Detection {
 		t.Fatalf("parse %q: %v", text, err)
 	}
 	return asr.Detection{Reference: reference, Raw: text}
+}
+
+// aService creates a real service row: the history table references services,
+// so a decision can only be filed under a service that exists.
+func aService(t *testing.T, queue *Queue, name string) string {
+	t.Helper()
+
+	id := "service-" + name
+	stamp := time.Now().UTC().Format(time.RFC3339)
+	if _, err := queue.db.Exec(
+		`INSERT OR IGNORE INTO services (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+		id, name, stamp, stamp); err != nil {
+		t.Fatalf("create service %s: %v", name, err)
+	}
+	return id
 }
 
 func TestAddQueuesOneCandidatePerDetection(t *testing.T) {
@@ -106,7 +122,7 @@ func TestApproveRemovesCandidateAndRecordsDecision(t *testing.T) {
 		t.Fatalf("add: %v", err)
 	}
 
-	candidate, err := queue.Approve(ctx, added[0].ID)
+	candidate, err := queue.Approve(ctx, added[0].ID, aService(t, queue, "one"))
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
@@ -128,7 +144,7 @@ func TestDismissRecordsDecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if _, err := queue.Dismiss(ctx, added[0].ID); err != nil {
+	if _, err := queue.Dismiss(ctx, added[0].ID, aService(t, queue, "one")); err != nil {
 		t.Fatalf("dismiss: %v", err)
 	}
 	if len(queue.List()) != 0 {
@@ -136,6 +152,56 @@ func TestDismissRecordsDecision(t *testing.T) {
 	}
 
 	assertHistory(t, queue.db, added[0].ID, "Psalms 23", decisionDismissed)
+}
+
+// A decision belongs to the service it was taken in: what one service heard
+// and what the operator decided about it never shows up under another.
+func TestHistoryIsScopedToOneService(t *testing.T) {
+	ctx := context.Background()
+	queue := newTestQueue(t)
+
+	first, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")})
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if _, err := queue.Approve(ctx, first[0].ID, aService(t, queue, "a")); err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+
+	second, err := queue.Add("Psalm 23", []asr.Detection{detectionOf(t, "Psalm 23")})
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if _, err := queue.Dismiss(ctx, second[0].ID, aService(t, queue, "b")); err != nil {
+		t.Fatalf("dismiss: %v", err)
+	}
+
+	mine, err := queue.History(ctx, "service-a", 10)
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	if len(mine) != 1 || mine[0].Reference != "John 3:16" {
+		t.Fatalf("service-a history = %+v, want only its own decision", mine)
+	}
+	if mine[0].Decision != decisionApproved {
+		t.Fatalf("decision = %q, want %q", mine[0].Decision, decisionApproved)
+	}
+
+	theirs, err := queue.History(ctx, "service-b", 10)
+	if err != nil {
+		t.Fatalf("history for service-b: %v", err)
+	}
+	if len(theirs) != 1 || theirs[0].Reference != "Psalms 23" {
+		t.Fatalf("service-b history = %+v, want only its own decision", theirs)
+	}
+
+	none, err := queue.History(ctx, "", 10)
+	if err != nil {
+		t.Fatalf("history without a service: %v", err)
+	}
+	if len(none) != 0 {
+		t.Fatalf("history without a service = %+v, want nothing", none)
+	}
 }
 
 func TestClearRecordsIgnoredAndEmptiesQueue(t *testing.T) {
@@ -151,7 +217,7 @@ func TestClearRecordsIgnoredAndEmptiesQueue(t *testing.T) {
 		t.Fatalf("add second: %v", err)
 	}
 
-	if err := queue.Clear(ctx); err != nil {
+	if err := queue.Clear(ctx, aService(t, queue, "one")); err != nil {
 		t.Fatalf("clear: %v", err)
 	}
 	if len(queue.List()) != 0 {
@@ -166,10 +232,10 @@ func TestDecideUnknownCandidateFails(t *testing.T) {
 	ctx := context.Background()
 	queue := newTestQueue(t)
 
-	if _, err := queue.Approve(ctx, "missing"); !errors.Is(err, ErrCandidateNotFound) {
+	if _, err := queue.Approve(ctx, "missing", aService(t, queue, "one")); !errors.Is(err, ErrCandidateNotFound) {
 		t.Fatalf("err = %v, want ErrCandidateNotFound", err)
 	}
-	if _, err := queue.Dismiss(ctx, "missing"); !errors.Is(err, ErrCandidateNotFound) {
+	if _, err := queue.Dismiss(ctx, "missing", aService(t, queue, "one")); !errors.Is(err, ErrCandidateNotFound) {
 		t.Fatalf("err = %v, want ErrCandidateNotFound", err)
 	}
 }
@@ -182,10 +248,10 @@ func TestQueueWithoutDatabaseStillWorks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if _, err := queue.Approve(ctx, added[0].ID); err != nil {
+	if _, err := queue.Approve(ctx, added[0].ID, "service-1"); err != nil {
 		t.Fatalf("approve without storage: %v", err)
 	}
-	if err := queue.Clear(ctx); err != nil {
+	if err := queue.Clear(ctx, "service-1"); err != nil {
 		t.Fatalf("clear without storage: %v", err)
 	}
 }

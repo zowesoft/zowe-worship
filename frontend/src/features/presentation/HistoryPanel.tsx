@@ -15,6 +15,10 @@ export function HistoryPanel() {
   const [problem, setProblem] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
   const presentation = studio.presentation;
+  // The history belongs to the service that is running, so it is re-read when
+  // the operator switches to another one: the rows of the service before it
+  // are not this service's rows.
+  const serviceID = studio.order?.service?.id ?? '';
 
   const reload = useCallback(async () => {
     try {
@@ -27,7 +31,7 @@ export function HistoryPanel() {
 
   useEffect(() => {
     void reload();
-  }, [reload, presentation]);
+  }, [reload, presentation, serviceID]);
 
   // Restore puts a past slide back on the wall live. The presentation event
   // republished by the backend re-runs reload, so the row and the list refresh

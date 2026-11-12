@@ -7,6 +7,9 @@
 // The PRD asks for it in two places: recording projection actions locally, and
 // restoring past output. This package does the recording; restoring is a later
 // slice, which is why a row carries the schedule item it came from.
+//
+// A row belongs to the service that was running when it was written, so one
+// service's history never lists another service's projections.
 package history
 
 import (
@@ -34,6 +37,10 @@ type Entry struct {
 	Kind  string
 	Title string
 	Label string
+	// ServiceID is the service the projection belongs to. Empty means it
+	// belongs to no service - it was projected outside one - and it is then
+	// listed under none of them.
+	ServiceID string
 	// Source is who projected it; see SourceManual.
 	Source string
 	// Payload identifies the schedule item behind the slide, empty when the
@@ -74,15 +81,24 @@ func (l *Log) Record(ctx context.Context, entry Entry) error {
 	projectedAt = projectedAt.UTC().Truncate(time.Second)
 
 	_, err = l.db.ExecContext(ctx, `
-		INSERT INTO presentation_history (id, kind, title, label, source, payload, projected_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, entry.Kind, entry.Title, entry.Label, entry.Source, entry.Payload,
+		INSERT INTO presentation_history (id, kind, title, label, service_id, source, payload, projected_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, entry.Kind, entry.Title, entry.Label, serviceOrNil(entry.ServiceID), entry.Source, entry.Payload,
 		projectedAt.Format(time.RFC3339),
 	)
 	if err != nil {
 		return fmt.Errorf("record projection: %w", err)
 	}
 	return nil
+}
+
+// serviceOrNil writes an empty service as SQL NULL, so a projection made
+// outside a service is not listed under any of them.
+func serviceOrNil(id string) any {
+	if id == "" {
+		return nil
+	}
+	return id
 }
 
 // Entry reads one history row; a restore cannot act on a row it cannot read.
@@ -92,15 +108,16 @@ func (l *Log) Entry(ctx context.Context, id string) (Entry, error) {
 	}
 
 	row := l.db.QueryRowContext(ctx, `
-		SELECT kind, title, label, source, payload, projected_at
+		SELECT kind, title, label, service_id, source, payload, projected_at
 		FROM presentation_history
 		WHERE id = ?`, id)
 
 	var (
 		entry       Entry
+		serviceID   sql.NullString
 		projectedAt string
 	)
-	if err := row.Scan(&entry.Kind, &entry.Title, &entry.Label,
+	if err := row.Scan(&entry.Kind, &entry.Title, &entry.Label, &serviceID,
 		&entry.Source, &entry.Payload, &projectedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Entry{}, fmt.Errorf("that projection is no longer in the history")
@@ -112,15 +129,16 @@ func (l *Log) Entry(ctx context.Context, id string) (Entry, error) {
 		return Entry{}, fmt.Errorf("parse projection time %q: %w", projectedAt, err)
 	}
 	entry.ID = id
+	entry.ServiceID = serviceID.String
 	entry.ProjectedAt = parsed
 	return entry, nil
 }
 
-// Recent returns the most recent projections, newest first, capped at limit.
-// Rows written in the same second keep their insertion order, because the
-// projected_at stamp is deliberately truncated to the second for display and
-// cannot break the tie on its own.
-func (l *Log) Recent(ctx context.Context, limit int) ([]Entry, error) {
+// Recent returns the most recent projections of one service, newest first,
+// capped at limit. A service's history is its own: the projections of the
+// service before it are not listed under this one, and an empty service id
+// asks for the projections that belong to no service at all.
+func (l *Log) Recent(ctx context.Context, serviceID string, limit int) ([]Entry, error) {
 	if l.db == nil {
 		return []Entry{}, nil
 	}
@@ -129,10 +147,11 @@ func (l *Log) Recent(ctx context.Context, limit int) ([]Entry, error) {
 	}
 
 	rows, err := l.db.QueryContext(ctx, `
-		SELECT id, kind, title, label, source, payload, projected_at
+		SELECT id, kind, title, label, service_id, source, payload, projected_at
 		FROM presentation_history
+		WHERE service_id IS ?
 		ORDER BY projected_at DESC, rowid DESC
-		LIMIT ?`, limit)
+		LIMIT ?`, serviceOrNil(serviceID), limit)
 	if err != nil {
 		return nil, fmt.Errorf("read presentation history: %w", err)
 	}
@@ -142,12 +161,14 @@ func (l *Log) Recent(ctx context.Context, limit int) ([]Entry, error) {
 	for rows.Next() {
 		var (
 			entry       Entry
+			serviceID   sql.NullString
 			projectedAt string
 		)
 		if err := rows.Scan(&entry.ID, &entry.Kind, &entry.Title, &entry.Label,
-			&entry.Source, &entry.Payload, &projectedAt); err != nil {
+			&serviceID, &entry.Source, &entry.Payload, &projectedAt); err != nil {
 			return nil, fmt.Errorf("scan presentation history: %w", err)
 		}
+		entry.ServiceID = serviceID.String
 		parsed, err := time.Parse(time.RFC3339, projectedAt)
 		if err != nil {
 			return nil, fmt.Errorf("parse projection time %q: %w", projectedAt, err)

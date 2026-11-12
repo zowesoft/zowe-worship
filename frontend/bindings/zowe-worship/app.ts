@@ -260,8 +260,8 @@ export function ListDetectionEngines(): $CancellablePromise<$models.EngineOption
 }
 
 /**
- * ListDetectionHistory returns past decisions newest first. A limit of zero
- * means the panel default.
+ * ListDetectionHistory returns the decisions of the current service, newest
+ * first. A limit of zero means the panel default.
  */
 export function ListDetectionHistory(limit: number): $CancellablePromise<$models.DetectionHistoryView[] | null> {
     return $Call.ByID(1901055976, limit);

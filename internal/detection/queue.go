@@ -29,8 +29,8 @@ type Candidate struct {
 	// Raw is what the detector parsed, useful when an ASR near miss needs
 	// explaining.
 	Raw string
-	// Method names how the passage was found. Only explicit references exist
-	// today; contextual and quotation matches get their own values later.
+	// Method names how the passage was found: an explicit spoken reference or a
+	// quotation matched against the translation's full-text index.
 	Method string
 	// Confidence is the detector's score for the phrasing it matched, banded by
 	// internal/confidence. It is evidence strength, not measured accuracy.
@@ -57,23 +57,39 @@ type Candidate struct {
 // while still letting a genuine return to the passage be its own card.
 const RepeatWindow = 2 * time.Minute
 
-// The rule-based detector produces one kind of match; its score comes from
-// internal/confidence, which weighs the phrasing behind the hearing.
+// The detector produces two kinds of match. An explicit reference is scored from
+// its phrasing by internal/confidence; a spoken quotation carries the overlap
+// score its full-text match already earned.
 const (
 	MethodExplicitReference      = "explicit-reference"
 	ExplanationExplicitReference = "Explicit reference detected"
+	MethodSpokenQuote            = "spoken-quote"
+	ExplanationSpokenQuote       = "Spoken quote matched in the selected translation"
 )
+
+// scoreDetection resolves the method, explanation and confidence for one
+// hearing. A quotation keeps the score its match earned; anything else is an
+// explicit reference, scored from the phrasing behind it. Sharing this keeps Add,
+// MergeLive, Finalize and foldRepeat from drifting apart, and lets an explicit
+// re-hearing of a quote card upgrade it rather than leave the weaker label.
+func scoreDetection(transcript string, detection asr.Detection) (method, explanation string, score float64) {
+	if detection.Method == MethodSpokenQuote {
+		return MethodSpokenQuote, ExplanationSpokenQuote, detection.Confidence
+	}
+	return MethodExplicitReference, ExplanationExplicitReference, confidence.Evaluate(transcript, detection.Reference)
+}
 
 // newCandidate fills the fields every detection type shares, so Add and
 // MergeLive cannot drift apart.
 func newCandidate(transcript string, detection asr.Detection, now time.Time) Candidate {
+	method, explanation, score := scoreDetection(transcript, detection)
 	return Candidate{
 		Transcript:  transcript,
 		Reference:   detection.Reference,
 		Raw:         detection.Raw,
-		Method:      MethodExplicitReference,
-		Confidence:  confidence.Evaluate(transcript, detection.Reference),
-		Explanation: ExplanationExplicitReference,
+		Method:      method,
+		Confidence:  score,
+		Explanation: explanation,
 		CreatedAt:   now,
 	}
 }
@@ -196,9 +212,7 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 			updated.Transcript = transcript
 			updated.Raw = detection.Raw
 			updated.Reference = detection.Reference
-			updated.Method = MethodExplicitReference
-			updated.Confidence = confidence.Evaluate(transcript, detection.Reference)
-			updated.Explanation = ExplanationExplicitReference
+			updated.Method, updated.Explanation, updated.Confidence = scoreDetection(transcript, detection)
 			updated.Version++
 			updated.LastHeardAt = now
 			q.pending[replaced] = updated
@@ -267,7 +281,7 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 			updated.Transcript = transcript
 			updated.Raw = detection.Raw
 			updated.Reference = detection.Reference
-			updated.Confidence = confidence.Evaluate(transcript, detection.Reference)
+			updated.Method, updated.Explanation, updated.Confidence = scoreDetection(transcript, detection)
 			updated.Version++
 			updated.Finalized = true
 			updated.FinalizedAt = now
@@ -356,7 +370,7 @@ func (q *Queue) foldRepeat(detection asr.Detection, transcript string, now time.
 		candidate.Transcript = transcript
 		candidate.Raw = detection.Raw
 		candidate.Reference = detection.Reference
-		candidate.Confidence = confidence.Evaluate(transcript, detection.Reference)
+		candidate.Method, candidate.Explanation, candidate.Confidence = scoreDetection(transcript, detection)
 		candidate.Version++
 		candidate.LastHeardAt = now
 		q.pending[i] = candidate
@@ -366,8 +380,13 @@ func (q *Queue) foldRepeat(detection asr.Detection, transcript string, now time.
 }
 
 // overlaps tests whether one hearing refines another. A zero end is the whole
-// chapter.
+// chapter. The book and chapter must match first: verse numbers alone are not
+// an address, or "Philippians 4:6-7" would fold into "1 Peter 5:7" and a whole
+// sermon would collapse into a single pending card.
 func overlaps(a, b scripture.Reference) bool {
+	if a.Book.ID != b.Book.ID || a.Chapter != b.Chapter {
+		return false
+	}
 	aEnd, bEnd := a.VerseEnd, b.VerseEnd
 	if aEnd == 0 {
 		aEnd = int(^uint(0) >> 1)
@@ -389,37 +408,37 @@ func (q *Queue) List() []Candidate {
 
 // Approve records the decision. The caller projects afterwards; approval alone
 // never touches the display.
-func (q *Queue) Approve(ctx context.Context, id string) (Candidate, error) {
-	return q.decide(ctx, id, decisionApproved)
+func (q *Queue) Approve(ctx context.Context, id, serviceID string) (Candidate, error) {
+	return q.decide(ctx, id, decisionApproved, serviceID)
 }
 
-func (q *Queue) Dismiss(ctx context.Context, id string) (Candidate, error) {
-	return q.decide(ctx, id, decisionDismissed)
+func (q *Queue) Dismiss(ctx context.Context, id, serviceID string) (Candidate, error) {
+	return q.decide(ctx, id, decisionDismissed, serviceID)
 }
 
 // AutoProject records the policy layer's decision: the card was projected
 // without the operator and is listed as such in the panel's history.
-func (q *Queue) AutoProject(ctx context.Context, id string) (Candidate, error) {
-	return q.decide(ctx, id, decisionAutoProjected)
+func (q *Queue) AutoProject(ctx context.Context, id, serviceID string) (Candidate, error) {
+	return q.decide(ctx, id, decisionAutoProjected, serviceID)
 }
 
 // Clear records the dropped candidates as ignored, so history still shows what
 // was heard and let go.
-func (q *Queue) Clear(ctx context.Context) error {
+func (q *Queue) Clear(ctx context.Context, serviceID string) error {
 	q.mu.Lock()
 	cleared := q.pending
 	q.pending = nil
 	q.mu.Unlock()
 
 	for _, candidate := range cleared {
-		if err := q.record(ctx, candidate, decisionIgnored); err != nil {
+		if err := q.record(ctx, candidate, decisionIgnored, serviceID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (q *Queue) decide(ctx context.Context, id, decision string) (Candidate, error) {
+func (q *Queue) decide(ctx context.Context, id, decision, serviceID string) (Candidate, error) {
 	q.mu.Lock()
 	index := -1
 	for i, candidate := range q.pending {
@@ -436,25 +455,89 @@ func (q *Queue) decide(ctx context.Context, id, decision string) (Candidate, err
 	q.pending = append(q.pending[:index], q.pending[index+1:]...)
 	q.mu.Unlock()
 
-	if err := q.record(ctx, candidate, decision); err != nil {
+	if err := q.record(ctx, candidate, decision, serviceID); err != nil {
 		return Candidate{}, err
 	}
 	return candidate, nil
 }
 
 // A record failure is reported, but the decision has already happened.
-func (q *Queue) record(ctx context.Context, candidate Candidate, decision string) error {
+func (q *Queue) record(ctx context.Context, candidate Candidate, decision, serviceID string) error {
 	if q.db == nil {
 		return nil
 	}
 	_, err := q.db.ExecContext(ctx, `
-		INSERT INTO detection_history (id, transcript, reference, confidence, decision, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)`,
+		INSERT INTO detection_history (id, transcript, reference, confidence, decision, service_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		candidate.ID, candidate.Transcript, candidate.Reference.String(), candidate.Confidence, decision,
-		candidate.CreatedAt.Format(time.RFC3339),
+		serviceOrNil(serviceID), candidate.CreatedAt.Format(time.RFC3339),
 	)
 	if err != nil {
 		return fmt.Errorf("record detection decision: %w", err)
 	}
 	return nil
+}
+
+// serviceOrNil writes an empty service as SQL NULL, so a decision taken
+// outside a service is not listed under any of them.
+func serviceOrNil(id string) any {
+	if id == "" {
+		return nil
+	}
+	return id
+}
+
+// HistoryEntry is one recorded decision about a spoken reference.
+type HistoryEntry struct {
+	ID         string
+	Transcript string
+	Reference  string
+	Confidence float64
+	Decision   string
+	CreatedAt  time.Time
+}
+
+// History returns the decisions of one service, newest first, capped at
+// limit. A service's decisions are its own: what another service heard and
+// what the operator decided about it never shows up here.
+func (q *Queue) History(ctx context.Context, serviceID string, limit int) ([]HistoryEntry, error) {
+	if q.db == nil {
+		return []HistoryEntry{}, nil
+	}
+	if limit <= 0 {
+		return []HistoryEntry{}, nil
+	}
+
+	rows, err := q.db.QueryContext(ctx, `
+		SELECT id, transcript, reference, confidence, decision, created_at
+		FROM detection_history
+		WHERE service_id IS ?
+		ORDER BY created_at DESC, rowid DESC
+		LIMIT ?`, serviceOrNil(serviceID), limit)
+	if err != nil {
+		return nil, fmt.Errorf("read detection history: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]HistoryEntry, 0, limit)
+	for rows.Next() {
+		var (
+			entry     HistoryEntry
+			createdAt string
+		)
+		if err := rows.Scan(&entry.ID, &entry.Transcript, &entry.Reference,
+			&entry.Confidence, &entry.Decision, &createdAt); err != nil {
+			return nil, fmt.Errorf("read detection history row: %w", err)
+		}
+		parsed, err := time.Parse(time.RFC3339, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse detection decision time %q: %w", createdAt, err)
+		}
+		entry.CreatedAt = parsed
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read detection history: %w", err)
+	}
+	return entries, nil
 }

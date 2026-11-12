@@ -61,11 +61,17 @@ func TestListDetectionHistoryRecountsDecisionsNewestFirst(t *testing.T) {
 	app := newTestApp(t)
 	ctx := app.context()
 
+	// The decisions belong to the service that is running, so there has to be
+	// one for the history to be filed under.
+	if _, err := app.CreateService("Sunday service"); err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+
 	approved := queueDetection(t, app, "John 3:16")
 	dismissed := queueDetection(t, app, "Romans 8:28")
 	queueDetection(t, app, "Psalm 23")
 
-	if _, err := app.detection.Approve(ctx, approved); err != nil {
+	if _, err := app.detection.Approve(ctx, approved, app.currentServiceID(ctx)); err != nil {
 		t.Fatalf("approve: %v", err)
 	}
 	if _, err := app.DismissDetection(dismissed); err != nil {

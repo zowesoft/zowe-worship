@@ -140,6 +140,13 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     void refreshHistory();
   }, [refreshConfig, refreshQueue, refreshHistory]);
 
+  // The decisions belong to the service that is running, so the list is
+  // re-read when the operator switches to another one.
+  const serviceID = studio.order?.service?.id ?? '';
+  useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory, serviceID]);
+
   // The backend streams the transcript while the engine runs, so the panel fills
   // segment by segment instead of all at once.
   useEffect(() => {

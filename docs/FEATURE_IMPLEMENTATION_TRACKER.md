@@ -201,6 +201,15 @@ Done:
       deliberately do not write. Migration
       `015_presentation_history_kinds.sql` drops the stale `kind` CHECK that
       predated text/announcement/blank and the split media kinds.
+- [x] History belongs to the service it happened in: `presentation_history` and
+      `detection_history` carry the service that was running when the row was
+      written (migration `019_service_scoped_history.sql`), so one service's
+      projections and decisions are never listed under another. The History
+      panel and the detection panel re-read their lists when the operator
+      switches service (`HistoryPanel.tsx`, `DetectionProvider.tsx`), and a
+      projection or decision made outside any service belongs to none of them.
+      The schedule itself was already scoped (`service_items.service_id`); the
+      library, the songs and the settings stay general, as they should.
 - [x] Reopen a past projection from history: a row carrying a schedule item puts
       that item back on the wall live and writes a fresh history row
       (`app.go` `RestoreProjection`, `HistoryPanel.tsx`; commit `2308a8a`).

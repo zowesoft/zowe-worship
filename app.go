@@ -705,7 +705,7 @@ func (a *App) recordProjection(state presentation.State) {
 		return
 	}
 
-	entry := history.Entry{Source: history.SourceManual}
+	entry := history.Entry{Source: history.SourceManual, ServiceID: a.currentServiceID(a.context())}
 	if state.Live == nil {
 		entry.Kind = history.KindClear
 		entry.Title = "Screen cleared"
@@ -815,12 +815,26 @@ type ProjectionView struct {
 // unbounded list across the bridge every time it refreshes.
 const historyLimit = 50
 
+// currentServiceID is the service the operator is running right now. What the
+// operator does during a service belongs to it: the projections and the
+// decisions of one service are never listed under another.
+func (a *App) currentServiceID(ctx context.Context) string {
+	if a.order == nil {
+		return ""
+	}
+	service, _, err := a.order.Current(ctx)
+	if err != nil {
+		return ""
+	}
+	return service.ID
+}
+
 func (a *App) RecentProjections() ([]ProjectionView, error) {
 	if a.history == nil {
 		return []ProjectionView{}, errStorageUnavailable
 	}
 
-	entries, err := a.history.Recent(a.context(), historyLimit)
+	entries, err := a.history.Recent(a.context(), a.currentServiceID(a.context()), historyLimit)
 	if err != nil {
 		return nil, err
 	}

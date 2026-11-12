@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -257,28 +258,22 @@ func (a *App) ListDetectionHistory(limit int) ([]DetectionHistoryView, error) {
 		limit = maxDetectionHistoryRows
 	}
 
-	rows, err := a.core.QueryContext(a.context(),
-		`SELECT id, transcript, reference, confidence, decision, created_at
-		 FROM detection_history
-		 ORDER BY created_at DESC, rowid DESC
-		 LIMIT ?`, limit)
+	entries, err := a.detection.History(a.context(), a.currentServiceID(a.context()), limit)
 	if err != nil {
-		return nil, fmt.Errorf("read detection history: %w", err)
+		return nil, err
 	}
-	defer rows.Close()
 
-	history := make([]DetectionHistoryView, 0, limit)
-	for rows.Next() {
-		var view DetectionHistoryView
-		if err := rows.Scan(&view.ID, &view.Transcript, &view.Reference,
-			&view.Confidence, &view.Decision, &view.CreatedAt); err != nil {
-			return nil, fmt.Errorf("read detection history row: %w", err)
-		}
-		view.ConfidenceBand = confidence.BandOf(view.Confidence)
-		history = append(history, view)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("read detection history: %w", err)
+	history := make([]DetectionHistoryView, 0, len(entries))
+	for _, entry := range entries {
+		history = append(history, DetectionHistoryView{
+			ID:             entry.ID,
+			Transcript:     entry.Transcript,
+			Reference:      entry.Reference,
+			Confidence:     entry.Confidence,
+			ConfidenceBand: confidence.BandOf(entry.Confidence),
+			Decision:       entry.Decision,
+			CreatedAt:      entry.CreatedAt.Format(time.RFC3339),
+		})
 	}
 	return history, nil
 }
@@ -290,7 +285,7 @@ func (a *App) ApproveDetection(id string) (PresentationView, error) {
 	}
 
 	ctx := a.context()
-	candidate, err := a.detection.Approve(ctx, strings.TrimSpace(id))
+	candidate, err := a.detection.Approve(ctx, strings.TrimSpace(id), a.currentServiceID(ctx))
 	if err != nil {
 		return PresentationView{}, err
 	}
@@ -335,7 +330,7 @@ func (a *App) ProjectDetection(id string) (PresentationView, error) {
 		return view, err
 	}
 
-	if _, err := a.detection.Approve(ctx, candidate.ID); err != nil {
+	if _, err := a.detection.Approve(ctx, candidate.ID, a.currentServiceID(ctx)); err != nil {
 		// The passage is already on screen; a failed audit row must not make the
 		// operator think it did not go out.
 		log.Printf("zowe: record projected detection %s: %v", reference.String(), err)
@@ -347,7 +342,7 @@ func (a *App) DismissDetection(id string) ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
 	}
-	if _, err := a.detection.Dismiss(a.context(), strings.TrimSpace(id)); err != nil {
+	if _, err := a.detection.Dismiss(a.context(), strings.TrimSpace(id), a.currentServiceID(a.context())); err != nil {
 		return nil, err
 	}
 	return a.toDetectionViews(a.detection.List()), nil
@@ -357,7 +352,7 @@ func (a *App) ClearDetections() ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
 	}
-	if err := a.detection.Clear(a.context()); err != nil {
+	if err := a.detection.Clear(a.context(), a.currentServiceID(a.context())); err != nil {
 		return nil, err
 	}
 	return []DetectionView{}, nil
@@ -543,7 +538,7 @@ func (a *App) autoProject(settled []detection.Candidate) []string {
 			log.Printf("zowe: auto-project %s: %v", reference.String(), projectErr)
 			continue
 		}
-		if _, err := a.detection.AutoProject(ctx, candidate.ID); err != nil {
+		if _, err := a.detection.AutoProject(ctx, candidate.ID, a.currentServiceID(ctx)); err != nil {
 			log.Printf("zowe: record auto-projected %s: %v", reference.String(), err)
 			continue
 		}
