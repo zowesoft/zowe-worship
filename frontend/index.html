@@ -23,6 +23,7 @@
         display: grid;
         justify-items: center;
         gap: 18px;
+        text-align: center;
         animation: splashRise 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
       }
       #splash img {
@@ -42,6 +43,38 @@
         letter-spacing: 2.2px;
         text-transform: uppercase;
         color: #8FE3A8;
+      }
+      /* The verse cycles while the splash holds, five seconds each. */
+      #splash .splash-verse {
+        margin: 0;
+        max-width: 420px;
+        min-height: 3.2em;
+      }
+      #splash .splash-verse p {
+        margin: 0;
+        font: italic 500 15px/1.45 'Georgia', 'Times New Roman', serif;
+        color: #C7D2EE;
+        transition: opacity 400ms ease;
+      }
+      #splash .splash-verse span {
+        display: block;
+        margin-top: 8px;
+        font: 600 10px/1 'Segoe UI', system-ui, sans-serif;
+        letter-spacing: 1.6px;
+        color: #7FA8D9;
+        transition: opacity 400ms ease;
+      }
+      #splash .splash-meta {
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+        color: #5F7396;
+        font: 500 10.5px/1.4 'Segoe UI', system-ui, sans-serif;
+        letter-spacing: 0.4px;
+      }
+      #splash .splash-meta b {
+        color: #8FE3A8;
+        font-weight: 600;
       }
       @keyframes splashFade {
         from { opacity: 0; }
@@ -66,9 +99,46 @@
         <img src="/splash-icon.png" alt="" width="148" height="148" />
         <strong>Zowe Worship</strong>
         <span>Scripture First. Always.</span>
+        <div class="splash-verse">
+          <p id="splash-verse-text">Thy word is a lamp unto my feet, and a light unto my path.</p>
+          <span id="splash-verse-ref">Psalm 119:105</span>
+        </div>
+        <div class="splash-meta">
+          <span>v0.1.0 &middot; Zowesoft</span>
+          <span><b>F8</b> listen &nbsp;&middot;&nbsp; <b>F9</b> pause auto-projection &nbsp;&middot;&nbsp; <b>F12</b> emergency disable</span>
+        </div>
       </div>
     </div>
     <div id="root"></div>
+    <script>
+      // The splash holds ten seconds. Cycle a short public-domain verse so the
+      // hold reads as a moment rather than a wait. Pure DOM, no dependencies.
+      (function () {
+        var verses = [
+          ['Thy word is a lamp unto my feet, and a light unto my path.', 'Psalm 119:105'],
+          ['All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness.', '2 Timothy 3:16'],
+          ['In the beginning was the Word, and the Word was with God, and the Word was God.', 'John 1:1'],
+          ['Let the word of Christ dwell in you richly in all wisdom; teaching and admonishing one another in psalms and hymns and spiritual songs.', 'Colossians 3:16'],
+          ['For the word of God is quick, and powerful, and sharper than any twoedged sword.', 'Hebrews 4:12'],
+          ['Let the words of my mouth, and the meditation of my heart, be acceptable in thy sight, O Lord.', 'Psalm 19:14'],
+          ['Man shall not live by bread alone, but by every word that proceedeth out of the mouth of God.', 'Matthew 4:4']
+        ];
+        var index = 0;
+        var text = document.getElementById('splash-verse-text');
+        var ref = document.getElementById('splash-verse-ref');
+        setInterval(function () {
+          index = (index + 1) % verses.length;
+          text.style.opacity = '0';
+          ref.style.opacity = '0';
+          window.setTimeout(function () {
+            text.textContent = verses[index][0];
+            ref.textContent = verses[index][1];
+            text.style.opacity = '1';
+            ref.style.opacity = '1';
+          }, 420);
+        }, 3800);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

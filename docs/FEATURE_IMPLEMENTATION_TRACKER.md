@@ -87,7 +87,9 @@ Done:
       application menu on macOS).
 - [x] Startup splash: inline brand screen in the embedded bundle paints the
       ZOWESOFT mark, wordmark and tagline before any script runs; it holds a
-      fixed ten seconds, then fades out (`frontend/index.html`,
+      fixed ten seconds and, while it does, cycles seven short public-domain
+      KJV verses (one about every four seconds) above the version and the
+      F8/F9/F12 shortcut hints, then fades out (`frontend/index.html`,
       `StudioProvider.tsx`).
 - [x] Brand artwork wired in: appicon.png regenerated from the rounded-square
       Zowe Worship icon, ico/icns rebuilt with `wails3 generate icons`, and the
