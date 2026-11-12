@@ -5,6 +5,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -58,19 +59,87 @@ func main() {
 		},
 	})
 
+	createMenu(app, studio)
+
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:             studioWindow,
-		Title:            "Zowe Worship",
-		Width:            1200,
-		Height:           660,
-		MinWidth:         960,
-		MinHeight:        600,
-		StartState:       application.WindowStateMaximised,
-		BackgroundColour: application.NewRGB(8, 15, 28),
-		URL:              "/",
+		Name:               studioWindow,
+		Title:              "Zowe Worship",
+		Width:              1200,
+		Height:             660,
+		MinWidth:           960,
+		MinHeight:          600,
+		StartState:         application.WindowStateMaximised,
+		UseApplicationMenu: true,
+		BackgroundColour:   application.NewRGB(8, 15, 28),
+		URL:                "/",
 	})
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// createMenu puts a native menu bar on the studio window. EasyWorship's
+// ribbon holds the actions an operator reaches for constantly; a menu bar is
+// the platform-native home for them on Windows, macOS and Linux alike.
+func createMenu(app *application.App, studio *App) {
+	menu := app.NewMenu()
+	if runtime.GOOS == "darwin" {
+		menu.AddRole(application.AppMenu)
+	}
+
+	file := menu.AddSubmenu("File")
+	file.Add("New Service").SetAccelerator("CmdOrCtrl+N").OnClick(func(*application.Context) {
+		if _, err := studio.CreateService("Untitled service"); err != nil {
+			log.Printf("zowe: new service from menu: %v", err)
+		}
+	})
+	file.Add("Backup Now").OnClick(func(*application.Context) {
+		if _, err := studio.BackupNow(); err != nil {
+			log.Printf("zowe: backup from menu: %v", err)
+		}
+	})
+	file.AddSeparator()
+	file.Add("Exit").OnClick(func(*application.Context) { app.Quit() })
+
+	menu.AddRole(application.EditMenu)
+
+	live := menu.AddSubmenu("Live")
+	live.Add("Project live").OnClick(func(*application.Context) {
+		if _, err := studio.SendPreviewLive(); err != nil {
+			log.Printf("zowe: project live from menu: %v", err)
+		}
+	})
+	live.Add("Clear display").OnClick(func(*application.Context) {
+		if _, err := studio.ClearLive(); err != nil {
+			log.Printf("zowe: clear display from menu: %v", err)
+		}
+	})
+	live.AddSeparator()
+	live.Add("Emergency disable detection").OnClick(func(*application.Context) {
+		if err := studio.SetDetectionDisabled(true); err != nil {
+			log.Printf("zowe: disable detection from menu: %v", err)
+		}
+	})
+	live.Add("Enable detection").OnClick(func(*application.Context) {
+		if err := studio.SetDetectionDisabled(false); err != nil {
+			log.Printf("zowe: enable detection from menu: %v", err)
+		}
+	})
+
+	menu.AddRole(application.WindowMenu)
+
+	view := menu.AddSubmenu("View")
+	view.Add("Toggle fullscreen").SetAccelerator("F11").OnClick(func(*application.Context) {
+		if window, ok := app.Window.GetByName(studioWindow); ok {
+			if window.IsFullscreen() {
+				window.UnFullscreen()
+			} else {
+				window.Fullscreen()
+			}
+		}
+	})
+
+	menu.AddRole(application.HelpMenu)
+	app.Menu.Set(menu)
 }

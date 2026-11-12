@@ -79,6 +79,12 @@ Done:
       this build does not know (`SchemaAheadError`), and the reason shows in
       Settings rather than storage failing silently (`app.go`
       `storageProblem`, `StorageView.Problem`).
+- [x] Native menu bar (File · Edit · Live · Window · View · Help) via Wails'
+      menu API: File carries New Service, Backup now and Exit; Live carries
+      Project live, Clear display and the emergency disable/enable pair;
+      View carries F11 fullscreen; WindowMenu and HelpMenu match platform
+      conventions (About lands in the Help menu on Windows/Linux, the
+      application menu on macOS).
 - [x] The home page is isolated from the working surfaces of a service: the
       schedule rail and the live/preview, detection, history and production
       panels are the surfaces of a service being run, and the home page - the
