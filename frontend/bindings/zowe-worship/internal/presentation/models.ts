@@ -22,6 +22,17 @@ export interface Content {
     "fit"?: string;
 
     /**
+     * Passage is where a scripture slide points: the book, chapter and verses
+     * it shows. The reference text names them for people; these numbers let
+     * another screen - the Bible workspace - follow the wall without parsing
+     * the text back into a passage.
+     */
+    "bookId"?: number;
+    "chapter"?: number;
+    "verseStart"?: number;
+    "verseEnd"?: number;
+
+    /**
      * Background is the picture behind an audio or video clip, straight from
      * the library; empty means the plain frame.
      */

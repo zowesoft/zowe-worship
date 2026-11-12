@@ -158,6 +158,13 @@ func TestPreviewThenSendLiveKeepsLiveFrozen(t *testing.T) {
 	if state.Preview.Reference != "John 3:16" {
 		t.Fatalf("reference = %q, want the bare reference", state.Preview.Reference)
 	}
+	// The passage travels with the slide, so the Bible workspace can follow the
+	// wall without parsing the reference text back into numbers.
+	if state.Preview.BookID != 43 || state.Preview.Chapter != 3 ||
+		state.Preview.VerseStart != 16 || state.Preview.VerseEnd != 16 {
+		t.Fatalf("passage = %d:%d:%d-%d, want 43:3:16-16",
+			state.Preview.BookID, state.Preview.Chapter, state.Preview.VerseStart, state.Preview.VerseEnd)
+	}
 
 	live, err := controller.ProjectPreview()
 	if err != nil {

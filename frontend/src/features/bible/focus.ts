@@ -24,3 +24,36 @@ export function focusReference(passage: BiblePassage, bookName: string): string 
   }
   return `${bookName} ${passage.chapter}:${passage.verseStart}`;
 }
+
+// A slide on the wall, in the shape the workspace needs to follow it.
+export type WallSlide = {
+  kind: string;
+  bookId?: number;
+  chapter?: number;
+  verseStart?: number;
+  verseEnd?: number;
+};
+
+// wallScripture is the passage the room is being shown, so the Bible workspace
+// can follow it. Live wins over preview: what is on the wall is what the
+// operator is serving, and it may have come from anywhere - a spoken
+// detection, a schedule item, a search result, a restored slide - so the
+// passage travels with the slide instead of being reconstructed per source.
+export function wallScripture(
+  state: { live?: WallSlide | null; preview?: WallSlide | null } | null | undefined,
+): BiblePassage | null {
+  const live = state?.live;
+  const preview = state?.preview;
+  const slide = live?.kind === 'scripture'
+    ? live
+    : preview?.kind === 'scripture'
+      ? preview
+      : null;
+  if (!slide || !slide.bookId || !slide.chapter) return null;
+  return {
+    bookId: slide.bookId,
+    chapter: slide.chapter,
+    verseStart: slide.verseStart ?? 0,
+    verseEnd: slide.verseEnd ?? 0,
+  };
+}

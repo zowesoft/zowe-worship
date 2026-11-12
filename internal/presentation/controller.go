@@ -33,6 +33,14 @@ type Content struct {
 	Source      string `json:"source,omitempty"`
 	Aspect      string `json:"aspect,omitempty"`
 	Fit         string `json:"fit,omitempty"`
+	// Passage is where a scripture slide points: the book, chapter and verses
+	// it shows. The reference text names them for people; these numbers let
+	// another screen - the Bible workspace - follow the wall without parsing
+	// the text back into a passage.
+	BookID     int `json:"bookId,omitempty"`
+	Chapter    int `json:"chapter,omitempty"`
+	VerseStart int `json:"verseStart,omitempty"`
+	VerseEnd   int `json:"verseEnd,omitempty"`
 	// Background is the picture behind an audio or video clip, straight from
 	// the library; empty means the plain frame.
 	Background string   `json:"background,omitempty"`
@@ -539,6 +547,10 @@ func (c *Controller) scriptureContent(
 		Label:       label,
 		Reference:   reference,
 		Translation: translation.Abbreviation,
+		BookID:      bookID,
+		Chapter:     chapter,
+		VerseStart:  startVerse,
+		VerseEnd:    endVerse,
 		Lines:       lines,
 		Theme:       c.themeFor(ctx, themeID, themes.KindScripture),
 	}, nil

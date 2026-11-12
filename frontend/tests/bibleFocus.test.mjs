@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { focusReference } from '../src/features/bible/focus.ts';
+import { focusReference, wallScripture } from '../src/features/bible/focus.ts';
 import { parseReference } from '../src/features/bible/referenceGuide.ts';
 
 const books = [
@@ -77,4 +77,49 @@ test('a numbered book keeps its number', () => {
 test('the same passage produces the same request every time', () => {
   const passage = { bookId: 43, chapter: 3, verseStart: 16, verseEnd: 16 };
   assert.equal(focusReference(passage, 'John'), focusReference({ ...passage }, 'John'));
+});
+
+// The wall's scripture is the passage the Bible workspace follows. It may have
+// come from anywhere - a spoken detection, a schedule item, a restored slide -
+// so the passage travels with the slide rather than being rebuilt per source.
+test('the live scripture is the passage the workspace follows', () => {
+  const passage = wallScripture({
+    live: { kind: 'scripture', bookId: 43, chapter: 3, verseStart: 16, verseEnd: 16 },
+    preview: null,
+  });
+  assert.deepEqual(passage, { bookId: 43, chapter: 3, verseStart: 16, verseEnd: 16 });
+});
+
+test('a previewed scripture is followed when nothing is live yet', () => {
+  const passage = wallScripture({
+    live: null,
+    preview: { kind: 'scripture', bookId: 62, chapter: 5, verseStart: 7, verseEnd: 7 },
+  });
+  assert.deepEqual(passage, { bookId: 62, chapter: 5, verseStart: 7, verseEnd: 7 });
+});
+
+test('live wins over the preview', () => {
+  const passage = wallScripture({
+    live: { kind: 'scripture', bookId: 43, chapter: 3, verseStart: 16, verseEnd: 16 },
+    preview: { kind: 'scripture', bookId: 19, chapter: 2, verseStart: 1, verseEnd: 1 },
+  });
+  assert.equal(passage.bookId, 43);
+});
+
+// A slide that is not a scripture has no passage to follow, and a wall that is
+// showing nothing at all is nothing to follow.
+test('a slide that is not scripture is not followed', () => {
+  assert.equal(wallScripture({ live: { kind: 'song' }, preview: null }), null);
+  assert.equal(wallScripture({ live: { kind: 'media' }, preview: { kind: 'text' } }), null);
+  assert.equal(wallScripture({ live: null, preview: null }), null);
+  assert.equal(wallScripture(null), null);
+});
+
+// A chapter without verses is followed as the chapter, not as verse zero,
+// which does not exist.
+test('a chapter-only passage follows as the chapter', () => {
+  const passage = wallScripture({
+    live: { kind: 'scripture', bookId: 43, chapter: 3 },
+  });
+  assert.deepEqual(passage, { bookId: 43, chapter: 3, verseStart: 0, verseEnd: 0 });
 });

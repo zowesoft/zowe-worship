@@ -5,7 +5,7 @@ import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
-import { focusReference } from './focus';
+import { focusReference, wallScripture } from './focus';
 import type { BibleFocus } from './focus';
 
 
@@ -810,6 +810,23 @@ export function BibleWorkspace({
     // The nonce is what makes a second request for the same passage run again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus, bridgeAvailable, translationId, books]);
+
+  // The wall's scripture is the passage the operator is most likely looking
+  // at, so the workspace follows it: whatever went to the preview or live - a
+  // spoken detection, a schedule item, a search result, a restored slide - the
+  // Bible panel opens on that passage and renders it.
+  const followed = useMemo(() => wallScripture(studio.presentation), [studio.presentation]);
+
+  useEffect(() => {
+    if (!followed || !bridgeAvailable || translationId === '' || books.length === 0) return;
+    // While the operator is searching, the pane is theirs; the wall is
+    // followed the next time the workspace is opened.
+    if (activeTab !== 'browse') return;
+    const book = books.find((candidate) => candidate.id === followed.bookId);
+    if (!book) return;
+    void jumpToReference(focusReference(followed, book.name), { bookOnly: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followed, activeTab, bridgeAvailable, translationId, books]);
 
   // Searching moves that same reading pane to the book that was searched, and
   // clearing the search puts it back where the operator had been reading.

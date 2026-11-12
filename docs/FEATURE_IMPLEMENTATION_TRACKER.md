@@ -444,6 +444,17 @@ directly instead of waiting for the chapter-load effect that would never run.
 and a numbered book, so the jump is checked against the parser the workspace
 actually uses.
 
+The Bible workspace also **follows the wall**: a scripture slide carries the
+passage it shows (`presentation.Content` gained `bookId`, `chapter`,
+`verseStart` and `verseEnd`), and whatever went to the preview or live - a
+spoken detection, a schedule item, a search result, a restored slide - the
+workspace opens on that passage and renders it through the same reference path
+as a typed one (`features/bible/focus.ts` `wallScripture`). Live wins over
+preview; a slide that is not scripture has no passage to follow; and while the
+operator is searching, the pane is theirs and the wall is followed the next
+time the workspace is opened. One passage travels with the slide, so the
+pipeline is the same wherever the scripture came from.
+
 The pending queue is also keyboard-reachable: tab to the list, `↑`/`↓` (plus
 Home/End) move a highlighted card, and `P`/Enter project it live, `A` approves
 to preview, `D` dismisses — the same backend calls the buttons make, so the
