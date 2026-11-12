@@ -82,6 +82,19 @@ export function formatCombo(combo: string): string {
     .join(' + ');
 }
 
+// Shortcut groups the operator sees, split by scope. The global map above is
+// configurable and fires everywhere on the studio window; this one lives at
+// the queue's keyboard path and is fixed on purpose — there is no reason to
+// rebind "project the highlighted card" per machine, and there is a cost in
+// Settings filling up with keys nobody reassigns.
+export const QUEUE_SHORTCUTS = [
+  { action: 'navigate', keys: '↑ / ↓', label: 'move the highlight' },
+  { action: 'project', keys: 'Enter or P', label: 'project live' },
+  { action: 'approve', keys: 'A or Alt+Enter', label: 'approve to preview' },
+  { action: 'dismiss', keys: 'D or Esc', label: 'dismiss' },
+  { action: 'ends', keys: 'Ctrl+↑ / Ctrl+↓', label: 'highlight first / last' },
+] as const;
+
 // actionForCombo resolves a pressed combo to the one action bound to it.
 export function actionForCombo(
   shortcuts: models.ShortcutsView,

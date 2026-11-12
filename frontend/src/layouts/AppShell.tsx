@@ -12,7 +12,7 @@ import { useTransportPlayer } from '../lib/mediaTransport';
 import { ANALYZE_SECONDS, useDetection } from '../features/detection/DetectionProvider';
 import type { BiblePassage } from '../features/bible/focus';
 import { useShortcuts } from '../stores/ShortcutsProvider';
-import { TEXT_GUARDED, actionForCombo, comboFromEvent } from '../lib/shortcuts';
+import { TEXT_GUARDED, actionForCombo, comboFromEvent, QUEUE_SHORTCUTS } from '../lib/shortcuts';
 import { HistoryPanel } from '../features/presentation/HistoryPanel';
 import { moveWithin, useDragOrder } from '../lib/useDragOrder';
 import { App } from '../../bindings/zowe-worship';
@@ -809,6 +809,19 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
     if (event.target !== event.currentTarget) return;
     const candidate = detection.candidates[activeIndex];
     if (!candidate) return;
+    // Ctrl+Up/Down snaps the highlight to the ends of the queue; Alt+Enter
+    // approves to preview. Handled before the plain arrows and Enter so the
+    // modifier combinations win over the unmodified ones.
+    if (event.ctrlKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault();
+      highlight(event.key === 'ArrowUp' ? 0 : queueLength - 1);
+      return;
+    }
+    if (event.altKey && event.key === 'Enter') {
+      event.preventDefault();
+      void run(() => detection.approve(candidate.id));
+      return;
+    }
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
@@ -839,6 +852,7 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
         return;
       case 'd':
       case 'D':
+      case 'Escape':
         event.preventDefault();
         void run(() => detection.dismiss(candidate.id));
         return;
@@ -1139,7 +1153,7 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
           )}
           {detection.candidates.length > 0 && (
             <p className="text-secondary text-[9px] leading-[1.5]">
-              Click the queue, then ↑↓ select · P or Enter project · A approve · D dismiss
+              Click the queue, then {QUEUE_SHORTCUTS.map((shortcut) => shortcut.keys).join(' · ')}.
             </p>
           )}
         </section>

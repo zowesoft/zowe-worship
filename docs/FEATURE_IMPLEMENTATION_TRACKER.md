@@ -803,10 +803,15 @@ The tracker understated the app, which is why this audit was needed:
    (`App.AudioTakeRange`), transcribed one at a time with a single pending
    slot, and the manual Analyze button remains as a fallback when the toggle is
    off.
-6. **Panel parity + candidate keyboard (S–M).** Project, Search and Preview per
-   candidate, plus Enter / Esc / Alt+Enter / Ctrl+Up-Down in `lib/shortcuts.ts`
-   and the panel. After slice 4, so Project goes through the gates instead of
-   bypassing them.
+6. **Panel parity + candidate keyboard (S–M) — landed 2026-11-12.** The
+   detection panel already carried the per-candidate buttons (Project live,
+   Approve to preview, Search, Dismiss) and the queue's keyboard path
+   (↑/↓/Home/End, P or Enter project, A approve, D dismiss), so this landed
+   the missing keys: **Esc** dismisses the highlighted card, **Alt+Enter**
+   approves to preview, and **Ctrl+Up / Ctrl+Down** snap the highlight to the
+   ends of the queue. `lib/shortcuts.ts` gained `QUEUE_SHORTCUTS` — the keys
+   the panel uses, exported so the hint line shows what the queue actually
+   implements instead of a hand-maintained string.
 7. **Further detection types (M each, sequential).** Contextual → quotation →
    correction → multi-reference. Each type stays disabled until it clears the
    precision target on labeled audio.
