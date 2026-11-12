@@ -14,7 +14,10 @@
   /* The chrome is a control surface, not a document: only the fields the
      operator types into are selectable. */
   input, textarea, [contenteditable="true"] { user-select: text; -webkit-user-select: text; }
-  button { color: inherit; }
+  /* Tailwind is imported without preflight, so a button that never sets its own
+     background keeps the OS button face: a light grey slab sitting on the dark
+     chrome. Flatten the face here; call-site utilities still win over this. */
+  button { color: inherit; background-color: transparent; border: 0; }
   button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
   button:not(:disabled) { cursor: pointer; }
   button:disabled { cursor: not-allowed; }

@@ -976,7 +976,7 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
             <h3 id="transcript-title" className="text-[9.5px] uppercase tracking-[1px] text-secondary">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 uppercase tracking-[1px] hover:text-text [&_svg]:transition-transform [&_svg]:duration-150"
+                className="-ml-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 uppercase tracking-[1px] transition-colors hover:bg-elevated hover:text-text [&_svg]:transition-transform [&_svg]:duration-150"
                 aria-expanded={transcriptOpen}
                 aria-controls="transcript-body"
                 onClick={() => setTranscriptOpen((open) => !open)}
@@ -992,7 +992,7 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
               </span>
             )}
           </div>
-          <div id="transcript-body" className="grid gap-2">
+          <div id="transcript-body" className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {transcriptOpen ? (
               detection.transcript ? (
                 <p ref={transcriptRef} className="p-2.5 border border-border rounded-md bg-app text-text text-[10px] leading-[1.6] max-h-52 overflow-y-auto">{detection.transcript}</p>
@@ -1004,11 +1004,12 @@ function DetectionPanel({ onOpenBible }: { onOpenBible: (passage: BiblePassage) 
             ) : detection.transcript ? (
               <button
                 type="button"
-                className="block w-full truncate px-0.5 text-left text-[10px] text-secondary hover:text-text"
+                className="flex w-full items-center gap-1.5 rounded-md border border-border bg-app px-2 py-1 text-left text-[10px] text-secondary transition-colors hover:border-[#35445C] hover:text-text"
                 title="Show the full transcript"
                 onClick={() => setTranscriptOpen(true)}
               >
-                …{detection.transcript.slice(-110)}
+                <span className="min-w-0 flex-1 truncate">…{detection.transcript.slice(-110)}</span>
+                <Icon name="chevron" size={11} className="shrink-0 opacity-70" />
               </button>
             ) : null}
           </div>

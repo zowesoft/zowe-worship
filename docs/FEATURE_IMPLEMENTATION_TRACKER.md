@@ -359,6 +359,17 @@ fills from the start of the recording rather than restarting at each chunk.
 `app_detection_chunk_test.go` drives a stub engine across three chunks and
 asserts all three references finalize.
 
+The panel's current transcript is collapsible so a long sermon does not push
+the queue off screen: collapsed it shows a one-line tail of what was heard,
+and expanding reveals a height-capped, scrollable box that follows the live
+partial. The transcript grid track is capped (`minmax(0,1fr)`) because the
+nowrap tail would otherwise size the auto track to the whole sentence and
+widen the panel past its column. Undressed buttons no longer show the OS
+button face either: Tailwind is imported without preflight, so `global.css`
+flattens button background and border in the base layer, removing the grey
+slab from the transcript controls and from Settings alike while call-site
+utilities still win.
+
 Auto-projection runs through `internal/policy`, the only code allowed to send a
 detection to the display (`app_detection.go` `autoProject`). The PRD's eight
 safety gates are named checks — finalized segment, unambiguous reference,
