@@ -18,7 +18,7 @@ func TestProjectDetectionSendsTheCandidateLive(t *testing.T) {
 	if view.Live == nil || view.Live.Reference != "John 3:16" {
 		t.Fatalf("live = %+v, want John 3:16 on air", view.Live)
 	}
-	if pending := app.detection.List(); len(pending) != 0 {
+	if pending := app.detection.List(app.currentServiceID(app.context())); len(pending) != 0 {
 		t.Fatalf("queue holds %d cards, want the projected one removed", len(pending))
 	}
 	if decision := autoHistoryDecision(t, app, candidate.ID); decision != "approved" {
@@ -44,7 +44,7 @@ func TestProjectDetectionLeavesTheCardWhenThePassageIsMissing(t *testing.T) {
 	if _, err := app.ProjectDetection(candidate.ID); err == nil {
 		t.Fatal("project detection succeeded for a passage the translation does not hold")
 	}
-	if pending := app.detection.List(); len(pending) != 1 || pending[0].ID != candidate.ID {
+	if pending := app.detection.List(app.currentServiceID(app.context())); len(pending) != 1 || pending[0].ID != candidate.ID {
 		t.Fatalf("queue = %+v, want the card left for a retry", pending)
 	}
 	state, err := app.GetPresentationState()

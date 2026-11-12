@@ -40,6 +40,10 @@ type Candidate struct {
 	// Segment is the 1-based analysis segment that produced the hearing. Cards
 	// live across segments; partials do not.
 	Segment int
+	// ServiceID is the service that was running when the hearing came in. A
+	// card belongs to that service: switching to another one does not show it,
+	// and it cannot be sent live into a service it was not heard in.
+	ServiceID string
 	// Version grows with each refinement of the hearing, live or finalized.
 	Version int
 	// Finalized reports that the segment's final transcript settled this card.
@@ -81,7 +85,7 @@ func scoreDetection(transcript string, detection asr.Detection) (method, explana
 
 // newCandidate fills the fields every detection type shares, so Add and
 // MergeLive cannot drift apart.
-func newCandidate(transcript string, detection asr.Detection, now time.Time) Candidate {
+func newCandidate(transcript string, detection asr.Detection, now time.Time, serviceID string) Candidate {
 	method, explanation, score := scoreDetection(transcript, detection)
 	return Candidate{
 		Transcript:  transcript,
@@ -90,6 +94,7 @@ func newCandidate(transcript string, detection asr.Detection, now time.Time) Can
 		Method:      method,
 		Confidence:  score,
 		Explanation: explanation,
+		ServiceID:   serviceID,
 		CreatedAt:   now,
 	}
 }
@@ -115,8 +120,12 @@ type Queue struct {
 	// now to keep the repeat window deterministic.
 	segment  int
 	segments int
-	now      func() time.Time
-	db       *sql.DB
+	// activeService is the service the queue is currently hearing for. A
+	// change of service closes the open segment, so the partials of the service
+	// before it do not stay looking live.
+	activeService string
+	now           func() time.Time
+	db            *sql.DB
 }
 
 // A nil db drops decisions instead of recording them.
@@ -148,10 +157,13 @@ func (q *Queue) CurrentSegment() int {
 	return q.segment
 }
 
-func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate, error) {
+// Add queues the cards of one hearing. The service is the one that was running
+// when the words were heard, and the card belongs to it.
+func (q *Queue) Add(transcript string, detections []asr.Detection, serviceID string) ([]Candidate, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	q.switchService(serviceID)
 	now := q.clock()
 	segment := q.segment
 	if segment < 1 {
@@ -160,7 +172,7 @@ func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate,
 	}
 	added := make([]Candidate, 0, len(detections))
 	for _, detection := range detections {
-		candidate := newCandidate(transcript, detection, now)
+		candidate := newCandidate(transcript, detection, now, serviceID)
 		candidate.Segment = segment
 		candidate.Version = 1
 		candidate.Finalized = true
@@ -180,10 +192,12 @@ func (q *Queue) Add(transcript string, detections []asr.Detection) ([]Candidate,
 // MergeLive replaces the pending candidate for the same passage in place, so a
 // hearing that grows or narrows as the sentence continues updates the card
 // instead of stacking a second one. Non-overlapping passages stay separate.
-func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Candidate, error) {
+// Only the cards of the running service are refined.
+func (q *Queue) MergeLive(transcript string, detections []asr.Detection, serviceID string) ([]Candidate, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	q.switchService(serviceID)
 	now := q.clock()
 	if q.segment < 1 {
 		q.segments++
@@ -194,8 +208,9 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 	for _, detection := range detections {
 		replaced := -1
 		for i, candidate := range q.pending {
-			// Partials only refine their own segment's unfinished cards.
-			if candidate.Segment != segment || candidate.Finalized {
+			// Partials only refine their own segment's unfinished cards, and
+			// only the ones of the service they were heard in.
+			if candidate.Segment != segment || candidate.Finalized || candidate.ServiceID != serviceID {
 				continue
 			}
 			if candidate.Reference.Book.ID != detection.Reference.Book.ID ||
@@ -219,7 +234,7 @@ func (q *Queue) MergeLive(transcript string, detections []asr.Detection) ([]Cand
 			added = append(added, updated)
 			continue
 		}
-		candidate := newCandidate(transcript, detection, now)
+		candidate := newCandidate(transcript, detection, now, serviceID)
 		candidate.Segment = segment
 		candidate.Version = 1
 		candidate.LastHeardAt = now
@@ -250,11 +265,13 @@ type FinalizeResult struct {
 // settle in place, keeping their IDs, and an identical hearing that arrives
 // while an earlier card is still pending folds into it rather than stacking a
 // duplicate the operator has to dismiss twice. Folding is not an operator
-// decision, so it is not written to detection_history.
-func (q *Queue) Finalize(transcript string, detections []asr.Detection) (FinalizeResult, error) {
+// decision, so it is not written to detection_history. Only the cards of the
+// running service are settled by it.
+func (q *Queue) Finalize(transcript string, detections []asr.Detection, serviceID string) (FinalizeResult, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	q.switchService(serviceID)
 	if q.segment < 1 {
 		q.segments++
 		q.segment = q.segments
@@ -268,7 +285,7 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 		// same ID, so the operator never sees the card move.
 		live := -1
 		for i, candidate := range q.pending {
-			if candidate.Segment != segment || candidate.Finalized {
+			if candidate.Segment != segment || candidate.Finalized || candidate.ServiceID != serviceID {
 				continue
 			}
 			if overlaps(candidate.Reference, detection.Reference) {
@@ -292,14 +309,14 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 			continue
 		}
 
-		if repeated, folded := q.foldRepeat(detection, transcript, now); folded {
+		if repeated, folded := q.foldRepeat(detection, transcript, now, serviceID); folded {
 			if repeated {
 				result.Repeats++
 			}
 			continue
 		}
 
-		candidate := newCandidate(transcript, detection, now)
+		candidate := newCandidate(transcript, detection, now, serviceID)
 		candidate.Segment = segment
 		candidate.Version = 1
 		candidate.Finalized = true
@@ -318,7 +335,7 @@ func (q *Queue) Finalize(transcript string, detections []asr.Detection) (Finaliz
 	// A partial the final transcript dropped was still a real hearing; settle it
 	// rather than leave a card looking live forever.
 	for i := range q.pending {
-		if q.pending[i].Segment == segment && !q.pending[i].Finalized {
+		if q.pending[i].Segment == segment && !q.pending[i].Finalized && q.pending[i].ServiceID == serviceID {
 			q.pending[i].Finalized = true
 			q.pending[i].FinalizedAt = now
 			result.Finalized++
@@ -349,11 +366,13 @@ func (q *Queue) CloseSegment() {
 
 // foldRepeat updates a pending card that heard this passage within the repeat
 // window. It reports whether the reference was identical (a repeat) rather than
-// a refinement of the same hearing.
-func (q *Queue) foldRepeat(detection asr.Detection, transcript string, now time.Time) (repeated, folded bool) {
+// a refinement of the same hearing. Only a card of the same service can be
+// folded into: the same words heard in another service are that service's
+// hearing.
+func (q *Queue) foldRepeat(detection asr.Detection, transcript string, now time.Time, serviceID string) (repeated, folded bool) {
 	for i := range q.pending {
 		candidate := q.pending[i]
-		if !candidate.Finalized || !overlaps(candidate.Reference, detection.Reference) {
+		if !candidate.Finalized || candidate.ServiceID != serviceID || !overlaps(candidate.Reference, detection.Reference) {
 			continue
 		}
 		heard := candidate.FinalizedAt
@@ -397,13 +416,40 @@ func overlaps(a, b scripture.Reference) bool {
 	return a.VerseStart <= bEnd && b.VerseStart <= aEnd
 }
 
-func (q *Queue) List() []Candidate {
+// List returns the pending cards of one service. A card heard in another
+// service is not listed here and cannot be sent live from this one.
+func (q *Queue) List(serviceID string) []Candidate {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	pending := make([]Candidate, len(q.pending))
-	copy(pending, q.pending)
+	pending := make([]Candidate, 0, len(q.pending))
+	for _, candidate := range q.pending {
+		if candidate.ServiceID == serviceID {
+			pending = append(pending, candidate)
+		}
+	}
 	return pending
+}
+
+// switchService settles an open segment when the operator moves to another
+// service, so the partials of the service before it do not stay looking live.
+// The first service to be heard simply becomes the active one.
+// The caller holds the lock.
+func (q *Queue) switchService(serviceID string) {
+	if q.activeService == serviceID {
+		return
+	}
+	if q.activeService != "" && q.segment >= 1 {
+		now := q.clock()
+		for i := range q.pending {
+			if q.pending[i].Segment == q.segment && !q.pending[i].Finalized {
+				q.pending[i].Finalized = true
+				q.pending[i].FinalizedAt = now
+			}
+		}
+		q.segment = 0
+	}
+	q.activeService = serviceID
 }
 
 // Approve records the decision. The caller projects afterwards; approval alone
@@ -422,12 +468,21 @@ func (q *Queue) AutoProject(ctx context.Context, id, serviceID string) (Candidat
 	return q.decide(ctx, id, decisionAutoProjected, serviceID)
 }
 
-// Clear records the dropped candidates as ignored, so history still shows what
-// was heard and let go.
+// Clear records the dropped candidates of one service as ignored, so history
+// still shows what was heard and let go. The cards of another service are
+// left alone: they belong to it.
 func (q *Queue) Clear(ctx context.Context, serviceID string) error {
 	q.mu.Lock()
-	cleared := q.pending
-	q.pending = nil
+	kept := make([]Candidate, 0, len(q.pending))
+	cleared := make([]Candidate, 0, len(q.pending))
+	for _, candidate := range q.pending {
+		if candidate.ServiceID == serviceID {
+			cleared = append(cleared, candidate)
+			continue
+		}
+		kept = append(kept, candidate)
+	}
+	q.pending = kept
 	q.mu.Unlock()
 
 	for _, candidate := range cleared {
@@ -442,7 +497,9 @@ func (q *Queue) decide(ctx context.Context, id, decision, serviceID string) (Can
 	q.mu.Lock()
 	index := -1
 	for i, candidate := range q.pending {
-		if candidate.ID == id {
+		// A card belongs to the service it was heard in: a stale id from
+		// another service must not be decided here.
+		if candidate.ID == id && candidate.ServiceID == serviceID {
 			index = i
 			break
 		}

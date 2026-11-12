@@ -18,7 +18,7 @@ func queueDetection(t *testing.T, app *App, text string) string {
 	if err != nil {
 		t.Fatalf("parse %q: %v", text, err)
 	}
-	added, err := app.detection.Add(text, []asr.Detection{{Reference: reference, Raw: text}})
+	added, err := app.detection.Add(text, []asr.Detection{{Reference: reference, Raw: text}}, app.currentServiceID(app.context()))
 	if err != nil {
 		t.Fatalf("queue %q: %v", text, err)
 	}

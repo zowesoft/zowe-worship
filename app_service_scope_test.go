@@ -59,6 +59,48 @@ func TestHistoryBelongsToTheServiceItHappenedIn(t *testing.T) {
 	}
 }
 
+// The cards the panel shows belong to the service being worked on: hearing
+// something in one service does not put its card in another's list.
+func TestPendingCardsBelongToTheServiceTheyWereHeardIn(t *testing.T) {
+	app := newTestApp(t)
+
+	first, err := app.CreateService("First service")
+	if err != nil {
+		t.Fatalf("create the first service: %v", err)
+	}
+	queueDetection(t, app, "John 3:16")
+
+	cards, err := app.ListDetections()
+	if err != nil {
+		t.Fatalf("list candidates: %v", err)
+	}
+	if len(cards) != 1 {
+		t.Fatalf("the first service lists %d cards, want its own one", len(cards))
+	}
+
+	if _, err := app.CreateService("Second service"); err != nil {
+		t.Fatalf("create the second service: %v", err)
+	}
+	other, err := app.ListDetections()
+	if err != nil {
+		t.Fatalf("list candidates in the second service: %v", err)
+	}
+	if len(other) != 0 {
+		t.Fatalf("the second service lists %d cards of the first one", len(other))
+	}
+
+	if _, err := app.UseService(first.Service.ID); err != nil {
+		t.Fatalf("switch back: %v", err)
+	}
+	back, err := app.ListDetections()
+	if err != nil {
+		t.Fatalf("list candidates after switching back: %v", err)
+	}
+	if len(back) != 1 {
+		t.Fatalf("the first service lists %d cards after switching back, want one", len(back))
+	}
+}
+
 // The decisions the operator took about what they heard belong to the service
 // they were taken in.
 func TestDetectionDecisionsBelongToTheServiceTheyWereTakenIn(t *testing.T) {

@@ -104,7 +104,7 @@ func TestChecklistNamesCompetingCandidates(t *testing.T) {
 	added, err := app.detection.Add("John 3:16 and Romans 8:28", []asr.Detection{
 		{Reference: john, Raw: "John 3:16"},
 		{Reference: romans, Raw: "Romans 8:28"},
-	})
+	}, app.currentServiceID(app.context()))
 	if err != nil {
 		t.Fatalf("queue: %v", err)
 	}

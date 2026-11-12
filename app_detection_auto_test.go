@@ -31,7 +31,7 @@ func autoCandidate(t *testing.T, app *App, transcript, text string) detection.Ca
 	if err != nil {
 		t.Fatalf("parse %q: %v", text, err)
 	}
-	added, err := app.detection.Add(transcript, []asr.Detection{{Reference: reference, Raw: text}})
+	added, err := app.detection.Add(transcript, []asr.Detection{{Reference: reference, Raw: text}}, app.currentServiceID(app.context()))
 	if err != nil {
 		t.Fatalf("queue %q: %v", text, err)
 	}
@@ -67,7 +67,7 @@ func TestAutoProjectionProjectsWhenEveryGatePasses(t *testing.T) {
 	if state.Live == nil || state.Live.Reference != "John 3:16" {
 		t.Fatalf("live = %+v, want John 3:16 on air", state.Live)
 	}
-	if pending := app.detection.List(); len(pending) != 0 {
+	if pending := app.detection.List(app.currentServiceID(app.context())); len(pending) != 0 {
 		t.Fatalf("queue holds %d cards, want the projected one removed", len(pending))
 	}
 	if decision := autoHistoryDecision(t, app, candidate.ID); decision != "auto_projected" {
@@ -135,7 +135,7 @@ func TestAutoProjectionGatesKeepCandidatesQueued(t *testing.T) {
 			if projected := app.autoProject(candidates); len(projected) != 0 {
 				t.Fatalf("projected = %v, want the gate to keep it queued", projected)
 			}
-			if pending := app.detection.List(); len(pending) == 0 {
+			if pending := app.detection.List(app.currentServiceID(app.context())); len(pending) == 0 {
 				t.Fatal("the blocked candidate left the queue; the operator would never see it")
 			}
 			state, err := app.GetPresentationState()
@@ -163,7 +163,7 @@ func TestAutoProjectionRefusesCompetingCandidates(t *testing.T) {
 	added, err := app.detection.Add("John 3:16 and Romans 8:28", []asr.Detection{
 		{Reference: john, Raw: "John 3:16"},
 		{Reference: romans, Raw: "Romans 8:28"},
-	})
+	}, app.currentServiceID(app.context()))
 	if err != nil {
 		t.Fatalf("queue: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestAutoProjectionRefusesCompetingCandidates(t *testing.T) {
 	if projected := app.autoProject(added); len(projected) != 0 {
 		t.Fatalf("projected = %v, want two competing passages left for the operator", projected)
 	}
-	if pending := app.detection.List(); len(pending) != 2 {
+	if pending := app.detection.List(app.currentServiceID(app.context())); len(pending) != 2 {
 		t.Fatalf("queue holds %d cards, want both kept", len(pending))
 	}
 }

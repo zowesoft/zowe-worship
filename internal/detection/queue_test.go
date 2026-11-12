@@ -63,7 +63,7 @@ func TestAddQueuesOneCandidatePerDetection(t *testing.T) {
 	added, err := queue.Add("let us turn to John 3:16 and Romans 8", []asr.Detection{
 		detectionOf(t, "John 3:16"),
 		detectionOf(t, "Romans 8"),
-	})
+	}, "service-1")
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestAddQueuesOneCandidatePerDetection(t *testing.T) {
 		t.Fatalf("transcript = %q", added[0].Transcript)
 	}
 
-	pending := queue.List()
+	pending := queue.List("service-1")
 	if len(pending) != 2 {
 		t.Fatalf("pending = %d candidates, want 2", len(pending))
 	}
@@ -102,7 +102,7 @@ func TestCandidateConfidenceTracksPhrasing(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			added, err := queue.Add(tc.transcript, []asr.Detection{detectionOf(t, tc.reference)})
+			added, err := queue.Add(tc.transcript, []asr.Detection{detectionOf(t, tc.reference)}, "service-1")
 			if err != nil {
 				t.Fatalf("add: %v", err)
 			}
@@ -117,20 +117,20 @@ func TestApproveRemovesCandidateAndRecordsDecision(t *testing.T) {
 	ctx := context.Background()
 	queue := newTestQueue(t)
 
-	added, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")})
+	added, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")}, "service-1")
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
 
-	candidate, err := queue.Approve(ctx, added[0].ID, aService(t, queue, "one"))
+	candidate, err := queue.Approve(ctx, added[0].ID, aService(t, queue, "1"))
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
 	if candidate.Reference.String() != "John 3:16" {
 		t.Fatalf("approved reference = %q", candidate.Reference.String())
 	}
-	if len(queue.List()) != 0 {
-		t.Fatalf("queue still holds %d candidates after approval", len(queue.List()))
+	if len(queue.List("service-1")) != 0 {
+		t.Fatalf("queue still holds %d candidates after approval", len(queue.List("service-1")))
 	}
 
 	assertHistory(t, queue.db, added[0].ID, "John 3:16", decisionApproved)
@@ -140,18 +140,69 @@ func TestDismissRecordsDecision(t *testing.T) {
 	ctx := context.Background()
 	queue := newTestQueue(t)
 
-	added, err := queue.Add("Psalm 23", []asr.Detection{detectionOf(t, "Psalm 23")})
+	added, err := queue.Add("Psalm 23", []asr.Detection{detectionOf(t, "Psalm 23")}, "service-1")
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if _, err := queue.Dismiss(ctx, added[0].ID, aService(t, queue, "one")); err != nil {
+	if _, err := queue.Dismiss(ctx, added[0].ID, aService(t, queue, "1")); err != nil {
 		t.Fatalf("dismiss: %v", err)
 	}
-	if len(queue.List()) != 0 {
+	if len(queue.List("service-1")) != 0 {
 		t.Fatalf("queue still holds the dismissed candidate")
 	}
 
 	assertHistory(t, queue.db, added[0].ID, "Psalms 23", decisionDismissed)
+}
+
+// A card belongs to the service it was heard in: another service's list does
+// not show it, and it cannot be decided from there either.
+func TestPendingCardsAreScopedToTheServiceTheyWereHeardIn(t *testing.T) {
+	ctx := context.Background()
+	queue := newTestQueue(t)
+	serviceA := aService(t, queue, "a")
+	serviceB := aService(t, queue, "b")
+
+	added, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")}, serviceA)
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	if pending := queue.List(serviceB); len(pending) != 0 {
+		t.Fatalf("service-b lists %d cards of service-a", len(pending))
+	}
+	if pending := queue.List(serviceA); len(pending) != 1 {
+		t.Fatalf("service-a lists %d cards, want its own one", len(pending))
+	}
+
+	if _, err := queue.Dismiss(ctx, added[0].ID, serviceB); !errors.Is(err, ErrCandidateNotFound) {
+		t.Fatalf("dismissing another service's card = %v, want ErrCandidateNotFound", err)
+	}
+}
+
+// Clearing the panel drops the running service's cards and leaves the other
+// services' alone.
+func TestClearOnlyDropsTheRunningServicesCards(t *testing.T) {
+	ctx := context.Background()
+	queue := newTestQueue(t)
+	serviceA := aService(t, queue, "a")
+	serviceB := aService(t, queue, "b")
+
+	if _, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")}, serviceA); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if _, err := queue.Add("Psalm 23", []asr.Detection{detectionOf(t, "Psalm 23")}, serviceB); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	if err := queue.Clear(ctx, serviceA); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	if pending := queue.List(serviceA); len(pending) != 0 {
+		t.Fatalf("service-a still lists %d cards after the clear", len(pending))
+	}
+	if pending := queue.List(serviceB); len(pending) != 1 {
+		t.Fatalf("service-b lists %d cards, want its own one untouched", len(pending))
+	}
 }
 
 // A decision belongs to the service it was taken in: what one service heard
@@ -159,20 +210,22 @@ func TestDismissRecordsDecision(t *testing.T) {
 func TestHistoryIsScopedToOneService(t *testing.T) {
 	ctx := context.Background()
 	queue := newTestQueue(t)
+	serviceA := aService(t, queue, "a")
+	serviceB := aService(t, queue, "b")
 
-	first, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")})
+	first, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")}, serviceA)
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if _, err := queue.Approve(ctx, first[0].ID, aService(t, queue, "a")); err != nil {
+	if _, err := queue.Approve(ctx, first[0].ID, serviceA); err != nil {
 		t.Fatalf("approve: %v", err)
 	}
 
-	second, err := queue.Add("Psalm 23", []asr.Detection{detectionOf(t, "Psalm 23")})
+	second, err := queue.Add("Psalm 23", []asr.Detection{detectionOf(t, "Psalm 23")}, serviceB)
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if _, err := queue.Dismiss(ctx, second[0].ID, aService(t, queue, "b")); err != nil {
+	if _, err := queue.Dismiss(ctx, second[0].ID, serviceB); err != nil {
 		t.Fatalf("dismiss: %v", err)
 	}
 
@@ -208,19 +261,19 @@ func TestClearRecordsIgnoredAndEmptiesQueue(t *testing.T) {
 	ctx := context.Background()
 	queue := newTestQueue(t)
 
-	first, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")})
+	first, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")}, "service-1")
 	if err != nil {
 		t.Fatalf("add first: %v", err)
 	}
-	second, err := queue.Add("Romans 8:28", []asr.Detection{detectionOf(t, "Romans 8:28")})
+	second, err := queue.Add("Romans 8:28", []asr.Detection{detectionOf(t, "Romans 8:28")}, "service-1")
 	if err != nil {
 		t.Fatalf("add second: %v", err)
 	}
 
-	if err := queue.Clear(ctx, aService(t, queue, "one")); err != nil {
+	if err := queue.Clear(ctx, aService(t, queue, "1")); err != nil {
 		t.Fatalf("clear: %v", err)
 	}
-	if len(queue.List()) != 0 {
+	if len(queue.List("service-1")) != 0 {
 		t.Fatalf("queue still holds candidates after clear")
 	}
 
@@ -232,10 +285,10 @@ func TestDecideUnknownCandidateFails(t *testing.T) {
 	ctx := context.Background()
 	queue := newTestQueue(t)
 
-	if _, err := queue.Approve(ctx, "missing", aService(t, queue, "one")); !errors.Is(err, ErrCandidateNotFound) {
+	if _, err := queue.Approve(ctx, "missing", aService(t, queue, "1")); !errors.Is(err, ErrCandidateNotFound) {
 		t.Fatalf("err = %v, want ErrCandidateNotFound", err)
 	}
-	if _, err := queue.Dismiss(ctx, "missing", aService(t, queue, "one")); !errors.Is(err, ErrCandidateNotFound) {
+	if _, err := queue.Dismiss(ctx, "missing", aService(t, queue, "1")); !errors.Is(err, ErrCandidateNotFound) {
 		t.Fatalf("err = %v, want ErrCandidateNotFound", err)
 	}
 }
@@ -244,7 +297,7 @@ func TestQueueWithoutDatabaseStillWorks(t *testing.T) {
 	ctx := context.Background()
 	queue := New(nil)
 
-	added, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")})
+	added, err := queue.Add("John 3:16", []asr.Detection{detectionOf(t, "John 3:16")}, "service-1")
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
@@ -282,7 +335,7 @@ func TestMergeLiveRefinesWideHearingIntoNarrow(t *testing.T) {
 		t.Fatalf("lookup Philippians")
 	}
 	chapterWide := asr.Detection{Reference: scripture.Reference{Book: book, Chapter: 4}, Raw: "Philippians 4"}
-	first, err := queue.MergeLive("Philippians chapter 4", []asr.Detection{chapterWide})
+	first, err := queue.MergeLive("Philippians chapter 4", []asr.Detection{chapterWide}, "service-1")
 	if err != nil {
 		t.Fatalf("first merge: %v", err)
 	}
@@ -291,11 +344,11 @@ func TestMergeLiveRefinesWideHearingIntoNarrow(t *testing.T) {
 	}
 
 	narrow := detectionOf(t, "Philippians 4:6-7")
-	second, err := queue.MergeLive("Philippians chapter 4 verses 6 and 7", []asr.Detection{narrow})
+	second, err := queue.MergeLive("Philippians chapter 4 verses 6 and 7", []asr.Detection{narrow}, "service-1")
 	if err != nil {
 		t.Fatalf("second merge: %v", err)
 	}
-	pending := queue.List()
+	pending := queue.List("service-1")
 	if len(pending) != 1 {
 		t.Fatalf("queue holds %d candidates, want 1 replaced card", len(pending))
 	}
@@ -313,17 +366,17 @@ func TestMergeLiveRefinesWideHearingIntoNarrow(t *testing.T) {
 func TestMergeLiveGrowsNarrowHearingIntoWide(t *testing.T) {
 	queue := newTestQueue(t)
 
-	first, err := queue.MergeLive("Philippians 4:6", []asr.Detection{detectionOf(t, "Philippians 4:6")})
+	first, err := queue.MergeLive("Philippians 4:6", []asr.Detection{detectionOf(t, "Philippians 4:6")}, "service-1")
 	if err != nil {
 		t.Fatalf("first merge: %v", err)
 	}
 
 	wide := detectionOf(t, "Philippians 4:6-7")
-	second, err := queue.MergeLive("Philippians 4:6-7", []asr.Detection{wide})
+	second, err := queue.MergeLive("Philippians 4:6-7", []asr.Detection{wide}, "service-1")
 	if err != nil {
 		t.Fatalf("second merge: %v", err)
 	}
-	pending := queue.List()
+	pending := queue.List("service-1")
 	if len(pending) != 1 {
 		t.Fatalf("queue holds %d candidates, want 1 replaced card", len(pending))
 	}
@@ -341,13 +394,13 @@ func TestMergeLiveGrowsNarrowHearingIntoWide(t *testing.T) {
 func TestMergeLiveRehearingSamePassageUpdatesInPlace(t *testing.T) {
 	queue := newTestQueue(t)
 
-	if _, err := queue.MergeLive("Philippians 4:6-7", []asr.Detection{detectionOf(t, "Philippians 4:6-7")}); err != nil {
+	if _, err := queue.MergeLive("Philippians 4:6-7", []asr.Detection{detectionOf(t, "Philippians 4:6-7")}, "service-1"); err != nil {
 		t.Fatalf("first merge: %v", err)
 	}
-	if _, err := queue.MergeLive("Philippians 4:6-7 again", []asr.Detection{detectionOf(t, "Philippians 4:6-7")}); err != nil {
+	if _, err := queue.MergeLive("Philippians 4:6-7 again", []asr.Detection{detectionOf(t, "Philippians 4:6-7")}, "service-1"); err != nil {
 		t.Fatalf("second merge: %v", err)
 	}
-	if pending := queue.List(); len(pending) != 1 {
+	if pending := queue.List("service-1"); len(pending) != 1 {
 		t.Fatalf("queue holds %d candidates, want 1", len(pending))
 	}
 }
@@ -355,13 +408,13 @@ func TestMergeLiveRehearingSamePassageUpdatesInPlace(t *testing.T) {
 func TestMergeLiveKeepsDistinctPassages(t *testing.T) {
 	queue := newTestQueue(t)
 
-	if _, err := queue.MergeLive("Philippians 4:6", []asr.Detection{detectionOf(t, "Philippians 4:6")}); err != nil {
+	if _, err := queue.MergeLive("Philippians 4:6", []asr.Detection{detectionOf(t, "Philippians 4:6")}, "service-1"); err != nil {
 		t.Fatalf("first merge: %v", err)
 	}
-	if _, err := queue.MergeLive("Romans 8:28", []asr.Detection{detectionOf(t, "Romans 8:28")}); err != nil {
+	if _, err := queue.MergeLive("Romans 8:28", []asr.Detection{detectionOf(t, "Romans 8:28")}, "service-1"); err != nil {
 		t.Fatalf("second merge: %v", err)
 	}
-	if pending := queue.List(); len(pending) != 2 {
+	if pending := queue.List("service-1"); len(pending) != 2 {
 		t.Fatalf("queue holds %d candidates, want 2 distinct passages", len(pending))
 	}
 }

@@ -189,7 +189,7 @@ func (a *App) settleSegment(transcript string) (DetectionResult, error) {
 	}
 	return DetectionResult{
 		Transcript:    transcript,
-		Candidates:    a.toDetectionViews(a.detection.List()),
+		Candidates:    a.toDetectionViews(a.detection.List(a.currentServiceID(a.context()))),
 		Segment:       settled.Segment,
 		Repeats:       settled.Repeats,
 		AutoProjected: a.autoProject(settled.Settled),
@@ -204,7 +204,7 @@ func (a *App) streamDetectionProgress(base, partial string) {
 	if a.detection == nil {
 		return
 	}
-	if _, err := a.detection.MergeLive(partial, asr.DetectReferences(partial)); err != nil {
+	if _, err := a.detection.MergeLive(partial, asr.DetectReferences(partial), a.currentServiceID(a.context())); err != nil {
 		return
 	}
 	if desktop := application.Get(); desktop != nil {
@@ -213,7 +213,7 @@ func (a *App) streamDetectionProgress(base, partial string) {
 				Name: detectionProgressEvent,
 				Data: DetectionProgressView{
 					Transcript: strings.TrimSpace(base + " " + partial),
-					Candidates: a.toDetectionViews(a.detection.List()),
+					Candidates: a.toDetectionViews(a.detection.List(a.currentServiceID(a.context()))),
 					Segment:    a.detection.CurrentSegment(),
 				},
 			})
@@ -225,7 +225,7 @@ func (a *App) ListDetections() ([]DetectionView, error) {
 	if a.detection == nil {
 		return nil, errStorageUnavailable
 	}
-	return a.toDetectionViews(a.detection.List()), nil
+	return a.toDetectionViews(a.detection.List(a.currentServiceID(a.context()))), nil
 }
 
 // DetectionHistoryView is one recorded decision. Pending candidates live only in
@@ -310,7 +310,7 @@ func (a *App) ProjectDetection(id string) (PresentationView, error) {
 	id = strings.TrimSpace(id)
 	var candidate detection.Candidate
 	queued := false
-	for _, pending := range a.detection.List() {
+	for _, pending := range a.detection.List(a.currentServiceID(a.context())) {
 		if pending.ID == id {
 			candidate, queued = pending, true
 			break
@@ -345,7 +345,7 @@ func (a *App) DismissDetection(id string) ([]DetectionView, error) {
 	if _, err := a.detection.Dismiss(a.context(), strings.TrimSpace(id), a.currentServiceID(a.context())); err != nil {
 		return nil, err
 	}
-	return a.toDetectionViews(a.detection.List()), nil
+	return a.toDetectionViews(a.detection.List(a.currentServiceID(a.context()))), nil
 }
 
 func (a *App) ClearDetections() ([]DetectionView, error) {

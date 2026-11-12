@@ -210,6 +210,15 @@ Done:
       projection or decision made outside any service belongs to none of them.
       The schedule itself was already scoped (`service_items.service_id`); the
       library, the songs and the settings stay general, as they should.
+- [x] The pending detection cards belong to their service too: a card carries
+      the service that was running when the words were heard (`Candidate
+      .ServiceID`), so the panel shows the running service's cards only, a card
+      heard in another service cannot be decided from this one, and "clear"
+      leaves the other services' cards alone. Switching service mid-segment
+      settles the open segment rather than leaving its partials looking live.
+      The live and preview slides stay session-wide on purpose: what is on the
+      wall is the room's, not a service's, and blanking it because the operator
+      switched the schedule would take the room's picture away.
 - [x] Reopen a past projection from history: a row carrying a schedule item puts
       that item back on the wall live and writes a fresh history row
       (`app.go` `RestoreProjection`, `HistoryPanel.tsx`; commit `2308a8a`).
