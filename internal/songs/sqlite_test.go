@@ -398,4 +398,81 @@ func TestSongArrangementsAndDuplication(t *testing.T) {
 	}
 }
 
+// TestSearchReachesEveryVerseOfFullSongs indexes complete public-domain hymns -
+// every verse, as the library will hold them once someone types or imports a
+// whole song - and finds lines that only appear in the later verses. The
+// fixture-level cases elsewhere use two-line sections; this is the shape of a
+// real library, where the search has to reach the words nobody puts in a
+// soundcheck.
+func TestSearchReachesEveryVerseOfFullSongs(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newTestRepository(t)
 
+	fullHymns := []NewSong{
+		{
+			Title:     "Amazing Grace",
+			Author:    "John Newton",
+			Copyright: "Public domain",
+			Sections: []NewSection{
+				{Label: "Verse 1", Text: "Amazing grace! how sweet the sound,\nThat saved a wretch like me!\nI once was lost, but now am found,\nWas blind, but now I see."},
+				{Label: "Verse 2", Text: "'Twas grace that taught my heart to fear,\nAnd grace my fears relieved;\nHow precious did that grace appear\nThe hour I first believed!"},
+				{Label: "Verse 3", Text: "Through many dangers, toils and snares,\nI have already come;\n'Tis grace hath brought me safe thus far,\nAnd grace will lead me home."},
+				{Label: "Verse 4", Text: "When we've been there ten thousand years,\nBright shining as the sun,\nWe've no less days to sing God's praise\nThan when we'd first begun."},
+			},
+		},
+		{
+			Title:     "Holy, Holy, Holy",
+			Author:    "Reginald Heber",
+			Copyright: "Public domain",
+			Sections: []NewSection{
+				{Label: "Verse 1", Text: "Holy, holy, holy! Lord God Almighty!\nEarly in the morning our song shall rise to Thee.\nHoly, holy, holy! merciful and mighty!\nGod in three Persons, blessed Trinity!"},
+				{Label: "Verse 2", Text: "Holy, holy, holy! all the saints adore Thee,\nCasting down their golden crowns around the glassy sea;\nCherubim and seraphim falling down before Thee,\nWhich wert, and art, and evermore shalt be."},
+				{Label: "Verse 3", Text: "Holy, holy, holy! though the darkness hide Thee,\nThough the eye of sinful man Thy glory may not see,\nOnly Thou art holy; there is none beside Thee,\nPerfect in power, in love, and purity."},
+				{Label: "Verse 4", Text: "Holy, holy, holy! Lord God Almighty!\nAll Thy works shall praise Thy name, in earth, and sky, and sea;\nHoly, holy, holy! merciful and mighty!\nGod in three Persons, blessed Trinity!"},
+			},
+		},
+	}
+	for _, hymn := range fullHymns {
+		if _, err := repo.Create(ctx, hymn); err != nil {
+			t.Fatalf("create %s: %v", hymn.Title, err)
+		}
+	}
+
+	cases := []struct {
+		name      string
+		query     string
+		wantSong  string
+		wantLabel string
+	}{
+		{"a line only in the fourth verse", "ten thousand years bright shining", "Amazing Grace", "Verse 4"},
+		{"a line only in the third verse", "dangers toils snares already come", "Amazing Grace", "Verse 3"},
+		{"crown imagery in verse two", "golden crowns glassy sea", "Holy, Holy, Holy", "Verse 2"},
+		{"darkness imagery in verse three", "darkness hide sinful glory", "Holy, Holy, Holy", "Verse 3"},
+		{"the repeated hymn stays the top hit", "holy morning song rise", "Holy, Holy, Holy", "Verse 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			hits, err := repo.Search(ctx, tc.query, 10)
+			if err != nil {
+				t.Fatalf("search %q: %v", tc.query, err)
+			}
+			if len(hits) == 0 {
+				t.Fatalf("search %q found nothing", tc.query)
+			}
+			if hits[0].Song.Title != tc.wantSong || hits[0].Section.Label != tc.wantLabel {
+				t.Fatalf("search %q top hit = %q · %q, want %q · %q",
+					tc.query, hits[0].Song.Title, hits[0].Section.Label, tc.wantSong, tc.wantLabel)
+			}
+		})
+	}
+
+	// The hit carries the verse text itself, so the preview slide can be built
+	// without a second read.
+	hits, err := repo.Search(ctx, "lead me home", 10)
+	if err != nil || len(hits) == 0 {
+		t.Fatalf("search for a closing line: %v, %d hits", err, len(hits))
+	}
+	if !strings.Contains(hits[0].Section.Text, "And grace will lead me home") {
+		t.Fatalf("hit text = %q, want the matching verse", hits[0].Section.Text)
+	}
+}

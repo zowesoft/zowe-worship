@@ -2,8 +2,10 @@ package themes
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"zowe-worship/internal/database"
@@ -361,5 +363,137 @@ func TestUpdateKeepsIdentityAndDeleteRemoves(t *testing.T) {
 	}
 	if _, err := repo.Default(ctx, KindLyrics); !errors.Is(err, ErrThemeNotFound) {
 		t.Fatalf("default after deleting the only one = %v", err)
+	}
+}
+
+// TestMaliciousThemePayloadsAreRefusedOrRepaired pins the claim that themes are
+// data, not code: every field the renderer reads is checked against a closed
+// set of values, and a row that somehow carries something else is repaired to
+// a readable default rather than drawn.
+func TestMaliciousThemePayloadsAreRefusedOrRepaired(t *testing.T) {
+	repo, ctx := newTestRepository(t)
+
+	refused := []struct {
+		name   string
+		mutate func(*Theme)
+	}{
+		{"css injection in the body font", func(theme *Theme) {
+			theme.Style.FontFamily = `Georgia; } body { background: url(http://evil.example) }`
+		}},
+		{"css injection in the text colour", func(theme *Theme) {
+			theme.Style.Color = "red; background-image: url('javascript:alert(1)')"
+		}},
+		{"script scheme in the reference colour", func(theme *Theme) {
+			theme.Reference.Color = "javascript:alert(1)"
+		}},
+		{"markup in the slide kind", func(theme *Theme) {
+			theme.Kind = Kind("<script>alert(1)</script>")
+		}},
+		{"unknown background kind", func(theme *Theme) {
+			theme.Background.Kind = "url(javascript:alert(1))"
+		}},
+		{"alignment outside the set", func(theme *Theme) {
+			theme.Style.Align = "left; behavior:url(evil.htc)"
+		}},
+	}
+	for _, tc := range refused {
+		t.Run("refused: "+tc.name, func(t *testing.T) {
+			theme := DefaultTheme(KindScripture)
+			tc.mutate(&theme)
+			if _, err := repo.Create(ctx, theme); !errors.Is(err, ErrInvalidTheme) {
+				t.Fatalf("create err = %v, want ErrInvalidTheme", err)
+			}
+		})
+	}
+
+	// An update is held to the same rule: a valid theme cannot be turned into
+	// a hostile one afterwards.
+	valid, err := repo.Create(ctx, DefaultTheme(KindScripture))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	smuggled := valid
+	smuggled.Style.FontFamily = `"Georgia"; xss: expression(alert(1))`
+	if _, err := repo.Update(ctx, smuggled); !errors.Is(err, ErrInvalidTheme) {
+		t.Fatalf("update err = %v, want ErrInvalidTheme", err)
+	}
+
+	// A row from an older or corrupt build is repaired to readable defaults:
+	// unknown values fall back, out-of-range numbers clamp, and nothing
+	// unvalidated reaches the renderer.
+	corrupt := Theme{
+		Name: "  Broken row  ",
+		Kind: Kind("img onerror=alert(1)"),
+		Style: Style{
+			FontFamily: `"><script>alert(1)</script>`,
+			FontSize:   9000,
+			LineHeight: 99,
+			Align:      "justify",
+			Color:      "url(javascript:alert(1))",
+			Margin:     500,
+		},
+		Reference: Reference{Placement: "left", Color: "javascript:alert(1)", FontSize: -4},
+		Background: Background{
+			Kind:  "javascript",
+			Color: "red; xss",
+			Angle: 400,
+		},
+	}
+	healed := corrupt.Normalised()
+	if healed.Kind != KindScripture {
+		t.Fatalf("kind = %q, want the default kind", healed.Kind)
+	}
+	if !knownFont(healed.Style.FontFamily) {
+		t.Fatalf("font = %q, want a known family", healed.Style.FontFamily)
+	}
+	if healed.Style.Align != "center" {
+		t.Fatalf("align = %q, want center", healed.Style.Align)
+	}
+	if !hexColor.MatchString(healed.Style.Color) || !hexColor.MatchString(healed.Background.Color) {
+		t.Fatalf("colours = %q / %q, want hex values", healed.Style.Color, healed.Background.Color)
+	}
+	if healed.Style.FontSize > maxFontSize || healed.Style.LineHeight > maxLineHeight || healed.Style.Margin > maxMargin {
+		t.Fatalf("numbers not clamped: %+v", healed.Style)
+	}
+	if healed.Reference.Placement != ReferenceBottom || healed.Reference.Color != "" || healed.Reference.FontSize != 0 {
+		t.Fatalf("reference not repaired: %+v", healed.Reference)
+	}
+	if healed.Background.Kind != BackgroundSolid || healed.Background.Angle != 40 {
+		t.Fatalf("background not repaired: %+v", healed.Background)
+	}
+	if err := healed.Validate(); err != nil {
+		t.Fatalf("repaired theme still invalid: %v", err)
+	}
+
+	// Fields the model does not declare are dropped by decoding: a payload
+	// can carry script-shaped keys only as far as the struct, and a round
+	// trip through storage proves nothing of them survives.
+	var decoded Theme
+	payload := `{
+		"name": "Imported Reading",
+		"kind": "scripture",
+		"onclick": "alert(1)",
+		"style": {"fontFamily": "Georgia, 'Times New Roman', serif", "fontSize": 4.6,
+		          "lineHeight": 1.45, "align": "center", "color": "#F3F6FC",
+		          "case": "none", "margin": 9,
+		          "onmouseover": "alert(1)", "background": "url(javascript:alert(1))"},
+		"reference": {"placement": "bottom", "case": "none"},
+		"background": {"kind": "solid", "color": "#081A2E", "angle": 180}
+	}`
+	if err := json.Unmarshal([]byte(payload), &decoded); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	stored, err := repo.Create(ctx, decoded)
+	if err != nil {
+		t.Fatalf("create decoded: %v", err)
+	}
+	raw, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatalf("marshal stored: %v", err)
+	}
+	for _, key := range []string{"onclick", "onmouseover", "javascript:"} {
+		if strings.Contains(string(raw), key) {
+			t.Fatalf("stored theme smuggled %q through: %s", key, raw)
+		}
 	}
 }

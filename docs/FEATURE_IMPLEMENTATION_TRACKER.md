@@ -204,6 +204,14 @@ Done:
 - [x] Reopen a past projection from history: a row carrying a schedule item puts
       that item back on the wall live and writes a fresh history row
       (`app.go` `RestoreProjection`, `HistoryPanel.tsx`; commit `2308a8a`).
+- [x] Acceptance evidence for navigation-not-interrupting-live and display
+      error preserving the last live slide (`app_acceptance_test.go`
+      `TestNavigatingAndEditingLeaveTheWallOnItsSlide` browses the schedule,
+      previews other content, edits the projected song and runs rejected
+      commands while a slide is live, asserting the wall stays identical
+      until an explicit send-live;
+      `TestDisplayFailuresKeepTheWallUp` fails the display commands, closes
+      the display and keeps projecting with the wall intact).
 
 Open:
 - [ ] Mixed-DPI, disconnect/reconnect recovery tests against live windows:
@@ -212,8 +220,6 @@ Open:
       `display_test.go`, but running a real window through an actual
       monitor mix is not.
 - [ ] Additional audience outputs (intentionally deferred past single-output).
-- [ ] Acceptance evidence for navigation-not-interrupting-live, display error
-      preserving last live slide, etc.
 
 ## F04 — Songs and lyric presentation (Partial)
 
@@ -226,12 +232,19 @@ Done:
       arrangements to a service order (`app.go` `AddSongSectionToService`,
       `AddSongArrangementToService`, `PreviewSongSection`, `ProjectSongSection`).
 - [x] Songs workspace + editor window (`frontend/src/features/songs/`).
+- [x] Acceptance evidence: previewing other sections, advancing and editing
+      the projected song during live output
+      (`app_acceptance_test.go` `TestNavigatingAndEditingLeaveTheWallOnItsSlide`:
+      the preview picks the edited lyrics up, the wall keeps the words it
+      was shown; `controller_test.go` `TestPreviewThenSendLiveKeepsLiveFrozen`
+      covers advancing a verse while live stays frozen).
+- [x] Song FTS exercised against complete real lyrics
+      (`TestSearchReachesEveryVerseOfFullSongs`: two full public-domain hymns
+      of four verses each; queries land in later verses and carry the
+      matching verse text back).
 
 Open:
-- [ ] Acceptance evidence: preview lyric slides and advance the intended section
-      without changing live output during editing.
-- [ ] Confirm song FTS is exercised by tests against real lyrics (currently
-      fixture-level).
+- [ ] (none - the two acceptance rows above closed the F04 open list).
 
 ## F05 — Media library and playback (Partial)
 
@@ -252,11 +265,16 @@ Done:
 - [x] Background pictures for audio/video clips, picked in the media editor
       (`internal/media/slides.go` `SetBackground`, `MediaEditorWindow.tsx`).
 - [x] Relink a missing asset (`App.RelinkMedia`).
+- [x] Acceptance evidence: missing file, unsupported codec, relink, failure
+      without blanking a valid live slide
+      (`app_acceptance_test.go` `TestMediaFailuresAreToldAndTheWallSurvives`:
+      an unsupported container is a reported problem, a library copy removed
+      from disk refuses to preview or project with `ErrFileGone` while the
+      wall keeps its passage, and relink restores the slide;
+      `app_media_test.go` keeps covering deletion under a live slide).
 
 Open:
 - [ ] Explicit declared-format/codec list surfaced to the user.
-- [ ] Acceptance evidence: missing file, unsupported codec, relink, failure without
-      blanking a valid live slide.
 
 ## F06 — Custom theme editor (Done)
 
@@ -278,11 +296,22 @@ Done:
       event (`app_themes.go` `themeChange`, `display.go` `publishToDisplay`,
       `StudioProvider.tsx` `Events.On('presentation')`).
 - [x] Overflow handled via `container-type: size` + `cqh`/`cqw` units.
+- [x] Malicious theme payload refusal is now explicit
+      (`internal/themes/themes_test.go`
+      `TestMaliciousThemePayloadsAreRefusedOrRepaired`: hostile fonts,
+      colours, kinds, alignments and background kinds refused on create and
+      update with `ErrInvalidTheme`, a corrupt row repaired to readable
+      defaults by `Normalised()`, and script-shaped JSON keys dropped in the
+      round trip through storage).
+- [x] Theme overflow captured across output aspect ratios
+      (`docs/evidence/theme-overflow.png`: 16:9, 4:3, 21:9 and 9:16 stages
+      drawn by the `frontend/evidence-overflow.html` harness through the
+      real `ThemedSlide`, every verdict measured fitting with the type
+      shrunk to 65%/45% and nothing clipped; regenerate with `npm run dev`
+      and screenshot the page).
 
 Open:
-- [ ] Arbitrary-script rejection is by construction (themes are data, no code
-      fields) — no explicit test asserting a malicious theme payload is refused.
-- [ ] Acceptance evidence: theme overflow across output aspect ratios captured.
+- [ ] (none - the two rows above closed the F06 open list).
 
 ## F07 — Offline AI scripture detection (Partial)
 
@@ -720,8 +749,17 @@ Different files from detection, so these run alongside it:
       visible.
 - [ ] `internal/audio` decision (S–M): build the Go capture service, or record
       the webview capture as the accepted adapter and emit `audio.input.*`.
-- [ ] Bible reference/full-text p95 benchmarks, plus the acceptance sweep
+- [x] Bible reference/full-text p95 benchmarks, plus the acceptance sweep
       (navigation not interrupting live, media failure preserving the slide).
+      Re-run 2026-11-12 with `go run ./cmd/bible-bench -runs 40`, both
+      installed translations pass every workload (targets: reference p95
+      < 50 ms, search p95 < 150 ms; the tool exits non-zero on a miss):
+      KJV references p95 7.0-8.6 ms, searches p95 13.8-40.2 ms; NIV
+      references p95 7.1-9.6 ms, searches p95 12.0-26.7 ms. The sweep is
+      `app_acceptance_test.go` (`TestNavigatingAndEditingLeaveTheWallOnItsSlide`,
+      `TestMediaFailuresAreToldAndTheWallSurvives`,
+      `TestDisplayFailuresKeepTheWallUp`) plus the song-FTS and theme-payload
+      tests recorded under F04/F06.
 - [ ] Packaging: macOS/Linux bundles and migration rollback (M–L), owner call.
 
 ### Phase 3 — P1 content
