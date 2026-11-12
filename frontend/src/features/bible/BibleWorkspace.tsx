@@ -5,7 +5,7 @@ import { useStudio } from '../../stores/StudioProvider';
 import { App } from '../../../bindings/zowe-worship';
 import * as models from '../../../bindings/zowe-worship/models';
 import { bookPortion, inlineBookCompletion, resolveBook, pendingChapter, parseReference, acceptsBrowseInput } from './referenceGuide';
-import { focusReference, wallScripture } from './focus';
+import { focusReference, wallScripture, wallReference } from './focus';
 import type { BibleFocus } from './focus';
 
 
@@ -816,6 +816,7 @@ export function BibleWorkspace({
   // spoken detection, a schedule item, a search result, a restored slide - the
   // Bible panel opens on that passage and renders it.
   const followed = useMemo(() => wallScripture(studio.presentation), [studio.presentation]);
+  const wall = useMemo(() => wallReference(studio.presentation), [studio.presentation]);
 
   useEffect(() => {
     if (!followed || !bridgeAvailable || translationId === '' || books.length === 0) return;
@@ -1155,7 +1156,9 @@ export function BibleWorkspace({
                 aria-label="Search the Bible"
                 placeholder={
                   activeTab === 'browse'
-                    ? 'Jump to a reference, e.g. John 3:16'
+                    ? wall
+                      ? `${wall.live ? 'Live' : 'Preview'}: ${wall.label} — type to jump elsewhere`
+                      : 'Jump to a reference, e.g. John 3:16'
                     : 'Search references or words, e.g. John 3:16 or living water'
                 }
                 autoComplete="off"

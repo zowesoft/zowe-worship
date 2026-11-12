@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { focusReference, wallScripture } from '../src/features/bible/focus.ts';
+import { focusReference, wallScripture, wallReference } from '../src/features/bible/focus.ts';
 import { parseReference } from '../src/features/bible/referenceGuide.ts';
 
 const books = [
@@ -113,6 +113,31 @@ test('a slide that is not scripture is not followed', () => {
   assert.equal(wallScripture({ live: { kind: 'media' }, preview: { kind: 'text' } }), null);
   assert.equal(wallScripture({ live: null, preview: null }), null);
   assert.equal(wallScripture(null), null);
+});
+
+// The browse jump field names the passage on the wall instead of the static
+// hint, so what is showing is visible right where the operator jumps from.
+test('the jump field can name the passage on the wall', () => {
+  const wall = wallReference({
+    live: null,
+    preview: { kind: 'scripture', reference: 'Mark 4:35', label: 'Mark 4:35 (KJV)' },
+  });
+  assert.deepEqual(wall, { reference: 'Mark 4:35', label: 'Mark 4:35 (KJV)', live: false });
+});
+
+test('a live passage is reported as live', () => {
+  const wall = wallReference({
+    live: { kind: 'scripture', reference: 'John 3:16', label: 'John 3:16 (KJV)' },
+    preview: { kind: 'scripture', reference: 'Mark 4:35', label: 'Mark 4:35 (KJV)' },
+  });
+  assert.equal(wall.live, true);
+  assert.equal(wall.label, 'John 3:16 (KJV)');
+});
+
+test('a wall showing nothing names no passage', () => {
+  assert.equal(wallReference({ live: null, preview: null }), null);
+  assert.equal(wallReference({ live: { kind: 'song' }, preview: null }), null);
+  assert.equal(wallReference(null), null);
 });
 
 // A chapter without verses is followed as the chapter, not as verse zero,

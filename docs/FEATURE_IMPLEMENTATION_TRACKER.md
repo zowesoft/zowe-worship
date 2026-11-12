@@ -458,8 +458,11 @@ workspace opens on that passage and renders it through the same reference path
 as a typed one (`features/bible/focus.ts` `wallScripture`). Live wins over
 preview; a slide that is not scripture has no passage to follow; and while the
 operator is searching, the pane is theirs and the wall is followed the next
-time the workspace is opened. One passage travels with the slide, so the
-pipeline is the same wherever the scripture came from.
+time the workspace is opened. The browse jump field names the passage on the
+wall instead of the static hint ("Preview: Mark 4:35 (KJV)"), so what is
+showing is visible right where the operator jumps from (`wallReference`). One
+passage travels with the slide, so the pipeline is the same wherever the
+scripture came from.
 
 The pending queue is also keyboard-reachable: tab to the list, `↑`/`↓` (plus
 Home/End) move a highlighted card, and `P`/Enter project it live, `A` approves

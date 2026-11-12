@@ -28,11 +28,30 @@ export function focusReference(passage: BiblePassage, bookName: string): string 
 // A slide on the wall, in the shape the workspace needs to follow it.
 export type WallSlide = {
   kind: string;
+  reference?: string;
+  label?: string;
   bookId?: number;
   chapter?: number;
   verseStart?: number;
   verseEnd?: number;
 };
+
+// wallReference is the label of the passage on the wall, if any. Live wins
+// over preview, exactly as the workspace follows it.
+export function wallReference(
+  state: { live?: WallSlide | null; preview?: WallSlide | null } | null | undefined,
+): { reference: string; label: string; live: boolean } | null {
+  const live = state?.live;
+  const preview = state?.preview;
+  const slide = live?.kind === 'scripture'
+    ? live
+    : preview?.kind === 'scripture'
+      ? preview
+      : null;
+  if (!slide) return null;
+  const reference = slide.reference ?? '';
+  return { reference, label: slide.label ?? reference, live: slide === live };
+}
 
 // wallScripture is the passage the room is being shown, so the Bible workspace
 // can follow it. Live wins over preview: what is on the wall is what the
