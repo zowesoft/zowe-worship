@@ -1,0 +1,58 @@
+ZOE WORSHIP LICENSE
+Version 1.0
+
+Copyright (c) 2026 Zowesoft. All rights reserved, except as expressly granted in this licence.
+
+1. What is granted
+
+Zowesoft grants you a non-exclusive, non-transferable, royalty-free licence to:
+
+  a. download, install and run Zowe Worship on computers you own or control;
+  b. use the application, internally, for worship, presentation, media and related
+     production purposes, commercial or not;
+  c. view, read and study the source code;
+  d. modify the source code for your own internal use, provided all copies of the
+     modified software retain this licence text and copyright notice.
+
+2. What is not granted
+
+You may not, without the prior written permission of Zowesoft:
+
+  a. redistribute, re-host, publish or sell the application or any modified version of it,
+     in whole or in part, whether or not for a fee;
+  b. reverse engineer, decompile or disassemble the application, the bundled speech
+     engine or the bundled models, except to the extent this restriction is prohibited
+     by applicable law;
+  c. remove or alter this licence, the copyright notice or any attribution to Zowesoft;
+  d. use the name "Zowe Worship", the Zowe logo or the Zowesoft mark to promote any
+     product or service other than the unmodified application.
+
+3. Source availability
+
+The source code of the application is published under this licence so that users can
+audit it. Access to the source does not grant any right beyond section 1.
+
+4. Warranty and liability
+
+The application is provided "as is", without warranty of any kind, express or implied,
+including but not limited to the implied warranties of merchantability, fitness for a
+particular purpose and non-infringement. In no event shall Zowesoft be liable for any
+claim, damages or other liability, whether in an action of contract, tort or otherwise,
+arising from, out of or in connection with the application or its use.
+
+5. Termination
+
+This licence terminates automatically on any breach of it. Upon termination you must
+destroy all copies of the application and of any modified version.
+
+6. Governing law
+
+This licence is governed by the laws of your local jurisdiction, without regard to
+conflict-of-law principles. The United Nations Convention on Contracts for the
+International Sale of Goods does not apply.
+
+---
+
+NOTE: This licence is a starting point drafted for Zowesoft's use. It has not been
+reviewed by a qualified lawyer. Have counsel look at it before selling or enforcing
+against anyone.

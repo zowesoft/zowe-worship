@@ -85,6 +85,18 @@ Done:
       View carries F11 fullscreen; WindowMenu and HelpMenu match platform
       conventions (About lands in the Help menu on Windows/Linux, the
       application menu on macOS).
+- [x] Startup splash: inline brand screen in the embedded bundle paints the
+      ZOWESOFT mark, wordmark and tagline before any React code runs, and the
+      studio drops it once the first data lands (`frontend/index.html`,
+      `StudioProvider.tsx`).
+- [x] Brand artwork wired in: appicon.png regenerated from the rounded-square
+      Zowe Worship icon, ico/icns rebuilt with `wails3 generate icons`, and the
+      Windows installer carries a branded 164x314 welcome/finish panel, a
+      150x57 interior header, the Zowe licence as a license page and the brand
+      icon; the macOS DMG carries a branded background from the same artwork
+      (`project.nsi`, `build/windows/nsis/resources/`,
+      `build/darwin/dmg-background.png`). The licence itself is a source-
+      available draft - it is not OSI open source and not yet legally vetted.
 - [x] The home page is isolated from the working surfaces of a service: the
       schedule rail and the live/preview, detection, history and production
       panels are the surfaces of a service being run, and the home page - the

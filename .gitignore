@@ -11,6 +11,9 @@
 !/build/darwin/Info.plist
 !/build/darwin/Info.dev.plist
 !/build/darwin/icons.icns
+!/build/darwin/dmg-background.png
+!/build/darwin/dmg-file-icon.png
+!/build/darwin/dmg-file-icon.icns
 /benchmarks/models/
 /benchmarks/tools/
 /benchmarks/dumps/

@@ -151,6 +151,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => {
         if (active) setReady(true);
+        // The splash holds the wall until the first data lands, then gets out
+        // of the way on the clean paint.
+        document.getElementById('splash')?.remove();
       });
 
     return () => {
