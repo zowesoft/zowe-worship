@@ -137,6 +137,12 @@ Open:
       the packages on real macOS/Linux machines.
 - [ ] Package signing (Windows Authenticode, macOS Developer ID + notarization)
       — the workflow ships unsigned packages until certificates exist.
+      Deliberately deferred until development is complete; v0.1.1 and all
+      packages until then are unsigned by decision, not by omission. The
+      concrete path is: Azure Artifact Signing (or OV/HSM) for Windows, an
+      Apple Developer membership for Developer ID, both wired into
+      release.yml with the credentials as secrets, signed and notarized
+      after the connections are verified.
 - [x] Bundling the offline speech engine into the Linux/macOS packages: the
       darwin `.app` carries `Contents/MacOS/engines`, deb/rpm install it to
       `/usr/local/lib/zopresent/engines` with a lookup fallback in
