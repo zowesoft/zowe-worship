@@ -396,7 +396,11 @@ stopping audio capture, a successful automatic projection is recorded as
 room instead of the card silently vanishing. A card the gates hold back carries
 the checklist itself — the gate that refused it and every gate's pass/fail — in
 a collapsible block on the card, shown while auto-projection is armed so the
-operator can see what to change instead of guessing.
+operator can see what to change instead of guessing. The card's one-line reason
+names the cause in the operator's words ("2 references were heard in the same
+stretch of speech, so choose which one to send", "auto-projection is paused with
+F9"), not the requirement the gate states, which read backwards as a reason
+(`internal/policy`, `Gate.Cause`).
 
 A card also carries **Project live**: `App.ProjectDetection` sends that passage
 to the room from the detection panel, so serving a reference no longer means
